@@ -181,11 +181,11 @@ Proposals until each design note is agreed; source tables marked TBC are found i
 | 4 | Gold | dim_concession_type (new) | From silv_ref_concession_type. |
 | 5 | Gold | dim_employer (new) | From ref_employer_group. |
 | 1-5 | Gold | fact_membership_events | New keys and additive amount measures, copied from silver. |
-| 1, 2, 4, 5 | Gold | fact_daily_member_count_detail, fact_annual_rate_base | Only if agreed (question F). Changes the grain; needs a deliberate rebuild. |
+| 1, 2, 4, 5 | Gold | fact_daily_member_count_detail, fact_annual_rate_base | Only if agreed (question 7; the page said F, corrected by Mike 2026-10-19). Changes the grain; needs a deliberate rebuild. |
 
 ## Open questions
 
-From the requirements page, for RICS to answer once discovery has evidence. Two of them (named B and F on the page) change how much gets built.
+From the requirements page, for RICS to answer once discovery has evidence. Two of them change how much gets built: 2 (the corporate test) and 6 (carrying the payment method forward), named B and F on the page (Mike, 2026-10-19).
 
 1. Which field is the system of record for payment method, and since which Campaign Year is it reliable? RICS Data · Story 1
 2. Is the corporate scheme code, the Corporate payment method or the sub ID the right test for a corporate-funded member? Finance · Story 2
