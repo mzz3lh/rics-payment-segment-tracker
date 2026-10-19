@@ -185,7 +185,7 @@ Proposals until each design note is agreed; source tables marked TBC are found i
 
 ## Open questions
 
-From the requirements page, for RICS to answer once discovery has evidence. Two of them (named B and F on the page) change how much gets built.
+From the requirements page, for RICS to answer once discovery has evidence. Two of them change how much gets built: 2 (the corporate test) and 6 (carrying the payment method forward), named B and F on the page (Mike, 2026-10-19).
 
 1. Which field is the system of record for payment method, and since which Campaign Year is it reliable? RICS Data · Story 1
 2. Is the corporate scheme code, the Corporate payment method or the sub ID the right test for a corporate-funded member? Finance · Story 2
