@@ -1,0 +1,15 @@
+# dbt project for RICS Payment Segment Tracker. Used only when project.dbt is true in config/project.yaml.
+# Models build into the layer schemas MIG-0000 created; dbt never creates a schema (base standards 3.1).
+# Deployment and rollback: base standards section 4.
+name: rpst
+version: "1.0"
+config-version: 2
+profile: rpst
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: target
+clean-targets: ["target", "dbt_packages"]
+models:
+  rpst:
+    +materialized: view

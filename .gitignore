@@ -1,0 +1,12 @@
+.env
+logs/
+__pycache__/
+.pytest_cache/
+*.bak
+*.bacpac
+
+# dbt build output
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+logs/

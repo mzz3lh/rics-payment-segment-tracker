@@ -1,0 +1,20 @@
+# Connection for dbt, read from the same environment variables as every other agent tool:
+# AGENT_SQL_SERVER, AGENT_SQL_USER, AGENT_SQL_PASSWORD, and DBT_DATABASE (set by the framework's dbt runner
+# to the dev, test or CI database). No secrets in this file. Run dbt with --profiles-dir dbt.
+# DBT_BACKEND: pyodbc (needs ODBC Driver 18 for SQL Server) or mssql-python (no ODBC driver needed).
+rpst:
+  target: agent
+  outputs:
+    agent:
+      type: sqlserver
+      backend: "{{ env_var('DBT_BACKEND', 'pyodbc') }}"
+      driver: "ODBC Driver 18 for SQL Server"
+      server: "{{ env_var('AGENT_SQL_SERVER') }}"
+      port: 1433
+      database: "{{ env_var('DBT_DATABASE') }}"
+      schema: core
+      user: "{{ env_var('AGENT_SQL_USER') }}"
+      password: "{{ env_var('AGENT_SQL_PASSWORD') }}"
+      encrypt: true
+      trust_cert: "{{ (env_var('DBT_TRUST_CERT', 'false') | lower == 'true') | as_bool }}"
+      threads: 1
