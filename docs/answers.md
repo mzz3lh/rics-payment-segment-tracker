@@ -15,3 +15,7 @@ the agent's working assumption. Example:
 - Employer segment (REQ-013): deliver it as findings only, as the review's section 5 recommends.
 - Section 4 assumptions: keep them as open questions for Damian and Mike. REQ-001 acceptance stays synthetic-only, with no pass threshold for real data in this release.
 - Keep the v1 numbering where a requirement, rule or question carries over, so the review's references still line up; give new items new numbers.
+
+## SPEC-001 v2 deferred questions (Mike, 2026-10-23)
+- Corporate payer-type test (review change 9): a contact is in a live corporate subscription for a Campaign Year when they exist in Subs.vwCorpSubscriptions and both 'Sub Status' and 'Sub User Status' are active. Do not use 'Round': a round is a tranche of processing corporate records and later rounds may change it. Record this in the spec as an assumption.
+- Two events sharing one invoice (review 1.2): invoices are raised only when a member joins, renews or readmits, so assume exactly one invoice per Join, Renewal or Readmission event. State the assumption, and match each event to its own invoice (say how the match picks that event's invoice when a contact has more than one event in a Campaign Year; raise it as a question if the sources don't make it clear). Data that breaks the assumption (two events matching one invoice, or one event matching several) is an anomaly with its own reason code. Keep Damian's priority (Readmission, Renewal, Join, then earliest event date) only as the fallback that stops an invoice being counted twice in that case.
