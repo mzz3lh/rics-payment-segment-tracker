@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-001",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-10-25T20:29:32Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-001.json",
+      "tests/tsqlt/test_MOD001.sql"
+    ]
+  },
+  "module_id": "MOD-001",
+  "branch": "agent/developer/MOD-001-source-profiling-queries",
+  "commit": "52fdc97a9d3ea7a4b2ca6438e3ee58830af7d335",
+  "requirement_ids": [
+    "REQ-014"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_profile_custtrans_grain.sql",
+      "object": "Layercake.usp_profile_custtrans_grain",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_profile_corp_subscription_status.sql",
+      "object": "Layercake.usp_profile_corp_subscription_status",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD001_dev].[test corporate status profile lists a missing status as its own NULL value]",
+    "[test_MOD001_dev].[test grain profile counts a missing productcode as no distinct productcode]",
+    "[test_MOD001_dev].[test grain profile leaves out rows with no TRANSTYPE or no INVOICE]",
+    "[test_MOD001_dev].[test grain profile returns no rows when there are no invoice rows]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0003",
+      "up_script": "src/sql/deploy/MIG-0003_MOD-001_source-profiling-queries.up.sql",
+      "down_script": "src/sql/deploy/MIG-0003_MOD-001_source-profiling-queries.down.sql",
+      "rollback_test": {
+        "commit": "52fdc97a9d3ea7a4b2ca6438e3ee58830af7d335",
+        "run_at": "2026-10-25T20:29:27.664786+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Result shape of both procedures is not defined in DES-001; the Tester's question about it is still unanswered. Built to the shape the approved suite assumes: usp_profile_custtrans_grain returns (measure varchar(50), measure_value varchar(50), invoice_count int), with measure 'rows_per_invoice', 'distinct_productcodes' or 'has_sales_tax_row'. usp_profile_corp_subscription_status returns (status_column varchar(50), status_value nvarchar(100), row_count int). Neither takes parameters.",
+    "Grain profile: rows with a NULL TRANSTYPE or a NULL INVOICE are not treated as invoice rows and are left out (the 'NOT IN (8, 24)' and 'NOT LIKE' filters exclude NULLs). A NULL productcode adds nothing to distinct_productcodes. A 'Sales tax' row is recognised by PostingType_Description = 'Sales tax'. The design does not settle these cases; the dev unit tests pin them down.",
+    "The grant script src/sql/grants/MOD-001.sql uses the placeholder role [<analyst_role>] because the analyst's role name is not known. A human must replace it before running the script."
+  ],
+  "notes": "MOD-001 builds two read-only, count-only procedures in Layercake: usp_profile_custtrans_grain (RULE-095, Q-021) and usp_profile_corp_subscription_status (RULE-096, Q-027). Neither writes anything or logs a load, so there is no error path to test. The object files were already on the branch from an earlier run, so the first run_tests passed (9/9) rather than failing. Dev tests (test_MOD001_dev) cover: NULL TRANSTYPE or INVOICE excluded, a NULL productcode counting 0, no invoice rows giving an empty result, and a NULL status listed as its own value. Roundtrip and check pass; the sqlfluff findings are advisory.\n\nTest-first: the first run had 5 of 5 of the Tester's tests passing; the final run passed 5 of 5 and 4 unit test(s), in 1 run(s)."
+}
