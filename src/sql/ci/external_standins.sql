@@ -20,6 +20,54 @@ CREATE TABLE [CE].[tblContact_Test_Records] (
     [apuk_contactnumber] nvarchar(100) COLLATE SQL_Latin1_General_CP1_CI_AS NULL
 );
 GO
+-- CE.vwConcessionType (view)
+IF OBJECT_ID(N'[CE].[vwConcessionType]') IS NULL
+CREATE TABLE [CE].[vwConcessionType] (
+    [Id] uniqueidentifier NOT NULL,
+    [statecode] int NULL,
+    [statuscode] int NULL,
+    [apuk_perpetualnonperpetual] int NULL,
+    [apuk_cpdexemption] int NULL,
+    [apuk_nottargetedforcpd] bit NULL,
+    [apuk_dualmembership] bit NULL,
+    [apuk_exceptionalhardship] bit NULL,
+    [apuk_requiresenddate] bit NULL,
+    [createdonbehalfby] uniqueidentifier NULL,
+    [createdonbehalfby_entitytype] nvarchar(128) NULL,
+    [apuk_productid] uniqueidentifier NULL,
+    [apuk_productid_entitytype] nvarchar(128) NULL,
+    [modifiedby] uniqueidentifier NULL,
+    [modifiedby_entitytype] nvarchar(128) NULL,
+    [createdby] uniqueidentifier NULL,
+    [createdby_entitytype] nvarchar(128) NULL,
+    [organizationid] uniqueidentifier NULL,
+    [organizationid_entitytype] nvarchar(128) NULL,
+    [modifiedonbehalfby] uniqueidentifier NULL,
+    [modifiedonbehalfby_entitytype] nvarchar(128) NULL,
+    [createdonbehalfbyyominame] nvarchar(100) NULL,
+    [organizationidname] nvarchar(128) NULL,
+    [apuk_discount] decimal(38,2) NULL,
+    [importsequencenumber] int NULL,
+    [apuk_name] nvarchar(59) NULL,
+    [utcconversiontimezonecode] int NULL,
+    [createdbyyominame] nvarchar(100) NULL,
+    [modifiedbyname] nvarchar(128) NULL,
+    [versionnumber] bigint NULL,
+    [modifiedbyyominame] nvarchar(100) NULL,
+    [timezoneruleversionnumber] int NULL,
+    [apuk_concessiontypeid] uniqueidentifier NULL,
+    [apuk_productidname] nvarchar(128) NULL,
+    [modifiedon] datetime NULL,
+    [modifiedonbehalfbyyominame] nvarchar(100) NULL,
+    [createdbyname] nvarchar(128) NULL,
+    [createdon] datetime NULL,
+    [createdonbehalfbyname] nvarchar(128) NULL,
+    [modifiedonbehalfbyname] nvarchar(128) NULL,
+    [overriddencreatedon] datetime NULL,
+    [Product_Number] nvarchar(4000) NULL,
+    [Product Name (Dual Conc Roll Up)] nvarchar(100) NULL
+);
+GO
 -- CE.vwContact (view)
 IF OBJECT_ID(N'[CE].[vwContact]') IS NULL
 CREATE TABLE [CE].[vwContact] (
@@ -173,6 +221,32 @@ CREATE TABLE [CE].[vwContact] (
     [address2_county] nvarchar(80) NULL
 );
 GO
+-- CE.vwCorporateSchemes (view)
+IF OBJECT_ID(N'[CE].[vwCorporateSchemes]') IS NULL
+CREATE TABLE [CE].[vwCorporateSchemes] (
+    [apuk_subscriptionid] uniqueidentifier NULL,
+    [apuk_subscriptionnumber] nvarchar(100) NULL,
+    [apuk_subscriptionproductid] uniqueidentifier NULL,
+    [SubscriptionProductName] nvarchar(120) NULL,
+    [apuk_productcode] nvarchar(20) NULL,
+    [apuk_corporate] bit NULL,
+    [CorporateSchemeName] nvarchar(150) NULL,
+    [apuk_onbehalfoforganisationid] uniqueidentifier NULL,
+    [AccountNumber] nvarchar(20) NULL,
+    [AccountName] nvarchar(160) NULL,
+    [apuk_subscriptionownerid] uniqueidentifier NULL,
+    [SubscriptionUserId] uniqueidentifier NULL,
+    [Rics_contactno] nvarchar(100) NULL,
+    [apuk_startdate] datetime NULL,
+    [apuk_enddate] datetime NULL,
+    [Created_On] datetime NULL,
+    [Modified_On] datetime NULL,
+    [statecode] int NULL,
+    [StateCode_Description] nvarchar(350) NULL,
+    [statuscode] int NULL,
+    [StatusCode_Description] nvarchar(350) NULL
+);
+GO
 -- CE.vwLocalGroup (view)
 IF OBJECT_ID(N'[CE].[vwLocalGroup]') IS NULL
 CREATE TABLE [CE].[vwLocalGroup] (
@@ -203,6 +277,72 @@ CREATE TABLE [CE].[vwLocalGroup] (
     [UK Region] nvarchar(200) NULL,
     [Market_reporting_region] varchar(15) NULL,
     [Budget_Region] varchar(10) NULL
+);
+GO
+-- Subs.tblSubsInvoices (table)
+IF OBJECT_ID(N'[Subs].[tblSubsInvoices]') IS NULL
+CREATE TABLE [Subs].[tblSubsInvoices] (
+    [Account_Num] nvarchar(20) NULL,
+    [SubsCampaign] nvarchar(8) NULL,
+    [Campaign_Year] int NULL,
+    [Full_Invoice_Amount_CUR] numeric(32,6) NULL,
+    [Full_Invoice_Amount_GBP] numeric(32,6) NULL,
+    [Invoice_Amount_CUR] numeric(38,6) NULL,
+    [Invoice_Amount_GBP] numeric(38,6) NULL,
+    [Settle_Amount_CUR] numeric(32,6) NULL,
+    [Settle_Amount_GBP] numeric(32,6) NULL,
+    [Order_Num.] nvarchar(20) NULL,
+    [Invoice] nvarchar(20) NULL,
+    [Voucher] nvarchar(20) NULL,
+    [Trans_Date] date NULL,
+    [Inv_Currency] nvarchar(3) NULL,
+    [Exchange_Rate] numeric(32,16) NULL,
+    [Exchange_Adjustment] numeric(32,6) NULL,
+    [Inv_Payment_Method] nvarchar(10) NULL,
+    [Last_Settle_Voucher] nvarchar(20) NOT NULL,
+    [Last_Settle_Date] datetime NULL,
+    [Trans_Type_Code] int NULL,
+    [Trans_Type] varchar(37) NULL,
+    [Country_Code] nvarchar(5) NULL,
+    [Rec_ID] bigint NOT NULL,
+    [Has_Concession] varchar(1) NOT NULL,
+    [Discount_(Max)] decimal(38,2) NULL,
+    [Retired_Concession] varchar(17) NOT NULL,
+    [100%_Concession] varchar(1) NULL,
+    [Non_Subs_Amount_CUR] numeric(38,6) NULL,
+    [Non_Subs_Amount_GBP] numeric(38,6) NULL,
+    [Inv_Credit_Amount_CUR] numeric(38,6) NULL,
+    [Inv_Credit_Amount_GBP] numeric(38,6) NULL,
+    [Fully_Credited] varchar(3) NOT NULL,
+    [Credit_Diff] numeric(38,6) NULL,
+    [Paid_Amount_CUR] numeric(38,6) NULL,
+    [Paid_Amount_GBP] numeric(38,6) NULL,
+    [Balance_CUR] numeric(38,6) NULL,
+    [Balance_GBP] numeric(38,6) NULL,
+    [APP_Invoice_Flag] varchar(1) NOT NULL,
+    [Payment_Status] nvarchar(100) NULL
+);
+GO
+-- Subs.vwCorpSubscriptions (view)
+IF OBJECT_ID(N'[Subs].[vwCorpSubscriptions]') IS NULL
+CREATE TABLE [Subs].[vwCorpSubscriptions] (
+    [Contact No] nvarchar(100) NULL,
+    [Contact ID] uniqueidentifier NULL,
+    [Scheme No] nvarchar(100) NULL,
+    [Scheme Name] nvarchar(4000) NULL,
+    [Sub Start Date] date NULL,
+    [Sub End Date] date NULL,
+    [Sub State] nvarchar(350) NULL,
+    [Sub Status] nvarchar(350) NULL,
+    [Sub Campaign Year] int NULL,
+    [Round] nvarchar(100) NULL,
+    [Sub User State] nvarchar(350) NULL,
+    [Sub User Status] nvarchar(350) NULL,
+    [Sub User Created Date] date NULL,
+    [Invalid Member Grade] varchar(1) NOT NULL,
+    [Is Lapsed] varchar(1) NOT NULL,
+    [Inactive SU Status] varchar(1) NOT NULL,
+    [Quote Expected] varchar(1) NOT NULL
 );
 GO
 -- Subs.vwSubsMemberStatuses (view)
@@ -604,5 +744,63 @@ CREATE TABLE [synapse_fo].[CUSTTRANS] (
     [CUSTAUTOMATIONPREDUNNINGSENT] int NULL,
     [CUSTAUTOMATIONPREDICTIONSENT] int NULL,
     [SETTLEAMOUNT_MX] numeric(32,6) NULL
+);
+GO
+-- synapse_fo.CUSTTRANS_RICS (table)
+IF OBJECT_ID(N'[synapse_fo].[CUSTTRANS_RICS]') IS NULL
+CREATE TABLE [synapse_fo].[CUSTTRANS_RICS] (
+    [ACCOUNTINGEVENT] bigint NULL,
+    [ACCOUNTNUM] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [CustTrans_AmountCur] numeric(32,6) NULL,
+    [AMOUNTCUR] numeric(34,6) NULL,
+    [CustTrans_AmountMst] numeric(32,6) NULL,
+    [AMOUNTMST] numeric(34,6) NULL,
+    [CUSTTRANSRECID] bigint NOT NULL,
+    [INVOICE] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [VOUCHER] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [TRANSDATE] datetime NULL,
+    [DOCUMENTDATE] datetime NULL,
+    [DOCUMENTNUM] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [DUEDATE] datetime NULL,
+    [CURRENCYCODE] nvarchar(3) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [DATAAREAIDCUST] nvarchar(4) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+    [POSTINGPROFILE] nvarchar(10) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [TXT] nvarchar(512) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [LASTSETTLEDATE] datetime NULL,
+    [SETTLEAMOUNTCUR] numeric(32,6) NULL,
+    [SETTLEAMOUNTMST] numeric(32,6) NULL,
+    [CLOSED] datetime NULL,
+    [EXCHRATE] numeric(32,16) NULL,
+    [EXCHADJUSTMENT] numeric(32,6) NULL,
+    [PAYMMODE] nvarchar(10) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [PAYMREFERENCE] nvarchar(35) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [PAYMMETHOD] int NULL,
+    [OFFSETRECID] bigint NULL,
+    [LASTSETTLEVOUCHER] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [CREATEDDATETIMECUST] datetime NULL,
+    [CREATEDBYCUST] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [MODIFIEDDATETIMECUST] datetime NULL,
+    [PARTITION] bigint NOT NULL,
+    [ORDERACCOUNT] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [TRANSTYPE] int NULL,
+    [TransType_Description] varchar(37) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [DATAAREAID] nvarchar(4) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+    [SYNCSTARTDATETIME] datetime NULL,
+    [RECID] bigint NOT NULL,
+    [productcode] nvarchar(30) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [ProductGroup] nvarchar(30) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [RICINVOICETYPE] varchar(3) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+    [CostCenter] nvarchar(30) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [MainAccount] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [ACCOUNTDISPLAYVALUE] nvarchar(500) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [POSTINGTYPE] int NULL,
+    [PostingType_Description] varchar(53) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [ORDERNUM] nvarchar(50) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [Country] nvarchar(5) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [PAYMSCHEDID] nvarchar(30) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [SETTLEAMOUNTMST_Adj] numeric(32,6) NULL,
+    [RICINVOICETYPE_with_Tax] varchar(3) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [RICSPROJECT] nvarchar(50) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+    [RICSCAMPAIGNYEAR] nvarchar(10) COLLATE SQL_Latin1_General_CP1_CI_AS NULL
 );
 GO
