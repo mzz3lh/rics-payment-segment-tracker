@@ -7,12 +7,17 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-10-26T14:11:24Z",
-    "status": "for_review",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
-    ]
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-10-26T14:57:38Z",
+      "gate": "test_design_review"
+    }
   },
   "module_id": "MOD-003",
   "designed_from": [
