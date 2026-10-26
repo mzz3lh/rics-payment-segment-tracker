@@ -25,3 +25,6 @@ the agent's working assumption. Example:
 ## DES-001 Q-037 bronze audit columns (approved by Mike by merging PR #6, 2026-10-26)
 - The column-name convention now allows an optional leading underscore (`^_?[a-z][a-z0-9_]*$`), but only for the four standard bronze audit columns `_loaded_at`, `_updated_at`, `_is_deleted` and `_deleted_at`, as in the Phase 1 bronze tables. New bronze tables carry them with the existing bronze types and defaults: `_loaded_at` and `_updated_at` datetime2(3) not null default SYSDATETIME(), `_is_deleted` bit not null default 0, `_deleted_at` datetime2(3) null.
 - DES-001 lists them as columns on brnz_subs_invoice, brnz_subs_invoice_line, brnz_corporate_subscription and brnz_concession (MOD-002, MOD-004, MOD-006). This amends the approved design; merging the change is the approval.
+
+## RULE-077 settling rows (Mike, 2026-10-26)
+- A CUSTTRANS_RICS row that settles an invoice is in scope only when its LASTSETTLEVOUCHER matches the invoice's voucher AND its ACCOUNTNUM equals the invoice's Account_Num. A payment or credit posted on another customer account is not landed, even when it settles the invoice. Both RULE-077 conditions also match on DATAAREAID, since a voucher number is unique only within a legal entity.
