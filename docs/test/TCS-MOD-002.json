@@ -1,0 +1,277 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-002",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-10-26T10:12:11Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-10-26T10:26:14Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-002",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-002-001",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-01",
+      "category": "happy_path",
+      "description": "First run of usp_load_brnz_subs_invoice lands 5 synthetic Subs.tblSubsInvoices rows 1:1 into brnz_subs_invoice.",
+      "preconditions": "Empty brnz_subs_invoice. Source holds rec_ids 1001-1005 covering GBP, EUR and HKD, every payment mode, a CRE credit note with negative amounts, a fully credited invoice and a full-concession invoice (Campaign Years 2022-2025). Assumes Q-037: audit columns are named _loaded_at, _updated_at, _is_deleted, _deleted_at as on the existing bronze tables.",
+      "expected": "Exactly 5 rows, _is_deleted 0 on each. Every mapped column equals its source value, e.g. rec_id 1002: account_num 'A1002', campaign_year 2025, invoice 'INV-1002', voucher 'V1002', trans_date 2024-11-01, inv_payment_method 'Card', inv_currency 'EUR', exchange_rate 0.86, full/invoice amount cur 500.00, invoice_amount_gbp 430.00, credit 100.00 / 86.00, fully_credited 'N', payment_status 'Partially Paid', has_concession 'Y', full_concession_flag 'N'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-001 first invoice load lands 5 source rows 1:1 and live]"
+    },
+    {
+      "id": "TC-002-002",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-03",
+      "category": "nulls",
+      "description": "A source invoice with Inv_Payment_Method NULL lands with inv_payment_method NULL; bronze applies no default.",
+      "preconditions": "Source rec_id 1101 with Inv_Payment_Method NULL and rec_id 1102 with 'DD'.",
+      "expected": "rec_id 1101 has inv_payment_method NULL; rec_id 1102 is not NULL; both live (_is_deleted 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-002 null Inv_Payment_Method lands as null]"
+    },
+    {
+      "id": "TC-002-003",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-03",
+      "category": "boundary",
+      "description": "Blank and untrimmed lower-case payment modes land byte for byte: no null-to-blank, blank-to-null, trimming or case change in bronze.",
+      "preconditions": "Source rec_id 1201 with Inv_Payment_Method N'' and rec_id 1202 with N' dd '.",
+      "expected": "rec_id 1201 inv_payment_method is N'' (not NULL, 0 bytes); rec_id 1202 has the exact bytes of N' dd ' (leading and trailing space, lower case).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-003 blank and untrimmed payment methods land byte for byte]"
+    },
+    {
+      "id": "TC-002-004",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-04",
+      "category": "happy_path",
+      "description": "The first invoice load records its outcome and counts in Layercake.etl_run_log via usp_etl_log_start / usp_etl_log_end.",
+      "preconditions": "Empty brnz_subs_invoice and etl_run_log; 5 source rows (rec_ids 1301-1305).",
+      "expected": "Exactly one etl_run_log row: status 'Success', rows_inserted 5, rows_updated 0, rows_deleted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-004 first invoice load logs Success with 5 rows inserted]"
+    },
+    {
+      "id": "TC-002-005",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-04",
+      "category": "idempotency",
+      "description": "A second invoice load on unchanged source (including NULL columns) changes nothing and logs 0 inserted and 0 updated.",
+      "preconditions": "5 source rows (rec_ids 1401-1405, some with NULL payment mode and NULL payment status); load run twice.",
+      "expected": "brnz_subs_invoice is identical (every column, including _loaded_at and _updated_at) before and after the second load; 5 live rows. etl_run_log holds two 'Success' rows: (5 inserted, 0 updated, 0 deleted) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-005 second invoice load on unchanged source changes nothing and logs 0 inserted 0 updated]"
+    },
+    {
+      "id": "TC-002-006",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-05",
+      "category": "happy_path",
+      "description": "_loaded_at and _updated_at are set on every landed invoice row, including a row whose optional source columns are all NULL.",
+      "preconditions": "Source rec_ids 1501 (fully populated) and 1502 (mostly NULL). Target faked with its defaults. Assumes Q-037: audit column names as on existing bronze tables.",
+      "expected": "Both rows have non-NULL _loaded_at and _updated_at (values not asserted).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-006 every landed invoice row has _loaded_at and _updated_at]"
+    },
+    {
+      "id": "TC-002-007",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-04",
+      "category": "happy_path",
+      "description": "A source row whose value changed is updated in place with _updated_at refreshed; an unchanged row is untouched; the update is counted.",
+      "preconditions": "Bronze holds live rec_ids 2001 (payment_status 'Unpaid') and 2002 ('Paid'), both _loaded_at and _updated_at 2020-01-01. Source has 2001 now 'Paid' and 2002 unchanged.",
+      "expected": "2001: payment_status 'Paid', _loaded_at still 2020-01-01, _updated_at later than 2020-01-01. 2002: _updated_at still 2020-01-01. Both live. etl_run_log: 'Success', 0 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-007 changed source invoice row is updated and only it gets a new _updated_at]"
+    },
+    {
+      "id": "TC-002-008",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-01",
+      "category": "negative",
+      "description": "An invoice row no longer in the source is soft-deleted, not physically removed.",
+      "preconditions": "Bronze holds live rec_ids 3001 and 3002; source holds only 3001 (unchanged).",
+      "expected": "3001 stays live with _deleted_at NULL. 3002 is still present with payment_status 'Paid', _is_deleted 1 and _deleted_at set. etl_run_log: 'Success', 0 inserted, 0 updated, 1 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-008 invoice row gone from source is soft deleted not removed]"
+    },
+    {
+      "id": "TC-002-009",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-01",
+      "category": "duplicates",
+      "description": "A soft-deleted invoice row re-sent unchanged by the source is restored, not inserted a second time.",
+      "preconditions": "Bronze holds rec_id 4001 with _is_deleted 1, _deleted_at 2020-06-01; source re-sends 4001 with identical values.",
+      "expected": "Exactly one row for rec_id 4001: account_num 'A4001', payment_status 'Paid', _is_deleted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-009 soft deleted invoice row that reappears unchanged is restored]"
+    },
+    {
+      "id": "TC-002-010",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-04",
+      "category": "negative",
+      "description": "The invoice load fails through the data: Invoice_Amount_CUR 1000000000000000000000000000.000000 (valid in the source's numeric(38,6)) overflows the design's invoice_amount_cur numeric(32,6). The error reaches the caller, the run is logged Failed and the target is unchanged.",
+      "preconditions": "Bronze holds live rec_id 5001 with payment_status 'Unpaid'. Source has 5001 changed to 'Paid' and new rec_id 5002 with the overflowing amount. Relies on invoice_amount_cur being numeric(32,6) as DES-001 states. Run outside the tSQLt transaction.",
+      "expected": "Arithmetic overflow error 8115 is raised to the caller. brnz_subs_invoice is identical to before (5001 still 'Unpaid', no 5002). etl_run_log holds one row with status 'Failed' and a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-010 invoice load failing on an overflowing amount re-raises logs Failed and leaves the target unchanged]"
+    },
+    {
+      "id": "TC-002-019",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-04",
+      "category": "reconciliation",
+      "description": "RULE-005 row-count check: after a load mixing inserts and a soft delete, live bronze rows equal the source row count and the counts are logged.",
+      "preconditions": "Bronze holds live rec_ids 7001 and 7002. Source holds 7001 (unchanged), 7003 and 7004 (new).",
+      "expected": "Rows 7001, 7003, 7004 live and 7002 soft-deleted (4 rows in total). Live count 3 equals the source count 3. etl_run_log: 'Success', 2 inserted, 0 updated, 1 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-019 live invoice rows reconcile to the source row count after inserts and a soft delete]"
+    },
+    {
+      "id": "TC-002-011",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-02",
+      "category": "happy_path",
+      "description": "First run of usp_load_brnz_subs_invoice_line lands 12 CUSTTRANS_RICS rows that meet RULE-077 1:1 into brnz_subs_invoice_line.",
+      "preconditions": "Subs.tblSubsInvoices (and live brnz_subs_invoice) hold invoices A1/V1 and A2/V2. CUSTTRANS_RICS holds 12 in-scope rows: recids 101-104 and 107-110 are invoice lines (VOUCHER V1/V2 of all RICINVOICETYPEs, GBP and EUR); 105 and 111 are credits and 106 and 112 payments whose LASTSETTLEVOUCHER is V1/V2. Values use whole seconds (target transdate is datetime2(3)).",
+      "expected": "Exactly 12 rows, _is_deleted 0. Every mapped column equals its source value, e.g. recid 112: accountnum 'A2', invoice NULL, voucher 'PAY2', lastsettlevoucher 'V2', transdate 2024-12-15 00:00:00, transtype 15, ricinvoicetype 'PAY', productcode NULL, amountcur -525.00, amountmst -451.50, settleamountcur -525.00, currencycode 'EUR', paymmode 'Card', paymreference 'CARDREF-112', ordernum NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-011 first line load lands 12 in-scope rows 1:1 and live]"
+    },
+    {
+      "id": "TC-002-012",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-06",
+      "category": "negative",
+      "description": "The AC-002-06 scenario: only lines of a Subs.tblSubsInvoices voucher, and rows settling it, are landed.",
+      "preconditions": "Subs.tblSubsInvoices holds voucher V1 for account A1. CUSTTRANS_RICS holds 3 rows A1/V1 (recids 201-203), 1 credit A1/CN1 with LASTSETTLEVOUCHER V1 (204) and 2 rows with VOUCHER V9 (205, 206), which is not in Subs.tblSubsInvoices.",
+      "expected": "brnz_subs_invoice_line holds exactly 4 live rows: recids 201, 202, 203 and 204. No row for 205 or 206.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-012 line load keeps the 3 V1 lines and the V1 credit and excludes the 2 V9 rows]"
+    },
+    {
+      "id": "TC-002-013",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-06",
+      "category": "negative",
+      "description": "RULE-077 matches on ACCOUNTNUM and VOUCHER together: a line carrying the invoice's voucher under a different account is out of scope.",
+      "preconditions": "Subs.tblSubsInvoices holds A1/V1. CUSTTRANS_RICS holds recid 301 (A1, V1) and recid 302 (A2, V1), neither with a LASTSETTLEVOUCHER.",
+      "expected": "Only recid 301 (accountnum 'A1') is landed.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-013 line with the invoice voucher but another account is not landed]"
+    },
+    {
+      "id": "TC-002-014",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-06",
+      "category": "duplicates",
+      "description": "A row that meets both RULE-077 conditions (VOUCHER V1 and LASTSETTLEVOUCHER V1) is landed once, not once per condition.",
+      "preconditions": "Subs.tblSubsInvoices holds A1/V1. CUSTTRANS_RICS holds recid 401 (A1, VOUCHER V1, LASTSETTLEVOUCHER V1) and recid 402 (A1, VOUCHER V1).",
+      "expected": "Exactly 2 rows: recid 401 once and recid 402 once, both live.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-014 line matching on both voucher and last settle voucher lands once]"
+    },
+    {
+      "id": "TC-002-015",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-06",
+      "category": "negative",
+      "description": "A landed line whose invoice has left Subs.tblSubsInvoices falls out of the RULE-077 scope and is soft-deleted, even though the CUSTTRANS_RICS row still exists.",
+      "preconditions": "Subs.tblSubsInvoices holds only A1/V1 (A2/V2 gone; soft-deleted in brnz_subs_invoice). brnz_subs_invoice_line holds live recids 501 (A1/V1) and 502 (A2/V2); CUSTTRANS_RICS still holds both unchanged.",
+      "expected": "501 live with _deleted_at NULL; 502 present with _is_deleted 1 and _deleted_at set.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-015 line whose invoice leaves Subs.tblSubsInvoices is soft deleted]"
+    },
+    {
+      "id": "TC-002-016",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-02",
+      "category": "idempotency",
+      "description": "The line load logs like the invoice load, and a second run on unchanged source changes nothing.",
+      "preconditions": "Subs.tblSubsInvoices holds A1/V1; CUSTTRANS_RICS holds 3 in-scope rows (601, 602, 603, the last with NULL productcode and ordernum). Load run twice.",
+      "expected": "brnz_subs_invoice_line identical (every column) before and after the second load. etl_run_log holds two 'Success' rows: (3 inserted, 0 updated, 0 deleted) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-016 second line load on unchanged source changes nothing and both loads log Success]"
+    },
+    {
+      "id": "TC-002-017",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-05",
+      "category": "happy_path",
+      "description": "_loaded_at and _updated_at are set on every landed line row, including a row whose optional source columns are NULL.",
+      "preconditions": "Subs.tblSubsInvoices holds A1/V1; CUSTTRANS_RICS holds recid 701 (populated) and 702 (credit settling V1, mostly NULL). Target faked with its defaults. Assumes Q-037: audit column names as on existing bronze tables.",
+      "expected": "Both rows have non-NULL _loaded_at and _updated_at (values not asserted).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-017 every landed line row has _loaded_at and _updated_at]"
+    },
+    {
+      "id": "TC-002-018",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-02",
+      "category": "negative",
+      "description": "The line load fails part-way through its writes: the faked target carries a test-only CHECK constraint that rejects the incoming row recid 802 (ORDERNUM 'REJECT-802'), after 801's update is already pending. The error reaches the caller, the run is logged Failed and the target is unchanged. Amended 2026-10-26 (Mike): it no longer relies on ordernum's width, which DES-001 widened to nvarchar(50).",
+      "preconditions": "Subs.tblSubsInvoices holds A1/V1. brnz_subs_invoice_line holds live recid 801 with amountcur 400.00 and a test-only CHECK constraint rejecting ordernum 'REJECT-802'. CUSTTRANS_RICS has 801 changed to 450.00 and new recid 802 with ORDERNUM 'REJECT-802'. Run outside the tSQLt transaction.",
+      "expected": "Check-constraint error 547 is raised to the caller. brnz_subs_invoice_line is identical to before (801 still 400.00, no 802). etl_run_log holds one row with status 'Failed' and a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD002].[test TC-002-018 line load failing on a row the target rejects re-raises logs Failed and leaves the target unchanged]"
+    }
+  ]
+}
