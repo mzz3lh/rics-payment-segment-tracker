@@ -1,0 +1,110 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-10-26T13:08:12Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-002-1",
+    "source_artefacts": [
+      "CN-MOD-002",
+      "TCS-MOD-002",
+      "tests/tsqlt/test_MOD002.sql"
+    ]
+  },
+  "module_id": "MOD-002",
+  "loop_number": 1,
+  "run": {
+    "environment": "test",
+    "commit": "fa78b640bf7eda34e160877a2be44b0a68f1df6c",
+    "started_at": "2026-10-26T13:08:02Z",
+    "finished_at": "2026-10-26T13:08:09Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-002-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-019",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-013",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-014",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-015",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-016",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-017",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-002-018",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-002",
+      "status": "met"
+    }
+  ],
+  "verdict": "pass"
+}
