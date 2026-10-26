@@ -22,6 +22,6 @@ the agent's working assumption. Example:
 - Consequence for v2's single selected invoice per contact-year (RULE-014, RULE-032, Q-012): a contact with two events in one Campaign Year (for example a Renewal and a Readmission) has two live invoices, and both are legitimate. Each event takes its own invoice's amounts, so the second invoice is not an INVOICE_NO_EVENT anomaly. State which invoice sets the contact-year's payment method, payer type and concession when the year has more than one, and raise it as a question if the sources don't settle it. Rework the ACs that assume one shared invoice (v2's AC-008-12 to AC-008-15, AC-009-06).
 - apuk_dualmembership (v2 Q-025): Damian's review says it is unused; it plays no part in this release.
 
-## DES-001 Q-037 bronze audit columns (Mike, 2026-10-26)
+## DES-001 Q-037 bronze audit columns (approved by Mike by merging PR #6, 2026-10-26)
 - The column-name convention now allows an optional leading underscore (`^_?[a-z][a-z0-9_]*$`), but only for the four standard bronze audit columns `_loaded_at`, `_updated_at`, `_is_deleted` and `_deleted_at`, as in the Phase 1 bronze tables. New bronze tables carry them with the existing bronze types and defaults: `_loaded_at` and `_updated_at` datetime2(3) not null default SYSDATETIME(), `_is_deleted` bit not null default 0, `_deleted_at` datetime2(3) null.
 - DES-001 lists them as columns on brnz_subs_invoice, brnz_subs_invoice_line, brnz_corporate_subscription and brnz_concession (MOD-002, MOD-004, MOD-006). This amends the approved design; merging the change is the approval.

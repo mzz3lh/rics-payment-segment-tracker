@@ -1982,7 +1982,7 @@
         "MOD-004",
         "MOD-006"
       ],
-      "answer": "Mike, 2026-10-26: widen the convention. config/project.yaml and PROJECT_STANDARDS.md now allow an optional leading underscore (^_?[a-z][a-z0-9_]*$), matching the Phase 1 bronze tables, and the four standard audit columns (_loaded_at, _updated_at, _is_deleted, _deleted_at) are listed on brnz_subs_invoice, brnz_subs_invoice_line, brnz_corporate_subscription and brnz_concession with the existing bronze types."
+      "answer": "Approved by Mike by merging RPST PR #6 (2026-10-26): widen the convention, as the Architect recommended. config/project.yaml and PROJECT_STANDARDS.md now allow an optional leading underscore (^_?[a-z][a-z0-9_]*$), matching the Phase 1 bronze tables, and the four standard audit columns (_loaded_at, _updated_at, _is_deleted, _deleted_at) are listed on brnz_subs_invoice, brnz_subs_invoice_line, brnz_corporate_subscription and brnz_concession with the existing bronze types."
     }
   ]
 }
