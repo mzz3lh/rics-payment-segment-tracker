@@ -40,8 +40,8 @@ BEGIN
         invoice_amount_gbp      numeric(32,6)  NULL,
         inv_credit_amount_cur   numeric(32,6)  NULL,
         inv_credit_amount_gbp   numeric(32,6)  NULL,
-        fully_credited          nvarchar(1)    NULL,
-        payment_status          nvarchar(30)   NULL,
+        fully_credited          nvarchar(3)    NULL,
+        payment_status          nvarchar(100)  NULL,
         has_concession          nvarchar(1)    NULL,
         full_concession_flag    nvarchar(1)    NULL,
         _loaded_at              datetime2(3)   NOT NULL CONSTRAINT DF_Layercake_brnz_subs_invoice__loaded_at DEFAULT SYSDATETIME(),
@@ -62,7 +62,7 @@ BEGIN
         invoice           nvarchar(20)  NULL,
         voucher           nvarchar(20)  NULL,
         lastsettlevoucher nvarchar(20)  NULL,
-        transdate         datetime2(0)  NULL,
+        transdate         datetime2(3)  NULL,
         transtype         int           NULL,
         ricinvoicetype    nvarchar(10)  NULL,
         productcode       nvarchar(50)  NULL,
@@ -72,6 +72,8 @@ BEGIN
         currencycode      nvarchar(3)   NULL,
         paymmode          nvarchar(20)  NULL,
         paymreference     nvarchar(50)  NULL,
+        -- nvarchar(20), not the amended design's nvarchar(50): the approved TC-002-018
+        -- requires it until the owner settles the conflict (see CN-MOD-002 deviations).
         ordernum          nvarchar(20)  NULL,
         _loaded_at        datetime2(3)  NOT NULL CONSTRAINT DF_Layercake_brnz_subs_invoice_line__loaded_at DEFAULT SYSDATETIME(),
         _updated_at       datetime2(3)  NOT NULL CONSTRAINT DF_Layercake_brnz_subs_invoice_line__updated_at DEFAULT SYSDATETIME(),
@@ -126,8 +128,8 @@ BEGIN
             invoice_amount_gbp      numeric(32,6)  NULL,
             inv_credit_amount_cur   numeric(32,6)  NULL,
             inv_credit_amount_gbp   numeric(32,6)  NULL,
-            fully_credited          nvarchar(1)    NULL,
-            payment_status          nvarchar(30)   NULL,
+            fully_credited          nvarchar(3)    NULL,
+            payment_status          nvarchar(100)  NULL,
             has_concession          nvarchar(1)    NULL,
             full_concession_flag    nvarchar(1)    NULL
         );
@@ -175,14 +177,14 @@ BEGIN
                              CAST(s.voucher AS varbinary(40)), s.trans_date, CAST(s.inv_payment_method AS varbinary(40)),
                              CAST(s.inv_currency AS varbinary(6)), s.exchange_rate, s.full_invoice_amount_cur,
                              s.invoice_amount_cur, s.invoice_amount_gbp, s.inv_credit_amount_cur, s.inv_credit_amount_gbp,
-                             CAST(s.fully_credited AS varbinary(2)), CAST(s.payment_status AS varbinary(60)),
+                             CAST(s.fully_credited AS varbinary(6)), CAST(s.payment_status AS varbinary(200)),
                              CAST(s.has_concession AS varbinary(2)), CAST(s.full_concession_flag AS varbinary(2))
                       EXCEPT
                       SELECT CAST(tgt.account_num AS varbinary(40)), tgt.campaign_year, CAST(tgt.invoice AS varbinary(40)),
                              CAST(tgt.voucher AS varbinary(40)), tgt.trans_date, CAST(tgt.inv_payment_method AS varbinary(40)),
                              CAST(tgt.inv_currency AS varbinary(6)), tgt.exchange_rate, tgt.full_invoice_amount_cur,
                              tgt.invoice_amount_cur, tgt.invoice_amount_gbp, tgt.inv_credit_amount_cur, tgt.inv_credit_amount_gbp,
-                             CAST(tgt.fully_credited AS varbinary(2)), CAST(tgt.payment_status AS varbinary(60)),
+                             CAST(tgt.fully_credited AS varbinary(6)), CAST(tgt.payment_status AS varbinary(200)),
                              CAST(tgt.has_concession AS varbinary(2)), CAST(tgt.full_concession_flag AS varbinary(2)));
         SET @upd = @@ROWCOUNT;
 
@@ -262,7 +264,7 @@ BEGIN
             invoice           nvarchar(20)  NULL,
             voucher           nvarchar(20)  NULL,
             lastsettlevoucher nvarchar(20)  NULL,
-            transdate         datetime2(0)  NULL,
+            transdate         datetime2(3)  NULL,
             transtype         int           NULL,
             ricinvoicetype    nvarchar(10)  NULL,
             productcode       nvarchar(50)  NULL,

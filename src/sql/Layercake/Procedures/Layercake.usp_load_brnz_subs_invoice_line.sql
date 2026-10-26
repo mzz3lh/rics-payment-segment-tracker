@@ -35,7 +35,7 @@ BEGIN
             invoice           nvarchar(20)  NULL,
             voucher           nvarchar(20)  NULL,
             lastsettlevoucher nvarchar(20)  NULL,
-            transdate         datetime2(0)  NULL,
+            transdate         datetime2(3)  NULL,
             transtype         int           NULL,
             ricinvoicetype    nvarchar(10)  NULL,
             productcode       nvarchar(50)  NULL,

@@ -42,8 +42,8 @@ BEGIN
             invoice_amount_gbp      numeric(32,6)  NULL,
             inv_credit_amount_cur   numeric(32,6)  NULL,
             inv_credit_amount_gbp   numeric(32,6)  NULL,
-            fully_credited          nvarchar(1)    NULL,
-            payment_status          nvarchar(30)   NULL,
+            fully_credited          nvarchar(3)    NULL,
+            payment_status          nvarchar(100)  NULL,
             has_concession          nvarchar(1)    NULL,
             full_concession_flag    nvarchar(1)    NULL
         );
@@ -91,14 +91,14 @@ BEGIN
                              CAST(s.voucher AS varbinary(40)), s.trans_date, CAST(s.inv_payment_method AS varbinary(40)),
                              CAST(s.inv_currency AS varbinary(6)), s.exchange_rate, s.full_invoice_amount_cur,
                              s.invoice_amount_cur, s.invoice_amount_gbp, s.inv_credit_amount_cur, s.inv_credit_amount_gbp,
-                             CAST(s.fully_credited AS varbinary(2)), CAST(s.payment_status AS varbinary(60)),
+                             CAST(s.fully_credited AS varbinary(6)), CAST(s.payment_status AS varbinary(200)),
                              CAST(s.has_concession AS varbinary(2)), CAST(s.full_concession_flag AS varbinary(2))
                       EXCEPT
                       SELECT CAST(tgt.account_num AS varbinary(40)), tgt.campaign_year, CAST(tgt.invoice AS varbinary(40)),
                              CAST(tgt.voucher AS varbinary(40)), tgt.trans_date, CAST(tgt.inv_payment_method AS varbinary(40)),
                              CAST(tgt.inv_currency AS varbinary(6)), tgt.exchange_rate, tgt.full_invoice_amount_cur,
                              tgt.invoice_amount_cur, tgt.invoice_amount_gbp, tgt.inv_credit_amount_cur, tgt.inv_credit_amount_gbp,
-                             CAST(tgt.fully_credited AS varbinary(2)), CAST(tgt.payment_status AS varbinary(60)),
+                             CAST(tgt.fully_credited AS varbinary(6)), CAST(tgt.payment_status AS varbinary(200)),
                              CAST(tgt.has_concession AS varbinary(2)), CAST(tgt.full_concession_flag AS varbinary(2)));
         SET @upd = @@ROWCOUNT;
 

@@ -93,26 +93,49 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE test_MOD002_dev.[test invoice Fully_Credited N/A and a long Payment_Status land byte for byte]
+AS
+BEGIN
+    INSERT INTO Subs.tblSubsInvoices (Rec_ID, Account_Num, Campaign_Year, Invoice, Voucher, Fully_Credited, Payment_Status)
+    VALUES (9201, N'A9201', 2025, N'INV-9201', N'V9201', 'N/A', N'Partially Paid - awaiting second instalment by direct debit');
+
+    EXEC Layercake.usp_load_brnz_subs_invoice;
+
+    SELECT rec_id,
+           CAST(fully_credited AS varbinary(6)) AS fully_credited_bytes,
+           CAST(payment_status AS varbinary(200)) AS payment_status_bytes
+    INTO #Actual
+    FROM Layercake.brnz_subs_invoice;
+
+    SELECT rec_id, fully_credited_bytes, payment_status_bytes
+    INTO #Expected
+    FROM (VALUES (CAST(9201 AS bigint), CAST(N'N/A' AS varbinary(6)),
+                  CAST(N'Partially Paid - awaiting second instalment by direct debit' AS varbinary(200)))) AS v(rec_id, fully_credited_bytes, payment_status_bytes);
+
+    EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
+END;
+GO
+
 --[@tSQLt:NoTransaction](DEFAULT)
-CREATE PROCEDURE test_MOD002_dev.[test invoice load fails on a Fully_Credited value longer than the target instead of truncating it]
+CREATE PROCEDURE test_MOD002_dev.[test invoice load fails on an overflowing Inv_Credit_Amount_GBP and leaves the target unchanged]
 AS
 BEGIN
     INSERT INTO Layercake.brnz_subs_invoice
-        (rec_id, account_num, campaign_year, invoice, voucher, fully_credited, payment_status, _loaded_at, _updated_at, _is_deleted, _deleted_at)
-    VALUES (9201, N'A9201', 2025, N'INV-9201', N'V9201', N'N', N'Unpaid', '2020-01-01T00:00:00', '2020-01-01T00:00:00', 0, NULL);
+        (rec_id, account_num, campaign_year, invoice, voucher, inv_credit_amount_gbp, payment_status, _loaded_at, _updated_at, _is_deleted, _deleted_at)
+    VALUES (9251, N'A9251', 2025, N'INV-9251', N'V9251', 0.000000, N'Unpaid', '2020-01-01T00:00:00', '2020-01-01T00:00:00', 0, NULL);
 
     SELECT * INTO #Before FROM Layercake.brnz_subs_invoice;
 
-    INSERT INTO Subs.tblSubsInvoices (Rec_ID, Account_Num, Campaign_Year, Invoice, Voucher, Fully_Credited, Payment_Status)
-    VALUES (9201, N'A9201', 2025, N'INV-9201', N'V9201', 'N',   N'Paid'),
-           (9202, N'A9202', 2025, N'INV-9202', N'V9202', 'N/A', N'Paid');
+    INSERT INTO Subs.tblSubsInvoices (Rec_ID, Account_Num, Campaign_Year, Invoice, Voucher, Inv_Credit_Amount_GBP, Payment_Status)
+    VALUES (9251, N'A9251', 2025, N'INV-9251', N'V9251', 0.000000, N'Paid'),
+           (9252, N'A9252', 2025, N'INV-9252', N'V9252', 1000000000000000000000000000.000000, N'Paid');
 
     BEGIN TRY
         EXEC Layercake.usp_load_brnz_subs_invoice;
-        EXEC tSQLt.Fail 'usp_load_brnz_subs_invoice did not raise an error for Fully_Credited ''N/A'' into nvarchar(1)';
+        EXEC tSQLt.Fail 'usp_load_brnz_subs_invoice did not raise an error for an Inv_Credit_Amount_GBP that overflows numeric(32,6)';
     END TRY
     BEGIN CATCH
-        IF ERROR_NUMBER() NOT IN (2628, 8152) THROW;
+        IF ERROR_NUMBER() <> 8115 THROW;
     END CATCH;
 
     SELECT * INTO #After FROM Layercake.brnz_subs_invoice;
@@ -191,7 +214,7 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE test_MOD002_dev.[test line transdate with milliseconds rounds to the second and a rerun updates nothing]
+CREATE PROCEDURE test_MOD002_dev.[test line transdate keeps milliseconds and a rerun updates nothing]
 AS
 BEGIN
     INSERT INTO Subs.tblSubsInvoices (Rec_ID, Account_Num, Campaign_Year, Invoice, Voucher)
@@ -209,7 +232,7 @@ BEGIN
 
     SELECT TOP (0) * INTO #Expected FROM #Actual;
     INSERT INTO #Expected (recid, transdate)
-    VALUES (951, '2024-10-20T10:00:01');
+    VALUES (951, '2024-10-20T10:00:00.500');
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual', 'brnz_subs_invoice_line after two loads';
 
@@ -223,6 +246,29 @@ BEGIN
                  (CAST('Success' AS varchar(10)), 0, 0, 0)) AS v(status, rows_inserted, rows_updated, rows_deleted);
 
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog', 'etl_run_log rows';
+END;
+GO
+
+CREATE PROCEDURE test_MOD002_dev.[test line ORDERNUM of exactly 20 characters lands in full]
+AS
+BEGIN
+    INSERT INTO Subs.tblSubsInvoices (Rec_ID, Account_Num, Campaign_Year, Invoice, Voucher)
+    VALUES (9551, N'A1', 2025, N'INV-1', N'V1');
+
+    INSERT INTO synapse_fo.CUSTTRANS_RICS (RECID, ACCOUNTNUM, INVOICE, VOUCHER, RICINVOICETYPE, AMOUNTCUR, ORDERNUM)
+    VALUES (955, N'A1', N'INV-1', N'V1', 'SUB', 450.000000, N'ORD-0000000000000001');
+
+    EXEC Layercake.usp_load_brnz_subs_invoice_line;
+
+    SELECT recid, ordernum
+    INTO #Actual
+    FROM Layercake.brnz_subs_invoice_line;
+
+    SELECT TOP (0) * INTO #Expected FROM #Actual;
+    INSERT INTO #Expected (recid, ordernum)
+    VALUES (955, N'ORD-0000000000000001');
+
+    EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 END;
 GO
 
