@@ -177,7 +177,7 @@
       "acceptance_criterion_id": "AC-002-02",
       "category": "happy_path",
       "description": "First run of usp_load_brnz_subs_invoice_line lands 12 CUSTTRANS_RICS rows that meet RULE-077 1:1 into brnz_subs_invoice_line.",
-      "preconditions": "Subs.tblSubsInvoices (and live brnz_subs_invoice) hold invoices A1/V1 and A2/V2. CUSTTRANS_RICS holds 12 in-scope rows: recids 101-104 and 107-110 are invoice lines (VOUCHER V1/V2 of all RICINVOICETYPEs, GBP and EUR); 105 and 111 are credits and 106 and 112 payments whose LASTSETTLEVOUCHER is V1/V2. Values use whole seconds (target transdate is datetime2(0)).",
+      "preconditions": "Subs.tblSubsInvoices (and live brnz_subs_invoice) hold invoices A1/V1 and A2/V2. CUSTTRANS_RICS holds 12 in-scope rows: recids 101-104 and 107-110 are invoice lines (VOUCHER V1/V2 of all RICINVOICETYPEs, GBP and EUR); 105 and 111 are credits and 106 and 112 payments whose LASTSETTLEVOUCHER is V1/V2. Values use whole seconds (target transdate is datetime2(3)).",
       "expected": "Exactly 12 rows, _is_deleted 0. Every mapped column equals its source value, e.g. recid 112: accountnum 'A2', invoice NULL, voucher 'PAY2', lastsettlevoucher 'V2', transdate 2024-12-15 00:00:00, transtype 15, ricinvoicetype 'PAY', productcode NULL, amountcur -525.00, amountmst -451.50, settleamountcur -525.00, currencycode 'EUR', paymmode 'Card', paymreference 'CARDREF-112', ordernum NULL.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD002].[test TC-002-011 first line load lands 12 in-scope rows 1:1 and live]"
@@ -267,11 +267,11 @@
       ],
       "acceptance_criterion_id": "AC-002-02",
       "category": "negative",
-      "description": "The line load fails through the data: an ORDERNUM of 29 characters (valid in the source's nvarchar(50)) does not fit the design's ordernum nvarchar(20). The error reaches the caller, the run is logged Failed and the target is unchanged.",
-      "preconditions": "Subs.tblSubsInvoices holds A1/V1. brnz_subs_invoice_line holds live recid 801 with amountcur 400.00. CUSTTRANS_RICS has 801 changed to 450.00 and new recid 802 with ORDERNUM 'ORD-0000000000000000000000001'. Relies on ordernum being nvarchar(20) as DES-001 states. Run outside the tSQLt transaction.",
-      "expected": "A string truncation error (2628 or 8152) is raised to the caller. brnz_subs_invoice_line is identical to before (801 still 400.00, no 802). etl_run_log holds one row with status 'Failed' and a non-NULL error_message.",
+      "description": "The line load fails part-way through its writes: the faked target carries a test-only CHECK constraint that rejects the incoming row recid 802 (ORDERNUM 'REJECT-802'), after 801's update is already pending. The error reaches the caller, the run is logged Failed and the target is unchanged. Amended 2026-10-26 (Mike): it no longer relies on ordernum's width, which DES-001 widened to nvarchar(50).",
+      "preconditions": "Subs.tblSubsInvoices holds A1/V1. brnz_subs_invoice_line holds live recid 801 with amountcur 400.00 and a test-only CHECK constraint rejecting ordernum 'REJECT-802'. CUSTTRANS_RICS has 801 changed to 450.00 and new recid 802 with ORDERNUM 'REJECT-802'. Run outside the tSQLt transaction.",
+      "expected": "Check-constraint error 547 is raised to the caller. brnz_subs_invoice_line is identical to before (801 still 400.00, no 802). etl_run_log holds one row with status 'Failed' and a non-NULL error_message.",
       "framework": "tsqlt",
-      "test_ref": "[test_MOD002].[test TC-002-018 line load failing on an over-long ORDERNUM re-raises logs Failed and leaves the target unchanged]"
+      "test_ref": "[test_MOD002].[test TC-002-018 line load failing on a row the target rejects re-raises logs Failed and leaves the target unchanged]"
     }
   ]
 }
