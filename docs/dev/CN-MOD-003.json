@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-003",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-10-26T15:51:54Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-003.json",
+      "tests/tsqlt/test_MOD003.sql"
+    ]
+  },
+  "module_id": "MOD-003",
+  "branch": "agent/developer/MOD-003-payment-method-reference-and-dimension",
+  "commit": "e8be83bca247e089f2fb831f45e796a6006f102f",
+  "requirement_ids": [
+    "REQ-003"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_ref_payment_method.sql",
+      "object": "Layercake.silv_ref_payment_method",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-003"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Functions/Layercake.fn_map_payment_method.sql",
+      "object": "Layercake.fn_map_payment_method",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-003"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.dim_payment_method.sql",
+      "object": "Layercake.dim_payment_method",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-003"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_dim_payment_method.sql",
+      "object": "Layercake.usp_load_dim_payment_method",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-003"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD003_dev].[test fn_map_payment_method reads the list and never matches a reserved row]",
+    "[test_MOD003_dev].[test fn_map_payment_method trims only surrounding spaces]",
+    "[test_MOD003_dev].[test usp_load_dim_payment_method corrects a trailing-space change and keeps a row gone from silver]",
+    "[test_MOD003_dev].[test usp_load_dim_payment_method failure rolls back a name update made earlier in the same run]",
+    "[test_MOD003_dev].[test usp_load_dim_payment_method stamps inserted and updated rows with the load and keeps created_at]",
+    "[test_MOD003_dev].[test usp_load_dim_payment_method stores a log_id beyond the int range in load_id]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0005",
+      "up_script": "src/sql/deploy/MIG-0005_MOD-003_payment-method-reference-and-dimension.up.sql",
+      "down_script": "src/sql/deploy/MIG-0005_MOD-003_payment-method-reference-and-dimension.down.sql",
+      "rollback_test": {
+        "commit": "e8be83bca247e089f2fb831f45e796a6006f102f",
+        "run_at": "2026-10-26T15:51:50.092669+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "notes": "The branch already had a draft of all four objects and both test classes, so the Tester's suite passed on the first run_tests (19 passed). It did not start from failing tests. The draft already matched the amended DES-001 and the 2026-10-26 answers: dim_payment_method.load_id is bigint and holds etl_run_log.log_id; the eight seed rows are in src/sql/seed/MOD-003 (explicit ids 0, -1, -2 and 1 to 5 inserted with IDENTITY_INSERT, so the identity continues from 6), and the down script deletes exactly those ids; fn_map_payment_method trims surrounding spaces and ignores case. Choices the suite does not fix, each covered in test_MOD003_dev: (1) fn_map_payment_method reads source_code from silv_ref_payment_method, so a method added later maps without a code change. It never matches a reserved row (id <= 0). It trims only spaces: a tab, a line break or a space inside the code gives -1. (2) usp_load_dim_payment_method compares names as bytes, so a change in case or trailing spaces is updated. It sets load_id and updated_at only on rows it inserts or updates, and keeps created_at. It never deletes: a dimension id no longer in silver stays (rows_deleted is always 0), because facts may still point at it. The update and insert run in one transaction, so a failure also rolls back an update already made. The error message records the error number. No grants: the design asks for no access to these objects.\n\nTest-first: the first run had 13 of 13 of the Tester's tests passing; the final run passed 13 of 13 and 6 unit test(s), in 1 run(s)."
+}
