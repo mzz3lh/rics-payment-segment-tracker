@@ -108,7 +108,7 @@ agents:
 conventions:
   schemas: [Layercake, audit, etl]
   table_name: ^[a-z][a-z0-9_]*$
-  column_name: ^[a-z][a-z0-9_]*$
+  column_name: ^_?[a-z][a-z0-9_]*$
   load_logging: [Layercake.usp_etl_log_start, Layercake.usp_etl_log_end]
 
 # Objects this project reads but does not own (agents/product_owner/import_external.py). Agents read
