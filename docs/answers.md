@@ -45,3 +45,6 @@ the agent's working assumption. Example:
 
 ## MOD-003 dim_payment_method population (Mike, 2026-10-26)
 - dim_payment_method is not seeded by its migration. It is populated dynamically by Layercake.usp_load_dim_payment_method from silv_ref_payment_method, so after MIG-0005 it is empty until that load runs. Until MOD-016 adds usp_run_payment_segments (which runs it with the other loads), it is run by hand. The same applies to the other gold dimensions over seeded reference lists (dim_payer_type, dim_currency, dim_concession_type).
+
+## MOD-004 NULL matching key (Mike, 2026-10-26)
+- brnz_corporate_subscription keeps contact_no, scheme_no and sub_campaign_year NOT NULL. A Subs.vwCorpSubscriptions row where any of 'Contact No', 'Scheme No' or 'Sub Campaign Year' is NULL fails usp_load_brnz_corporate_subscription (error 515): the load logs Failed, re-raises and leaves the target unchanged. No row is skipped.
