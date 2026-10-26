@@ -1,0 +1,119 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-004",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-10-26T17:13:44Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-004.json",
+      "tests/tsqlt/test_MOD004.sql"
+    ]
+  },
+  "module_id": "MOD-004",
+  "branch": "agent/developer/MOD-004-corporate-subscription-bronze-and-payer",
+  "commit": "845006a639c03864a27e35550418a5acf44d9a36",
+  "requirement_ids": [
+    "REQ-006"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.brnz_corporate_subscription.sql",
+      "object": "Layercake.brnz_corporate_subscription",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-006"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_brnz_corporate_subscription.sql",
+      "object": "Layercake.usp_load_brnz_corporate_subscription",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-006"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_ref_payer_type.sql",
+      "object": "Layercake.silv_ref_payer_type",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-006"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.dim_payer_type.sql",
+      "object": "Layercake.dim_payer_type",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-006"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_dim_payer_type.sql",
+      "object": "Layercake.usp_load_dim_payer_type",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-006"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD004_dev].[test already soft deleted row still absent is not touched or counted]",
+    "[test_MOD004_dev].[test case only change in scheme no updates the row in place]",
+    "[test_MOD004_dev].[test dimension load keeps an id no longer in silver]",
+    "[test_MOD004_dev].[test dimension load stamps load_id with the log id and lands a trailing space change]",
+    "[test_MOD004_dev].[test duplicate source key fails the corporate subscription load with 2627 and changes nothing]",
+    "[test_MOD004_dev].[test restored soft deleted row clears deleted at and is logged as one update]",
+    "[test_MOD004_dev].[test trailing space change in scheme name is landed]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0006",
+      "up_script": "src/sql/deploy/MIG-0006_MOD-004_corporate-subscription-bronze-and-payer.up.sql",
+      "down_script": "src/sql/deploy/MIG-0006_MOD-004_corporate-subscription-bronze-and-payer.down.sql",
+      "rollback_test": {
+        "commit": "845006a639c03864a27e35550418a5acf44d9a36",
+        "run_at": "2026-10-26T17:13:40.309213+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Q-033 (design working assumption: (Contact No, Scheme No, Sub Campaign Year) is unique in Subs.vwCorpSubscriptions): built on it. A repeated key fails usp_load_brnz_corporate_subscription with error 2627 at staging (logged Failed, re-raised, bronze unchanged), rather than landing one of the rows arbitrarily. Unit test 'duplicate source key fails...' pins this down."
+  ],
+  "notes": "MOD-004 builds MIG-0006: brnz_corporate_subscription (PK on contact_no, scheme_no, sub_campaign_year; Round not landed), usp_load_brnz_corporate_subscription, the seeded silv_ref_payer_type (0 Unknown, -1 Unrecognised, -2 Not applicable, 1 Individual, 2 Corporate, ids set explicitly; the down script deletes exactly these rows), dim_payer_type and usp_load_dim_payer_type (same pattern as usp_load_dim_payment_method). The tSQLt suite failed 0/23 before any objects existed and passes 23/23 now. 7 developer unit tests were added, so 30/30 pass. Round-trip and check pass. sqlfluff findings are advisory style points, left as they are to match the Phase 1 and MOD-002/003 code.\nBronze load: the source is first copied into a temp table with the same types as the target and the key NOT NULL. So a NULL Contact No, Scheme No or Sub Campaign Year fails the load with 515 before bronze is touched (answers 2026-10-26). A duplicate key fails it with 2627. All string columns, the key columns included, are compared as bytes. So a change only in case or trailing spaces is landed as an update in place; for a key column that update rewrites the key in place. Restoring a soft-deleted row counts as an update. A row that is already soft-deleted and still missing from the source is not touched and not counted. The live row count is checked against the source count (RULE-005).\ndim_payer_type is not seeded. Like dim_payment_method, it stays empty until usp_load_dim_payer_type runs: by hand until MOD-016's run sequence calls it. The load never deletes from the dimension, and load_id holds the etl_run_log.log_id of the load. No grants are needed by this module.\n\nTest-first: the first run had 0 of 23 of the Tester's tests passing; the final run passed 23 of 23 and 7 unit test(s), in 3 run(s)."
+}
