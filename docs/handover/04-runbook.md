@@ -2,54 +2,87 @@
 
 ## Components and load order
 
-MOD-001 has no loads. It provides two read-only profiles that are run by hand:
+The solution so far has two loads (MOD-002) and two read-only profiles (MOD-001):
 
-| Component | Run it to | Parameters |
+| Component | What it does | Parameters |
 |---|---|---|
-| Layercake.usp_profile_custtrans_grain | Profile the grain of synapse_fo.CUSTTRANS_RICS, for open question Q-021 | None |
-| Layercake.usp_profile_corp_subscription_status | Profile the status values in Subs.vwCorpSubscriptions, for open question Q-027 | None |
+| Layercake.usp_load_brnz_subs_invoice | Load: brings Layercake.brnz_subs_invoice up to date with Subs.tblSubsInvoices | None |
+| Layercake.usp_load_brnz_subs_invoice_line | Load: brings Layercake.brnz_subs_invoice_line up to date with the in-scope rows of synapse_fo.CUSTTRANS_RICS | None |
+| Layercake.usp_profile_custtrans_grain | Profile: the grain of synapse_fo.CUSTTRANS_RICS, for open question Q-021 | None |
+| Layercake.usp_profile_corp_subscription_status | Profile: the status values in Subs.vwCorpSubscriptions, for open question Q-027 | None |
+
+Neither load reads the other's table: the line load takes its list of invoices directly from Subs.tblSubsInvoices. In the design, both loads run as part of one run procedure, Layercake.usp_run_payment_segments, which runs every new load in dependency order after the Phase 1 run. That run procedure comes in a later module (MOD-016).
 
 The two profiles do not depend on each other and can be run in either order. They are intended to be run on real data before the invoice build, so their results can answer Q-021 and Q-027 (see Known limitations).
 
-<!-- evidence: docs/design/MP-001.json#MOD-001; docs/design/MP-001.json#so Mike can run them before the invoice build; docs/dev/CN-MOD-001.json#Neither takes parameters; docs/specs/SPEC-001.json#Q-021; docs/specs/SPEC-001.json#Q-027 -->
+<!-- evidence: docs/dev/CN-MOD-002.json#objects_changed; docs/design/MP-001.json#MOD-002; docs/dev/CN-MOD-002.json#Line scope (RULE-077) reads Subs.tblSubsInvoices directly; docs/design/adr/ADR-001-how-segment-keys-and-amounts-reach-the-event-tables.md#Layercake.usp_run_payment_segments; docs/design/MP-001.json#runs every new load in dependency order after the Phase 1 run; docs/design/MP-001.json#MOD-001; docs/design/MP-001.json#so Mike can run them before the invoice build; docs/dev/CN-MOD-001.json#Neither takes parameters; docs/specs/SPEC-001.json#Q-021; docs/specs/SPEC-001.json#Q-027 -->
 
 ## Scheduling
 
+The loads are designed to run after the Phase 1 run, through the run procedure that a person schedules once it is delivered (MOD-016). The schedule itself (when and how often the run happens) is still to be confirmed.
+
 The profiles are not part of any scheduled load. Mike runs them on real data when the answers are needed and brings the results back as answers to the open questions.
 
-<!-- evidence: docs/specs/SPEC-001.json#REQ-014; docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Mike runs them on real data -->
+<!-- evidence: docs/design/adr/ADR-001-how-segment-keys-and-amounts-reach-the-event-tables.md#which a human schedules after the Phase 1 run; docs/design/DES-001.json#runs after the Phase 1 run; docs/specs/SPEC-001.json#REQ-014; docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Mike runs them on real data -->
 
 ## Monitoring
 
-The profiles do not record a run in the load log (Layercake.etl_run_log), because they load nothing. Their output is the result set they return, which holds counts only, with no personal data.
+Each load records one row per run in the load log, Layercake.etl_run_log, with:
 
-<!-- evidence: docs/dev/CN-MOD-001.json#Neither writes anything or logs a load; docs/design/DES-001.json#Every count-only procedure returns aggregates only -->
+- its outcome: 'Success' or 'Failed';
+- the numbers of rows inserted, updated and deleted (marked as deleted) in its table;
+- for a failed run, the error message.
+
+A second run on unchanged source data records 0 inserted, 0 updated and 0 deleted. Each load also checks that its table's live rows equal the source rows in scope (RULE-005); a mismatch fails the run, so it shows as 'Failed' in the log.
+
+The profiles do not record a run in the load log, because they load nothing. Their output is the result set they return, which holds counts only, with no personal data.
+
+<!-- evidence: docs/specs/SPEC-001.json#RULE-005; docs/dev/CN-MOD-002.json#with status 'Success' or 'Failed'; docs/test/TCS-MOD-002.json#TC-002-004; docs/test/TCS-MOD-002.json#TC-002-005; docs/test/TCS-MOD-002.json#TC-002-010; docs/dev/CN-MOD-002.json#A row-count mismatch between live rows and the source (RULE-005) also fails the load; docs/dev/CN-MOD-001.json#Neither writes anything or logs a load; docs/design/DES-001.json#Every count-only procedure returns aggregates only -->
 
 ## Error handling
 
-The profiles only read their sources and write nothing, so there is nothing to undo if one fails: a failed or interrupted run leaves the database exactly as it was.
+Each load checks the source data against its table's column types before it writes anything, and makes all its changes in one step. If any value does not fit, the source has two rows with the same key, a write is rejected, or the row-count check fails, the load:
 
-<!-- evidence: docs/dev/CN-MOD-001.json#Neither writes anything; docs/design/MP-001.json#Builds no tables and changes no existing object -->
+- stops and reports the error to whatever ran it;
+- records the run as 'Failed' in Layercake.etl_run_log, with the error message;
+- leaves its table exactly as it was before the run.
+
+In plain terms, a failed load changes nothing, so it can simply be run again once the cause is dealt with.
+
+The profiles only read their sources and write nothing, so a failed or interrupted profile run leaves the database exactly as it was.
+
+<!-- evidence: docs/dev/CN-MOD-002.json#Both loads stage the source in the target's column types before the transaction; docs/dev/CN-MOD-002.json#logged Failed in Layercake.etl_run_log, re-raised, target unchanged; docs/test/TCS-MOD-002.json#TC-002-010; docs/test/TCS-MOD-002.json#TC-002-018; docs/dev/CN-MOD-002.json#test line load fails on a duplicate RECID in the source and leaves the target unchanged; docs/dev/CN-MOD-001.json#Neither writes anything; docs/design/MP-001.json#Builds no tables and changes no existing object -->
 
 ## Recovery and reruns
 
-Because a run changes nothing, a profile can simply be run again, as often as needed. Each run reports the source as it stands at that moment.
+After a failed load:
 
-<!-- evidence: docs/dev/CN-MOD-001.json#Neither writes anything; docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain; docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status -->
+1. Read the error message on the 'Failed' row in Layercake.etl_run_log.
+2. Deal with the cause. Where it lies in the source data (for example a duplicate row key, or an amount too large for the table, see Known limitations), the fix goes to the source's owner, because the solution does not change source objects.
+3. Run the load again. Because the failed run changed nothing, no clean-up is needed first.
+
+A load can be run again at any time, as often as needed: a run on unchanged source data changes nothing, and a run after the source has changed brings the table up to date.
+
+Because a profile run changes nothing, a profile can simply be run again, as often as needed. Each run reports the source as it stands at that moment.
+
+<!-- evidence: docs/dev/CN-MOD-002.json#logged Failed in Layercake.etl_run_log, re-raised, target unchanged; docs/test/TCS-MOD-002.json#non-NULL error_message; PROJECT_STANDARDS.md#Objects owned by other systems (external); docs/test/TCS-MOD-002.json#TC-002-005; docs/test/TCS-MOD-002.json#TC-002-016; docs/test/TCS-MOD-002.json#TC-002-007; docs/dev/CN-MOD-001.json#Neither writes anything; docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain; docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status -->
 
 ## Deployment and rollback
 
 Every change ships as a numbered migration with an up script and a down (rollback) script. Migrations are recorded in the migration history (etl.MigrationHistory). Deployment to production is done by a person; it is outside the delivered tooling.
 
-MOD-001 is migration MIG-0003:
+| Migration | Module | Script | What it does |
+|---|---|---|---|
+| MIG-0003 | MOD-001 | src/sql/deploy/MIG-0003_MOD-001_source-profiling-queries.up.sql | Creates the two profile procedures and records the migration as applied |
+| MIG-0003 | MOD-001 | src/sql/deploy/MIG-0003_MOD-001_source-profiling-queries.down.sql | Removes them, returning the database to its state before the migration, and records the rollback |
+| MIG-0004 | MOD-002 | src/sql/deploy/MIG-0004_MOD-002_subscription-invoice-bronze.up.sql | Creates the two bronze tables and their two loads, and records the migration as applied |
+| MIG-0004 | MOD-002 | src/sql/deploy/MIG-0004_MOD-002_subscription-invoice-bronze.down.sql | Removes them, returning the database to its state before the migration, and records the rollback |
 
-| Script | What it does |
-|---|---|
-| src/sql/deploy/MIG-0003_MOD-001_source-profiling-queries.up.sql | Creates the two profile procedures and records the migration as applied |
-| src/sql/deploy/MIG-0003_MOD-001_source-profiling-queries.down.sql | Removes them, returning the database to its state before the migration, and records the rollback |
+Each rollback was tested on the development database (MIG-0003 on 2026-10-25, MIG-0004 on 2026-10-26) and passed every step: the up script applies and is recorded; running it a second time changes nothing; the down script restores the previous schema and is recorded; running it a second time changes nothing; and applying the up script again after a rollback gives the same result as the first time.
 
-The rollback was tested on the development database on 2026-10-25 and passed every step: the up script applies and is recorded; running it a second time changes nothing; the down script restores the previous schema and is recorded; running it a second time changes nothing; and applying the up script again after a rollback gives the same result as the first time.
+Permissions:
 
-Running the profiles needs only EXECUTE permission. The grant script src/sql/grants/MOD-001.sql grants it to a placeholder role, [<analyst_role>], because the analyst's role name is not known. Before running the script, a person must replace the placeholder with the real role. The profiles must be deployed to production before they can be run there.
+- MOD-001: running the profiles needs only EXECUTE permission. The grant script src/sql/grants/MOD-001.sql grants it to a placeholder role, [<analyst_role>], because the analyst's role name is not known. Before running the script, a person must replace the placeholder with the real role. The profiles must be deployed to production before they can be run there.
+- MOD-002: no permission script is needed.
 
-<!-- evidence: docs/specs/SPEC-001.json#journal etl.MigrationHistory; docs/design/DES-001.json#Deployment: one migration per module; docs/setup/ENVIRONMENTS.md#Humans deploy; docs/dev/CN-MOD-001.json#MIG-0003; docs/dev/CN-MOD-001.json#down restores the pre-migration schema; docs/dev/CN-MOD-001.json#re-apply after rollback matches first apply; docs/dev/CN-MOD-001.json#RPST_Dev; docs/dev/CN-MOD-001.json#src/sql/grants/MOD-001.sql; docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Running them needs only EXECUTE; docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#they must be deployed to production -->
+<!-- evidence: docs/specs/SPEC-001.json#journal etl.MigrationHistory; docs/design/DES-001.json#Deployment: one migration per module; docs/setup/ENVIRONMENTS.md#Humans deploy; docs/dev/CN-MOD-001.json#MIG-0003; docs/dev/CN-MOD-002.json#MIG-0004; docs/dev/CN-MOD-002.json#src/sql/deploy/MIG-0004_MOD-002_subscription-invoice-bronze.up.sql; docs/dev/CN-MOD-002.json#src/sql/deploy/MIG-0004_MOD-002_subscription-invoice-bronze.down.sql; docs/dev/CN-MOD-001.json#down restores the pre-migration schema; docs/dev/CN-MOD-002.json#down restores the pre-migration schema; docs/dev/CN-MOD-002.json#re-apply after rollback matches first apply; docs/dev/CN-MOD-002.json#RPST_Dev; docs/dev/CN-MOD-001.json#src/sql/grants/MOD-001.sql; docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Running them needs only EXECUTE; docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#they must be deployed to production; docs/dev/CN-MOD-002.json#No grants are needed -->

@@ -1,0 +1,26 @@
+CREATE TABLE Layercake.brnz_subs_invoice
+(
+    rec_id                  bigint         NOT NULL,
+    account_num             nvarchar(20)   NULL,
+    campaign_year           int            NULL,
+    invoice                 nvarchar(20)   NULL,
+    voucher                 nvarchar(20)   NULL,
+    trans_date              date           NULL,
+    inv_payment_method      nvarchar(20)   NULL,
+    inv_currency            nvarchar(3)    NULL,
+    exchange_rate           numeric(32,16) NULL,
+    full_invoice_amount_cur numeric(32,6)  NULL,
+    invoice_amount_cur      numeric(32,6)  NULL,
+    invoice_amount_gbp      numeric(32,6)  NULL,
+    inv_credit_amount_cur   numeric(32,6)  NULL,
+    inv_credit_amount_gbp   numeric(32,6)  NULL,
+    fully_credited          nvarchar(3)    NULL,
+    payment_status          nvarchar(100)  NULL,
+    has_concession          nvarchar(1)    NULL,
+    full_concession_flag    nvarchar(1)    NULL,
+    _loaded_at              datetime2(3)   NOT NULL CONSTRAINT DF_Layercake_brnz_subs_invoice__loaded_at DEFAULT SYSDATETIME(),
+    _updated_at             datetime2(3)   NOT NULL CONSTRAINT DF_Layercake_brnz_subs_invoice__updated_at DEFAULT SYSDATETIME(),
+    _is_deleted             bit            NOT NULL CONSTRAINT DF_Layercake_brnz_subs_invoice__is_deleted DEFAULT 0,
+    _deleted_at             datetime2(3)   NULL,
+    CONSTRAINT PK_Layercake_brnz_subs_invoice PRIMARY KEY CLUSTERED (rec_id)
+);
