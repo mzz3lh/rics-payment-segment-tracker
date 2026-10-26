@@ -682,7 +682,7 @@ END;
 GO
 
 --[@tSQLt:NoTransaction](DEFAULT)
-CREATE PROCEDURE test_MOD002.[test TC-002-018 line load failing on an over-long ORDERNUM re-raises logs Failed and leaves the target unchanged]
+CREATE PROCEDURE test_MOD002.[test TC-002-018 line load failing on a row the target rejects re-raises logs Failed and leaves the target unchanged]
 AS
 BEGIN
     INSERT INTO Subs.tblSubsInvoices (Rec_ID, Account_Num, Campaign_Year, Invoice, Voucher)
@@ -697,6 +697,11 @@ BEGIN
     VALUES
         (801, N'A1', N'INV-1', N'V1', NULL, '2024-10-20T00:00:00', 8, N'SUB', N'MEMSUB', 400.000000, 400.000000, 0.000000, N'GBP', NULL, NULL, N'ORD-1', '2020-01-01T00:00:00', '2020-01-01T00:00:00', 0, NULL);
 
+    -- The faked target rejects one incoming row, so the load fails part-way through its writes. The constraint
+    -- goes when tSQLt drops the fake; it does not depend on any column width.
+    ALTER TABLE Layercake.brnz_subs_invoice_line
+        ADD CONSTRAINT ck_test_TC_002_018_reject CHECK (ordernum IS NULL OR ordernum <> N'REJECT-802');
+
     SELECT * INTO #Before FROM Layercake.brnz_subs_invoice_line;
 
     INSERT INTO synapse_fo.CUSTTRANS_RICS
@@ -704,14 +709,14 @@ BEGIN
          AMOUNTCUR, AMOUNTMST, SETTLEAMOUNTCUR, CURRENCYCODE, PAYMMODE, PAYMREFERENCE, ORDERNUM)
     VALUES
         (801, N'A1', N'INV-1', N'V1', NULL, '2024-10-20T00:00:00', 8, 'SUB', N'MEMSUB', 450.000000, 450.000000, 0.000000, N'GBP', NULL, NULL, N'ORD-1'),
-        (802, N'A1', N'INV-1', N'V1', NULL, '2024-10-20T00:00:00', 8, 'TAX', N'VAT',     90.000000,  90.000000, 0.000000, N'GBP', NULL, NULL, N'ORD-0000000000000000000000001');
+        (802, N'A1', N'INV-1', N'V1', NULL, '2024-10-20T00:00:00', 8, 'TAX', N'VAT',     90.000000,  90.000000, 0.000000, N'GBP', NULL, NULL, N'REJECT-802');
 
     BEGIN TRY
         EXEC Layercake.usp_load_brnz_subs_invoice_line;
-        EXEC tSQLt.Fail 'usp_load_brnz_subs_invoice_line did not raise an error for an ORDERNUM longer than nvarchar(20)';
+        EXEC tSQLt.Fail 'usp_load_brnz_subs_invoice_line did not raise an error for a row the target rejects';
     END TRY
     BEGIN CATCH
-        IF ERROR_NUMBER() NOT IN (2628, 8152) THROW;
+        IF ERROR_NUMBER() <> 547 THROW;
     END CATCH;
 
     SELECT * INTO #After FROM Layercake.brnz_subs_invoice_line;
