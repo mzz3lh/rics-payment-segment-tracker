@@ -249,26 +249,47 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE test_MOD002_dev.[test line ORDERNUM of exactly 20 characters lands in full]
+-- ordernum is nvarchar(50) as the source (amended DES-001): a full-width value lands
+-- whole, and a case-only change in its 50th character is seen as an update.
+CREATE PROCEDURE test_MOD002_dev.[test line ORDERNUM of 50 characters lands in full and a case-only change at character 50 is an update]
 AS
 BEGIN
     INSERT INTO Subs.tblSubsInvoices (Rec_ID, Account_Num, Campaign_Year, Invoice, Voucher)
     VALUES (9551, N'A1', 2025, N'INV-1', N'V1');
 
+    INSERT INTO Layercake.brnz_subs_invoice_line
+        (recid, accountnum, invoice, voucher, ricinvoicetype, amountcur, ordernum, _loaded_at, _updated_at, _is_deleted, _deleted_at)
+    VALUES (956, N'A1', N'INV-1', N'V1', N'SUB', 450.000000, N'ORD-000000000000000000000000000000000000000000000a',
+            '2020-01-01T00:00:00', '2020-01-01T00:00:00', 0, NULL);
+
     INSERT INTO synapse_fo.CUSTTRANS_RICS (RECID, ACCOUNTNUM, INVOICE, VOUCHER, RICINVOICETYPE, AMOUNTCUR, ORDERNUM)
-    VALUES (955, N'A1', N'INV-1', N'V1', 'SUB', 450.000000, N'ORD-0000000000000001');
+    VALUES (955, N'A1', N'INV-1', N'V1', 'SUB', 450.000000, N'ORD-0000000000000000000000000000000000000000000001'),
+           (956, N'A1', N'INV-1', N'V1', 'SUB', 450.000000, N'ORD-000000000000000000000000000000000000000000000A');
 
     EXEC Layercake.usp_load_brnz_subs_invoice_line;
 
-    SELECT recid, ordernum
+    SELECT recid,
+           LEN(ordernum) AS ordernum_length,
+           CAST(ordernum AS varbinary(100)) AS ordernum_bytes
     INTO #Actual
     FROM Layercake.brnz_subs_invoice_line;
 
-    SELECT TOP (0) * INTO #Expected FROM #Actual;
-    INSERT INTO #Expected (recid, ordernum)
-    VALUES (955, N'ORD-0000000000000001');
+    SELECT recid, ordernum_length, ordernum_bytes
+    INTO #Expected
+    FROM (VALUES (CAST(955 AS bigint), 50, CAST(N'ORD-0000000000000000000000000000000000000000000001' AS varbinary(100))),
+                 (CAST(956 AS bigint), 50, CAST(N'ORD-000000000000000000000000000000000000000000000A' AS varbinary(100)))) AS v(recid, ordernum_length, ordernum_bytes);
 
-    EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
+    EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual', 'brnz_subs_invoice_line after the load';
+
+    SELECT status, rows_inserted, rows_updated, rows_deleted
+    INTO #ActualLog
+    FROM Layercake.etl_run_log;
+
+    SELECT status, rows_inserted, rows_updated, rows_deleted
+    INTO #ExpectedLog
+    FROM (VALUES (CAST('Success' AS varchar(10)), 1, 1, 0)) AS v(status, rows_inserted, rows_updated, rows_deleted);
+
+    EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog', 'etl_run_log row';
 END;
 GO
 

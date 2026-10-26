@@ -72,9 +72,7 @@ BEGIN
         currencycode      nvarchar(3)   NULL,
         paymmode          nvarchar(20)  NULL,
         paymreference     nvarchar(50)  NULL,
-        -- nvarchar(20), not the amended design's nvarchar(50): the approved TC-002-018
-        -- requires it until the owner settles the conflict (see CN-MOD-002 deviations).
-        ordernum          nvarchar(20)  NULL,
+        ordernum          nvarchar(50)  NULL,
         _loaded_at        datetime2(3)  NOT NULL CONSTRAINT DF_Layercake_brnz_subs_invoice_line__loaded_at DEFAULT SYSDATETIME(),
         _updated_at       datetime2(3)  NOT NULL CONSTRAINT DF_Layercake_brnz_subs_invoice_line__updated_at DEFAULT SYSDATETIME(),
         _is_deleted       bit           NOT NULL CONSTRAINT DF_Layercake_brnz_subs_invoice_line__is_deleted DEFAULT 0,
@@ -274,7 +272,7 @@ BEGIN
             currencycode      nvarchar(3)   NULL,
             paymmode          nvarchar(20)  NULL,
             paymreference     nvarchar(50)  NULL,
-            ordernum          nvarchar(20)  NULL
+            ordernum          nvarchar(50)  NULL
         );
 
         -- RULE-077: the lines of a Subs.tblSubsInvoices invoice (same account
@@ -325,14 +323,14 @@ BEGIN
                              s.transtype, CAST(s.ricinvoicetype AS varbinary(20)), CAST(s.productcode AS varbinary(100)),
                              s.amountcur, s.amountmst, s.settleamountcur, CAST(s.currencycode AS varbinary(6)),
                              CAST(s.paymmode AS varbinary(40)), CAST(s.paymreference AS varbinary(100)),
-                             CAST(s.ordernum AS varbinary(40))
+                             CAST(s.ordernum AS varbinary(100))
                       EXCEPT
                       SELECT CAST(tgt.accountnum AS varbinary(40)), CAST(tgt.invoice AS varbinary(40)),
                              CAST(tgt.voucher AS varbinary(40)), CAST(tgt.lastsettlevoucher AS varbinary(40)), tgt.transdate,
                              tgt.transtype, CAST(tgt.ricinvoicetype AS varbinary(20)), CAST(tgt.productcode AS varbinary(100)),
                              tgt.amountcur, tgt.amountmst, tgt.settleamountcur, CAST(tgt.currencycode AS varbinary(6)),
                              CAST(tgt.paymmode AS varbinary(40)), CAST(tgt.paymreference AS varbinary(100)),
-                             CAST(tgt.ordernum AS varbinary(40)));
+                             CAST(tgt.ordernum AS varbinary(100)));
         SET @upd = @@ROWCOUNT;
 
         INSERT INTO Layercake.brnz_subs_invoice_line
