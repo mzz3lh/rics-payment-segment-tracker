@@ -153,13 +153,13 @@
         },
         {
           "name": "fully_credited",
-          "data_type": "nvarchar(1)",
+          "data_type": "nvarchar(3)",
           "nullable": true,
           "key": "none"
         },
         {
           "name": "payment_status",
-          "data_type": "nvarchar(30)",
+          "data_type": "nvarchar(100)",
           "nullable": true,
           "key": "none"
         },
@@ -247,7 +247,7 @@
         },
         {
           "name": "transdate",
-          "data_type": "datetime2(0)",
+          "data_type": "datetime2(3)",
           "nullable": true,
           "key": "none",
           "description": "Type as source"
@@ -312,7 +312,7 @@
         },
         {
           "name": "ordernum",
-          "data_type": "nvarchar(20)",
+          "data_type": "nvarchar(50)",
           "nullable": true,
           "key": "none"
         },
@@ -505,19 +505,19 @@
         },
         {
           "name": "scheme_name",
-          "data_type": "nvarchar(200)",
+          "data_type": "nvarchar(4000)",
           "nullable": true,
           "key": "none"
         },
         {
           "name": "sub_status",
-          "data_type": "nvarchar(100)",
+          "data_type": "nvarchar(350)",
           "nullable": true,
           "key": "none"
         },
         {
           "name": "sub_user_status",
-          "data_type": "nvarchar(100)",
+          "data_type": "nvarchar(350)",
           "nullable": true,
           "key": "none"
         },
@@ -827,14 +827,14 @@
         },
         {
           "name": "apuk_discount",
-          "data_type": "decimal(23,10)",
+          "data_type": "decimal(38,2)",
           "nullable": true,
           "key": "none",
           "description": "Type as source"
         },
         {
           "name": "product_number",
-          "data_type": "nvarchar(100)",
+          "data_type": "nvarchar(4000)",
           "nullable": true,
           "key": "none",
           "description": "Product_Number as the source view gives it"
