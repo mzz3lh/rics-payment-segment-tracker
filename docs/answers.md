@@ -35,3 +35,6 @@ the agent's working assumption. Example:
 ## MOD-002 ordernum and amount types (2026-10-26)
 - brnz_subs_invoice_line.ordernum is nvarchar(50), as the amended DES-001 says; the design wins over the approved test. TC-002-018 must force the line load's error path some other way than an over-long ORDERNUM, and it is being amended for that.
 - The money columns stay numeric(32,6) even though Subs.tblSubsInvoices has numeric(38,6): numeric(32,6) is the solution's money type (Phase 1 bronze uses it), and 26 integer digits cannot be exceeded by a real invoice amount. This is the one deliberate exception to "no column narrower than its source".
+
+## DES-001 load_id (Mike, 2026-10-26)
+- Every load_id column is bigint and holds Layercake.etl_run_log.log_id (bigint identity, one row per step) of the load that last wrote the row; not run_id. DES-001 now says bigint for all nine (dim_payment_method, dim_payer_type, silv_ref_invoice_line_type, silv_ref_currency, dim_currency, silv_ref_concession_type, dim_concession_type, silv_member_year_attributes, silv_event_amount). This amends the approved design; merging the change is the approval.
