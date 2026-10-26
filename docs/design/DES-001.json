@@ -445,10 +445,10 @@
         },
         {
           "name": "load_id",
-          "data_type": "int",
+          "data_type": "bigint",
           "nullable": true,
           "key": "none",
-          "description": "Run id in Layercake.etl_run_log of the load that last wrote the row"
+          "description": "Layercake.etl_run_log.log_id of the load that last wrote the row"
         },
         {
           "name": "created_at",
@@ -620,7 +620,7 @@
         },
         {
           "name": "load_id",
-          "data_type": "int",
+          "data_type": "bigint",
           "nullable": true,
           "key": "none"
         },
@@ -679,7 +679,7 @@
         },
         {
           "name": "load_id",
-          "data_type": "int",
+          "data_type": "bigint",
           "nullable": true,
           "key": "none",
           "description": "Load that inserted the row; null for seeded rows"
@@ -732,7 +732,7 @@
         },
         {
           "name": "load_id",
-          "data_type": "int",
+          "data_type": "bigint",
           "nullable": true,
           "key": "none"
         },
@@ -777,7 +777,7 @@
         },
         {
           "name": "load_id",
-          "data_type": "int",
+          "data_type": "bigint",
           "nullable": true,
           "key": "none"
         },
@@ -945,7 +945,7 @@
         },
         {
           "name": "load_id",
-          "data_type": "int",
+          "data_type": "bigint",
           "nullable": true,
           "key": "none"
         },
@@ -1008,7 +1008,7 @@
         },
         {
           "name": "load_id",
-          "data_type": "int",
+          "data_type": "bigint",
           "nullable": true,
           "key": "none"
         },
@@ -1126,7 +1126,7 @@
         },
         {
           "name": "load_id",
-          "data_type": "int",
+          "data_type": "bigint",
           "nullable": false,
           "key": "none"
         },
@@ -1559,7 +1559,7 @@
         },
         {
           "name": "load_id",
-          "data_type": "int",
+          "data_type": "bigint",
           "nullable": false,
           "key": "none"
         },
