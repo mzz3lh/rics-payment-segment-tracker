@@ -1,0 +1,526 @@
+{
+  "meta": {
+    "artefact_type": "module_plan",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "MP-001",
+    "version": 1,
+    "produced_by": "technical_architect",
+    "produced_at": "2026-10-23T16:19:59Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-10-25T12:12:23Z",
+      "gate": "architecture_validation"
+    }
+  },
+  "design_ref": "docs/design/DES-001.json",
+  "max_test_loops": 3,
+  "modules": [
+    {
+      "id": "MOD-001",
+      "title": "Source profiling queries",
+      "sequence": 1,
+      "scope": "Builds usp_profile_custtrans_grain and usp_profile_corp_subscription_status, count-only procedures over the external sources, so Mike can run them before the invoice build (Q-021, Q-027). Builds no tables and changes no existing object.",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "AC-014-07",
+        "AC-014-08"
+      ],
+      "objects": [
+        "Layercake.usp_profile_custtrans_grain",
+        "Layercake.usp_profile_corp_subscription_status"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-002",
+      "title": "Subscription invoice bronze",
+      "sequence": 2,
+      "scope": "Builds brnz_subs_invoice and brnz_subs_invoice_line and their load procedures: 1:1 landing with soft delete, row-count check and logging, and the RULE-077 line scope. Does not interpret line types or payment modes.",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "AC-002-01",
+        "AC-002-02",
+        "AC-002-03",
+        "AC-002-04",
+        "AC-002-05",
+        "AC-002-06"
+      ],
+      "objects": [
+        "Layercake.brnz_subs_invoice",
+        "Layercake.brnz_subs_invoice_line",
+        "Layercake.usp_load_brnz_subs_invoice",
+        "Layercake.usp_load_brnz_subs_invoice_line"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-003",
+      "title": "Payment method reference and dimension",
+      "sequence": 3,
+      "scope": "Builds the seeded silv_ref_payment_method (reserved ids 0, -1, -2 plus the five methods), fn_map_payment_method (code to id per RULE-007 to RULE-009), dim_payment_method and its load. Does not derive any contact's payment method.",
+      "requirement_ids": [
+        "REQ-003"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "AC-003-01",
+        "AC-003-02",
+        "AC-003-03",
+        "AC-003-04",
+        "AC-003-05"
+      ],
+      "objects": [
+        "Layercake.silv_ref_payment_method",
+        "Layercake.fn_map_payment_method",
+        "Layercake.dim_payment_method",
+        "Layercake.usp_load_dim_payment_method"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-004",
+      "title": "Corporate subscription bronze and payer type reference",
+      "sequence": 4,
+      "scope": "Builds brnz_corporate_subscription and its load (Round not landed), the seeded silv_ref_payer_type, dim_payer_type and its load. Does not derive payer type.",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "AC-006-01"
+      ],
+      "objects": [
+        "Layercake.brnz_corporate_subscription",
+        "Layercake.usp_load_brnz_corporate_subscription",
+        "Layercake.silv_ref_payer_type",
+        "Layercake.dim_payer_type",
+        "Layercake.usp_load_dim_payer_type"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-005",
+      "title": "Invoice line-type mapping and currency",
+      "sequence": 5,
+      "scope": "Builds silv_ref_invoice_line_type (seeded curated mapping; new codes added as 'unmapped', mapped rows never overwritten), silv_ref_currency, dim_currency and their three loads. Does not compute amounts.",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "depends_on": [
+        "MOD-002"
+      ],
+      "acceptance_criteria": [
+        "AC-007-01",
+        "AC-007-02",
+        "AC-007-03"
+      ],
+      "objects": [
+        "Layercake.silv_ref_invoice_line_type",
+        "Layercake.usp_load_silv_ref_invoice_line_type",
+        "Layercake.silv_ref_currency",
+        "Layercake.usp_load_silv_ref_currency",
+        "Layercake.dim_currency",
+        "Layercake.usp_load_dim_currency"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-006",
+      "title": "Concession reference and dimension",
+      "sequence": 6,
+      "scope": "Builds brnz_concession and its load, silv_ref_concession_type (seeded reserved rows and No concession, insert-and-update from bronze, item_code, is_full_concession, is_perpetual) with its load, and dim_concession_type with its load. Also carries the cross-segment reserved-label check over the three segment lists. Does not derive concessions for contacts.",
+      "requirement_ids": [
+        "REQ-010",
+        "REQ-003"
+      ],
+      "depends_on": [
+        "MOD-003",
+        "MOD-004"
+      ],
+      "acceptance_criteria": [
+        "AC-010-01",
+        "AC-010-02",
+        "AC-010-03",
+        "AC-010-04",
+        "AC-010-05",
+        "AC-010-06",
+        "AC-003-06"
+      ],
+      "objects": [
+        "Layercake.brnz_concession",
+        "Layercake.usp_load_brnz_concession",
+        "Layercake.silv_ref_concession_type",
+        "Layercake.usp_load_silv_ref_concession_type",
+        "Layercake.dim_concession_type",
+        "Layercake.usp_load_dim_concession_type"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-007",
+      "title": "Member-year attributes and new event-table columns",
+      "sequence": 7,
+      "scope": "Builds vw_silv_eligible_invoice (RULE-014, RULE-079), silv_member_year_attributes and its load: payment method, payer type, corporate_account_ref and concession per contact-year, with carry-forward and pre-2022 rules. Also adds the seventeen new columns (keys and flags not null with default 0; amounts, currency_id and amount_status nullable) to the existing silv_membership_events and fact_membership_events, through change scripts the down script reverses exactly, without writing values or changing any Phase 1 column, row, event_nk or event_id. Does not write anomalies or event values.",
+      "requirement_ids": [
+        "REQ-001",
+        "REQ-004",
+        "REQ-005",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006"
+      ],
+      "acceptance_criteria": [
+        "AC-004-01",
+        "AC-004-02",
+        "AC-004-03",
+        "AC-004-04",
+        "AC-004-05",
+        "AC-004-06",
+        "AC-004-07",
+        "AC-004-08",
+        "AC-004-09",
+        "AC-004-10",
+        "AC-004-11",
+        "AC-004-12",
+        "AC-006-02",
+        "AC-006-03",
+        "AC-006-05",
+        "AC-006-06",
+        "AC-006-14",
+        "AC-011-02",
+        "AC-011-03",
+        "AC-011-04",
+        "AC-011-09",
+        "AC-011-10",
+        "AC-001-03"
+      ],
+      "objects": [
+        "Layercake.vw_silv_eligible_invoice",
+        "Layercake.silv_member_year_attributes",
+        "Layercake.usp_load_silv_member_year_attributes",
+        "Layercake.silv_membership_events",
+        "Layercake.fact_membership_events"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-008",
+      "title": "Segment anomalies",
+      "sequence": 8,
+      "scope": "Builds usp_load_silv_data_anomaly_segment, which reconciles CORPORATE_FLAG_NO_SCHEME, DOUBLE_PAYMENT, CONCESSION_NOT_IN_REFERENCE and FULL_CONCESSION_NO_CONCESSION rows in the existing silv_data_anomaly (structure unchanged). Does not touch other anomaly types.",
+      "requirement_ids": [
+        "REQ-006",
+        "REQ-011"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-006",
+        "MOD-007"
+      ],
+      "acceptance_criteria": [
+        "AC-006-04",
+        "AC-006-07",
+        "AC-006-11",
+        "AC-006-12",
+        "AC-006-13",
+        "AC-011-05",
+        "AC-011-06"
+      ],
+      "objects": [
+        "Layercake.usp_load_silv_data_anomaly_segment",
+        "Layercake.silv_data_anomaly"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-009",
+      "title": "Retire silv_payment_events.payment_source",
+      "sequence": 9,
+      "scope": "Removes payment_source from the existing silv_payment_events through a change script, and changes the existing Phase 1 procedure that loads it so it no longer writes the column (procedure named under Q-031; drop approval Q-035). The down script restores both. No other change.",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "depends_on": [
+        "MOD-007"
+      ],
+      "acceptance_criteria": [
+        "AC-006-10"
+      ],
+      "objects": [
+        "Layercake.silv_payment_events"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-010",
+      "title": "Event invoice matching and amounts",
+      "sequence": 10,
+      "scope": "Builds silv_event_amount and usp_load_silv_event_amount: amount Campaign Year, date-order pairing of events with eligible invoices (including shortfall and surplus cases), subs, fee, subtotal, credit, GBP and net amounts, currency and amount_status per Join, Renewal and Readmission. Does not write to the event tables or to silv_data_anomaly.",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-011"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-005",
+        "MOD-007"
+      ],
+      "acceptance_criteria": [
+        "AC-008-01",
+        "AC-008-02",
+        "AC-008-03",
+        "AC-008-04",
+        "AC-008-05",
+        "AC-008-06",
+        "AC-008-08",
+        "AC-008-09",
+        "AC-008-10",
+        "AC-008-12",
+        "AC-008-14",
+        "AC-008-15",
+        "AC-008-16",
+        "AC-008-17",
+        "AC-008-18",
+        "AC-008-19",
+        "AC-008-20",
+        "AC-008-21",
+        "AC-011-07"
+      ],
+      "objects": [
+        "Layercake.silv_event_amount",
+        "Layercake.usp_load_silv_event_amount"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-011",
+      "title": "Invoice and readmission anomalies",
+      "sequence": 11,
+      "scope": "Builds usp_load_silv_data_anomaly_invoice, which reconciles EVENT_NO_INVOICE, INVOICE_NO_EVENT, INVOICE_MATCHES_MULTIPLE_EVENTS, EVENT_MATCHES_MULTIPLE_INVOICES, READMISSION_FREE and READMISSION_NO_FEE rows for amount Campaign Years from 2022, using the Campaign Year quarter 2 free window (ADR-004, Q-032). Does not touch other anomaly types.",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "depends_on": [
+        "MOD-007",
+        "MOD-008",
+        "MOD-010"
+      ],
+      "acceptance_criteria": [
+        "AC-009-01",
+        "AC-009-02",
+        "AC-009-03",
+        "AC-009-04",
+        "AC-009-05",
+        "AC-009-06",
+        "AC-009-07",
+        "AC-009-08",
+        "AC-009-09"
+      ],
+      "objects": [
+        "Layercake.usp_load_silv_data_anomaly_invoice"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-012",
+      "title": "Segment keys, flags and amounts onto the events",
+      "sequence": 12,
+      "scope": "Builds usp_load_silv_membership_events_segments (keys and flags from silv_member_year_attributes, amounts from silv_event_amount) and usp_load_fact_membership_events_segments (copy to gold by event_id plus the extended silver-to-gold check), per ADR-001. Changes no Phase 1 column, row or procedure.",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011"
+      ],
+      "depends_on": [
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006",
+        "MOD-007",
+        "MOD-010"
+      ],
+      "acceptance_criteria": [
+        "AC-005-01",
+        "AC-005-02",
+        "AC-005-03",
+        "AC-005-04",
+        "AC-005-05",
+        "AC-005-06",
+        "AC-005-07",
+        "AC-006-08",
+        "AC-006-09",
+        "AC-006-15",
+        "AC-008-07",
+        "AC-008-11",
+        "AC-008-13",
+        "AC-011-01",
+        "AC-011-08",
+        "AC-011-11"
+      ],
+      "objects": [
+        "Layercake.usp_load_silv_membership_events_segments",
+        "Layercake.usp_load_fact_membership_events_segments"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-013",
+      "title": "Retirement comparison query",
+      "sequence": 13,
+      "scope": "Builds usp_report_retirement_comparison: four counts and the agreement rate by Campaign Year over paid positions, aggregates only. No change to Practising / Retired logic.",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "depends_on": [
+        "MOD-006",
+        "MOD-007"
+      ],
+      "acceptance_criteria": [
+        "AC-012-01",
+        "AC-012-02"
+      ],
+      "objects": [
+        "Layercake.usp_report_retirement_comparison"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-014",
+      "title": "Employer findings queries",
+      "sequence": 14,
+      "scope": "Builds the three count-only employer findings procedures (scheme-link coverage, source agreement, top employers). Creates no employer table, dimension or column. The Technical Writer's update for this module carries the employer data quality note.",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "depends_on": [
+        "MOD-004",
+        "MOD-007"
+      ],
+      "acceptance_criteria": [
+        "AC-013-01",
+        "AC-013-02",
+        "AC-013-03",
+        "AC-013-04",
+        "AC-013-05"
+      ],
+      "objects": [
+        "Layercake.usp_report_employer_scheme_coverage",
+        "Layercake.usp_report_employer_source_agreement",
+        "Layercake.usp_report_top_employers"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-015",
+      "title": "Coverage and totals queries",
+      "sequence": 15,
+      "scope": "Builds the four count-only report procedures (payment method coverage, invoiced subtotal coverage, Direct Debit share, last full year totals), each with an as-of date parameter (ADR-003). Aggregates only.",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "depends_on": [
+        "MOD-007",
+        "MOD-012"
+      ],
+      "acceptance_criteria": [
+        "AC-014-01",
+        "AC-014-02",
+        "AC-014-03",
+        "AC-014-04",
+        "AC-014-05",
+        "AC-014-06"
+      ],
+      "objects": [
+        "Layercake.usp_report_payment_method_coverage",
+        "Layercake.usp_report_invoiced_subtotal_coverage",
+        "Layercake.usp_report_direct_debit_share",
+        "Layercake.usp_report_last_full_year_totals"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-016",
+      "title": "Run sequence, regression and handover completion",
+      "sequence": 16,
+      "scope": "Builds usp_run_payment_segments, which runs every new load in dependency order after the Phase 1 run. Proves end to end on synthetic data that Phase 1 results are unchanged, that a second full run changes nothing, and that every migration passes check and roundtrip. Its documentation update completes the handover and Platform Schema content. Changes no Phase 1 object; a human schedules the run (Q-031).",
+      "requirement_ids": [
+        "REQ-001",
+        "REQ-012",
+        "REQ-015",
+        "REQ-016"
+      ],
+      "depends_on": [
+        "MOD-001",
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006",
+        "MOD-007",
+        "MOD-008",
+        "MOD-009",
+        "MOD-010",
+        "MOD-011",
+        "MOD-012",
+        "MOD-013",
+        "MOD-014",
+        "MOD-015"
+      ],
+      "acceptance_criteria": [
+        "AC-001-01",
+        "AC-001-02",
+        "AC-001-04",
+        "AC-001-05",
+        "AC-012-03",
+        "AC-015-01",
+        "AC-015-02",
+        "AC-015-03",
+        "AC-015-04",
+        "AC-016-01",
+        "AC-016-02",
+        "AC-016-03"
+      ],
+      "objects": [
+        "Layercake.usp_run_payment_segments"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    }
+  ]
+}

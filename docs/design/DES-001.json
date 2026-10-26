@@ -1,0 +1,1875 @@
+{
+  "meta": {
+    "artefact_type": "design",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "DES-001",
+    "version": 1,
+    "produced_by": "technical_architect",
+    "produced_at": "2026-10-23T16:19:59Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-10-25T12:12:23Z",
+      "gate": "architecture_validation"
+    }
+  },
+  "spec_ref": "docs/specs/SPEC-001.json",
+  "overview": "Extends the Phase 1 Layercake membership solution so that every membership event (Join, Change, Lapse, Readmission, Renewal) can be segmented by payment method, payer type and concession type, and every Join, Renewal and Readmission carries its invoiced amounts. Subscription invoices, invoice lines, corporate subscriptions and the concession reference are landed 1:1 in bronze from objects other systems own. Silver adds the segment reference lists, an item-code line-type mapping, a currency list and one attributes row per contact per Campaign Year, which sets each year's segments from its segment invoice. It also adds a per-event invoice match that pairs each Join, Renewal and Readmission with its own eligible invoice, and ten new anomaly types in the existing silv_data_anomaly. Four new gold dimensions are added, and the existing silver and gold event tables gain the segment keys, carried flags, amounts and amount_status. All new loads run as one block after the Phase 1 run (ADR-001), so Phase 1 logic and results are unchanged. Count-only profiling, coverage, retirement and employer findings queries are delivered as read-only procedures (ADR-003). Employer segmentation is findings only, so no employer objects are created. Every change ships as a framework migration with a tested down script, all objects live in the Layercake schema, and names follow the Phase 1 conventions.",
+  "layers": [
+    {
+      "name": "bronze",
+      "schema": "Layercake",
+      "purpose": "brnz_* tables: 1:1 landings of external sources (Subs.tblSubsInvoices, synapse_fo.CUSTTRANS_RICS, Subs.vwCorpSubscriptions, CE.vwConcessionType) with the standard bronze audit columns and soft delete. No value transformation."
+    },
+    {
+      "name": "silver",
+      "schema": "Layercake",
+      "purpose": "silv_* tables and views: segment reference lists with reserved ids, the line-type mapping, the currency list, the eligible-invoice view, silv_member_year_attributes, silv_event_amount, the new columns on the existing silv_membership_events, and anomaly rows in the existing silv_data_anomaly."
+    },
+    {
+      "name": "gold",
+      "schema": "Layercake",
+      "purpose": "dim_payment_method, dim_payer_type, dim_currency and dim_concession_type copied from silver, and the new keys, flags and additive amount measures on the existing fact_membership_events. fact_daily_member_count_detail and fact_annual_rate_base are not changed (Q-007)."
+    },
+    {
+      "name": "reporting queries",
+      "schema": "Layercake",
+      "purpose": "usp_profile_* and usp_report_* read-only procedures that return aggregates only (counts, sums, rates) for profiling, coverage, retirement comparison and employer findings."
+    },
+    {
+      "name": "load logging",
+      "schema": "Layercake",
+      "purpose": "Every load records start, row counts and outcome in Layercake.etl_run_log through the existing Layercake.usp_etl_log_start and Layercake.usp_etl_log_end (project override of base standards 3)."
+    },
+    {
+      "name": "control",
+      "schema": "etl",
+      "purpose": "Framework migration history (etl.MigrationHistory) only. No new etl objects."
+    }
+  ],
+  "entities": [
+    {
+      "name": "Layercake.brnz_subs_invoice",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "1:1 landing of Subs.tblSubsInvoices (Campaign Year 2022 onward). One row per source row, keyed on rec_id. Column types and lengths are copied from the source columns. Also carries the four standard bronze audit columns (_loaded_at, _updated_at, _is_deleted, _deleted_at) exactly as existing bronze tables do: datetime2(3) not null, datetime2(3) not null, bit not null, datetime2(3) null. They are given here in text because their leading underscore falls outside the project's column-name pattern (Q-037).",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "columns": [
+        {
+          "name": "rec_id",
+          "data_type": "bigint",
+          "nullable": false,
+          "key": "pk",
+          "description": "Rec_ID; source row key"
+        },
+        {
+          "name": "account_num",
+          "data_type": "nvarchar(20)",
+          "nullable": true,
+          "key": "none",
+          "description": "Account_Num; equals the RICS contact number"
+        },
+        {
+          "name": "campaign_year",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "invoice",
+          "data_type": "nvarchar(20)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "voucher",
+          "data_type": "nvarchar(20)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "trans_date",
+          "data_type": "date",
+          "nullable": true,
+          "key": "none",
+          "description": "Type as source"
+        },
+        {
+          "name": "inv_payment_method",
+          "data_type": "nvarchar(20)",
+          "nullable": true,
+          "key": "none",
+          "description": "F&O PAYMMODE on the invoice; null lands as null"
+        },
+        {
+          "name": "inv_currency",
+          "data_type": "nvarchar(3)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "exchange_rate",
+          "data_type": "numeric(32,16)",
+          "nullable": true,
+          "key": "none",
+          "description": "Type as source"
+        },
+        {
+          "name": "full_invoice_amount_cur",
+          "data_type": "numeric(32,6)",
+          "nullable": true,
+          "key": "none",
+          "description": "Tells a credit note from a zero-value 'CRE' invoice (RULE-014)"
+        },
+        {
+          "name": "invoice_amount_cur",
+          "data_type": "numeric(32,6)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "invoice_amount_gbp",
+          "data_type": "numeric(32,6)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "inv_credit_amount_cur",
+          "data_type": "numeric(32,6)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "inv_credit_amount_gbp",
+          "data_type": "numeric(32,6)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "fully_credited",
+          "data_type": "nvarchar(1)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "payment_status",
+          "data_type": "nvarchar(30)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "has_concession",
+          "data_type": "nvarchar(1)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "full_concession_flag",
+          "data_type": "nvarchar(1)",
+          "nullable": true,
+          "key": "none",
+          "description": "Source column 100%_Concession"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.brnz_subs_invoice_line",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "1:1 landing of the synapse_fo.CUSTTRANS_RICS rows in scope under RULE-077: lines whose ACCOUNTNUM and VOUCHER match a Subs.tblSubsInvoices invoice (all RICINVOICETYPE values), and rows whose LASTSETTLEVOUCHER matches such a voucher (credits and payments settling it). Keyed on recid. Types are copied from the source. The grain is assumed to be one row per invoice line (Q-021). Carries the four standard bronze audit columns as brnz_subs_invoice does (Q-037).",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "columns": [
+        {
+          "name": "recid",
+          "data_type": "bigint",
+          "nullable": false,
+          "key": "pk"
+        },
+        {
+          "name": "accountnum",
+          "data_type": "nvarchar(20)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "invoice",
+          "data_type": "nvarchar(20)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "voucher",
+          "data_type": "nvarchar(20)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "lastsettlevoucher",
+          "data_type": "nvarchar(20)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "transdate",
+          "data_type": "datetime2(0)",
+          "nullable": true,
+          "key": "none",
+          "description": "Type as source"
+        },
+        {
+          "name": "transtype",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "ricinvoicetype",
+          "data_type": "nvarchar(10)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "productcode",
+          "data_type": "nvarchar(50)",
+          "nullable": true,
+          "key": "none",
+          "description": "Item code for the line-type mapping and the concession value"
+        },
+        {
+          "name": "amountcur",
+          "data_type": "numeric(34,6)",
+          "nullable": true,
+          "key": "none",
+          "description": "Invoice currency"
+        },
+        {
+          "name": "amountmst",
+          "data_type": "numeric(34,6)",
+          "nullable": true,
+          "key": "none",
+          "description": "GBP accounting currency"
+        },
+        {
+          "name": "settleamountcur",
+          "data_type": "numeric(34,6)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "currencycode",
+          "data_type": "nvarchar(3)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "paymmode",
+          "data_type": "nvarchar(20)",
+          "nullable": true,
+          "key": "none",
+          "description": "Payment mode on payment lines"
+        },
+        {
+          "name": "paymreference",
+          "data_type": "nvarchar(50)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "ordernum",
+          "data_type": "nvarchar(20)",
+          "nullable": true,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_brnz_subs_invoice",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Lands Subs.tblSubsInvoices into brnz_subs_invoice. Inserts new rec_ids, updates changed rows and sets _updated_at, soft-deletes rows gone from the source and restores rows that reappear. Unchanged rows are untouched. Runs the RULE-005 row-count check and logs through usp_etl_log_start and usp_etl_log_end.",
+      "requirement_ids": [
+        "REQ-002",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_brnz_subs_invoice_line",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Lands the RULE-077 scope of synapse_fo.CUSTTRANS_RICS into brnz_subs_invoice_line, with the same insert, update and soft-delete behaviour, row-count check and logging as the invoice load.",
+      "requirement_ids": [
+        "REQ-002",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.silv_ref_payment_method",
+      "kind": "table",
+      "load_pattern": "n/a",
+      "description": "Static list seeded by its migration: reserved rows 0 Unknown, -1 Unrecognised and -2 Not applicable at fixed ids, plus Direct Debit, Card, Bank transfer, Cheque and Corporate with identity ids from 1. No Mixed value (Q-015). Ids never change.",
+      "requirement_ids": [
+        "REQ-003"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk",
+          "description": "Fixed for reserved rows; identity for the five methods"
+        },
+        {
+          "name": "payment_method_name",
+          "data_type": "varchar(30)",
+          "nullable": false,
+          "key": "bk",
+          "description": "Unique"
+        },
+        {
+          "name": "source_code",
+          "data_type": "varchar(20)",
+          "nullable": true,
+          "key": "none",
+          "description": "DD, Card, Bank, Cheque, Corporate; null for reserved rows; unique where present"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "UTC"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "UTC"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.fn_map_payment_method",
+      "kind": "function",
+      "load_pattern": "n/a",
+      "description": "Maps a source payment mode code to a silv_ref_payment_method id: the five codes map to their methods, null or empty string to 0 Unknown, any other code to -1 Unrecognised (RULE-007, RULE-008). Used by the attributes load and the double-payment test so the mapping lives in one place.",
+      "requirement_ids": [
+        "REQ-003"
+      ]
+    },
+    {
+      "name": "Layercake.dim_payment_method",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Gold copy of silv_ref_payment_method with the same ids and names.",
+      "requirement_ids": [
+        "REQ-003",
+        "REQ-005"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk"
+        },
+        {
+          "name": "payment_method_name",
+          "data_type": "varchar(30)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "load_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none",
+          "description": "Run id in Layercake.etl_run_log of the load that last wrote the row"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_dim_payment_method",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Mirrors silv_ref_payment_method into dim_payment_method: inserts missing ids, updates changed names, leaves unchanged rows untouched. Logged.",
+      "requirement_ids": [
+        "REQ-003"
+      ]
+    },
+    {
+      "name": "Layercake.brnz_corporate_subscription",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "1:1 landing of Subs.vwCorpSubscriptions. 'Round' is not landed and plays no part (answers 2026-10-23). The source has no row key, so rows are matched on (contact_no, scheme_no, sub_campaign_year), assumed unique (Q-033). Carries the four standard bronze audit columns (Q-037).",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "columns": [
+        {
+          "name": "contact_no",
+          "data_type": "nvarchar(100)",
+          "nullable": false,
+          "key": "bk",
+          "description": "'Contact No'"
+        },
+        {
+          "name": "scheme_no",
+          "data_type": "nvarchar(100)",
+          "nullable": false,
+          "key": "bk",
+          "description": "'Scheme No'"
+        },
+        {
+          "name": "sub_campaign_year",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk",
+          "description": "'Sub Campaign Year'"
+        },
+        {
+          "name": "scheme_name",
+          "data_type": "nvarchar(200)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "sub_status",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "sub_user_status",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_brnz_corporate_subscription",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Lands Subs.vwCorpSubscriptions with the standard insert, update and soft-delete behaviour, row-count check and logging.",
+      "requirement_ids": [
+        "REQ-006",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.silv_ref_payer_type",
+      "kind": "table",
+      "load_pattern": "n/a",
+      "description": "Static list seeded by its migration: 0 Unknown, -1 Unrecognised, -2 Not applicable, plus Individual and Corporate with identity ids from 1. Ids never change.",
+      "requirement_ids": [
+        "REQ-006",
+        "REQ-003"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk"
+        },
+        {
+          "name": "payer_type_name",
+          "data_type": "varchar(30)",
+          "nullable": false,
+          "key": "bk"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.dim_payer_type",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Gold copy of silv_ref_payer_type.",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk"
+        },
+        {
+          "name": "payer_type_name",
+          "data_type": "varchar(30)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "load_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_dim_payer_type",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Mirrors silv_ref_payer_type into dim_payer_type, as the payment method dimension load does.",
+      "requirement_ids": [
+        "REQ-006"
+      ]
+    },
+    {
+      "name": "Layercake.silv_ref_invoice_line_type",
+      "kind": "table",
+      "load_pattern": "append",
+      "description": "Item-code to line-type mapping, one row per (item_code, ric_invoice_type). Seeded with the curated mapping (RULE-028; content per Q-034). Codes not yet in the mapping are added as 'unmapped'. The load never overwrites a mapped row; people change line_type by hand.",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "columns": [
+        {
+          "name": "item_code",
+          "data_type": "nvarchar(50)",
+          "nullable": false,
+          "key": "pk",
+          "description": "brnz_subs_invoice_line.productcode"
+        },
+        {
+          "name": "ric_invoice_type",
+          "data_type": "nvarchar(10)",
+          "nullable": false,
+          "key": "pk",
+          "description": "brnz_subs_invoice_line.ricinvoicetype"
+        },
+        {
+          "name": "line_type",
+          "data_type": "varchar(40)",
+          "nullable": false,
+          "key": "none",
+          "description": "One of: subscription, concession, readmission fee, enrolment or application fee, tax, other, unmapped (check constraint)"
+        },
+        {
+          "name": "load_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none",
+          "description": "Load that inserted the row; null for seeded rows"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_ref_invoice_line_type",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Adds each (productcode, ricinvoicetype) seen in live brnz_subs_invoice_line rows that is not yet mapped, with line type 'unmapped'. Existing rows are never changed. Logged.",
+      "requirement_ids": [
+        "REQ-007"
+      ]
+    },
+    {
+      "name": "Layercake.silv_ref_currency",
+      "kind": "table",
+      "load_pattern": "append",
+      "description": "One row per currency code found on subscription invoices (brnz_subs_invoice.inv_currency). Insert-only, identity ids that never change.",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk",
+          "description": "Identity"
+        },
+        {
+          "name": "currency_code",
+          "data_type": "nvarchar(3)",
+          "nullable": false,
+          "key": "bk",
+          "description": "Unique"
+        },
+        {
+          "name": "load_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_ref_currency",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Inserts currency codes from live brnz_subs_invoice rows that are not yet listed. Logged.",
+      "requirement_ids": [
+        "REQ-007"
+      ]
+    },
+    {
+      "name": "Layercake.dim_currency",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Gold copy of silv_ref_currency.",
+      "requirement_ids": [
+        "REQ-007",
+        "REQ-008"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk"
+        },
+        {
+          "name": "currency_code",
+          "data_type": "nvarchar(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "load_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_dim_currency",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Mirrors silv_ref_currency into dim_currency. Logged.",
+      "requirement_ids": [
+        "REQ-007"
+      ]
+    },
+    {
+      "name": "Layercake.brnz_concession",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "1:1 landing of CE.vwConcessionType (working default source, Q-008), keyed on apuk_concessiontypeid. apuk_dualmembership is not landed (Q-025). Carries the four standard bronze audit columns (Q-037).",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "columns": [
+        {
+          "name": "apuk_concessiontypeid",
+          "data_type": "uniqueidentifier",
+          "nullable": false,
+          "key": "pk"
+        },
+        {
+          "name": "apuk_name",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "apuk_discount",
+          "data_type": "decimal(23,10)",
+          "nullable": true,
+          "key": "none",
+          "description": "Type as source"
+        },
+        {
+          "name": "product_number",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none",
+          "description": "Product_Number as the source view gives it"
+        },
+        {
+          "name": "statecode",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "apuk_perpetualnonperpetual",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_brnz_concession",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Lands CE.vwConcessionType with the standard insert, update and soft-delete behaviour, row-count check and logging.",
+      "requirement_ids": [
+        "REQ-010",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.silv_ref_concession_type",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "Concession type list. Reserved rows 0 Unknown, -1 Unrecognised and -2 Not applicable, plus one 'No concession' row, are seeded by the migration with fixed ids. Source types are added and updated from brnz_concession by business key (insert-and-update, as silv_ref_country); existing ids never change.",
+      "requirement_ids": [
+        "REQ-010",
+        "REQ-003"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk",
+          "description": "Fixed for reserved rows and No concession; identity for source types"
+        },
+        {
+          "name": "concession_type_bk",
+          "data_type": "uniqueidentifier",
+          "nullable": true,
+          "key": "bk",
+          "description": "apuk_concessiontypeid; null for reserved rows and No concession; unique where present"
+        },
+        {
+          "name": "concession_type_name",
+          "data_type": "nvarchar(100)",
+          "nullable": false,
+          "key": "none",
+          "description": "Updated when the source name changes; fixed names for seeded rows"
+        },
+        {
+          "name": "item_code",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none",
+          "description": "product_number with any 'rcs' prefix removed (RULE-048)"
+        },
+        {
+          "name": "is_full_concession",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "1 where apuk_discount = 100, else 0; 0 for seeded rows"
+        },
+        {
+          "name": "is_perpetual",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "1 where apuk_perpetualnonperpetual = 200000000, else 0 (null included); 0 for seeded rows (RULE-094)"
+        },
+        {
+          "name": "load_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_ref_concession_type",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Inserts new concession types from live brnz_concession rows, updates name, item code and flags where they changed, and leaves unchanged rows and all ids untouched. Logged.",
+      "requirement_ids": [
+        "REQ-010"
+      ]
+    },
+    {
+      "name": "Layercake.dim_concession_type",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Gold copy of silv_ref_concession_type.",
+      "requirement_ids": [
+        "REQ-010",
+        "REQ-011"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk"
+        },
+        {
+          "name": "concession_type_name",
+          "data_type": "nvarchar(100)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "is_full_concession",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "is_perpetual",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "load_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_dim_concession_type",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Mirrors silv_ref_concession_type into dim_concession_type. Logged.",
+      "requirement_ids": [
+        "REQ-010"
+      ]
+    },
+    {
+      "name": "Layercake.vw_silv_eligible_invoice",
+      "kind": "view",
+      "load_pattern": "n/a",
+      "description": "One row per eligible invoice (RULE-014), with its contact_no (account_num), campaign_year, rec_id, invoice, voucher, trans_date, inv_payment_method, inv_currency, a fully-credited flag, a full-concession flag, its position in trans_date order within the contact-year, and an is_segment_invoice flag marking the latest (RULE-079). Excluded: soft-deleted rows; credit notes (invoice number containing 'FTCN', or containing 'CRE' with non-zero full_invoice_amount_cur); and invoices whose own lines are only enrolment or application fee lines (with tax). A fully credited invoice is eligible only when its contact-year has no other eligible invoice. Equal trans_dates are ordered by rec_id (Q-036). It is shared by the attributes load and the event amount load so both use the same eligibility.",
+      "requirement_ids": [
+        "REQ-004",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011"
+      ]
+    },
+    {
+      "name": "Layercake.silv_member_year_attributes",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "One row per contact per Campaign Year, from the Campaign Year of the contact's first membership event to the current Campaign Year (RULE-011). The contact list and first-event year come from the Phase 1 event derivation inputs (silv_member_base; Q-030). Holds the year's payment method, payer type and concession, each with a carried flag.",
+      "requirement_ids": [
+        "REQ-004",
+        "REQ-006",
+        "REQ-011"
+      ],
+      "columns": [
+        {
+          "name": "contact_no",
+          "data_type": "nvarchar(20)",
+          "nullable": false,
+          "key": "pk",
+          "description": "Same type as the Phase 1 contact number (Q-030)"
+        },
+        {
+          "name": "campaign_year",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk"
+        },
+        {
+          "name": "payment_method_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "Foreign key to silv_ref_payment_method; never null"
+        },
+        {
+          "name": "payment_method_carried",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "payer_type_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "Foreign key to silv_ref_payer_type"
+        },
+        {
+          "name": "payer_type_carried",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "corporate_account_ref",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none",
+          "description": "Scheme No of the live corporate subscription for Corporate years; null otherwise (Q-019)"
+        },
+        {
+          "name": "concession_type_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "Foreign key to silv_ref_concession_type"
+        },
+        {
+          "name": "concession_type_carried",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "segment_invoice_rec_id",
+          "data_type": "bigint",
+          "nullable": true,
+          "key": "none",
+          "description": "rec_id of the year's segment invoice; null where the year has no eligible invoice. Used for anomaly detail and tracing"
+        },
+        {
+          "name": "load_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_member_year_attributes",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Recomputes every contact-year from the rules in the attributes pattern, then inserts new rows, updates rows whose values differ, deletes rows no longer derived and leaves unchanged rows untouched. Logged with inserted, updated and deleted counts.",
+      "requirement_ids": [
+        "REQ-004",
+        "REQ-006",
+        "REQ-011",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.silv_membership_events",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "Existing Phase 1 table; row count, event_nk and event_id are unchanged. Gains the columns below through a change script. Keys and flags are not null with default 0; amounts, currency_id and amount_status are nullable and null on Change and Lapse. Values are written by usp_load_silv_membership_events_segments.",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011"
+      ],
+      "columns": [
+        {
+          "name": "payment_method_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "Default 0; resolves to silv_ref_payment_method"
+        },
+        {
+          "name": "payment_method_carried",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "Default 0"
+        },
+        {
+          "name": "payer_type_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "Default 0"
+        },
+        {
+          "name": "payer_type_carried",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "Default 0"
+        },
+        {
+          "name": "concession_type_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "Default 0"
+        },
+        {
+          "name": "concession_type_carried",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "Default 0"
+        },
+        {
+          "name": "subs_amount",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "fee_amount",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "invoiced_subtotal",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "credited_amount",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "currency_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "fk"
+        },
+        {
+          "name": "subs_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "fee_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "invoiced_subtotal_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "credited_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "net_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "amount_status",
+          "data_type": "varchar(30)",
+          "nullable": true,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.fact_membership_events",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "Existing Phase 1 gold fact; row count and event_id are unchanged. Gains the same seventeen columns as silv_membership_events through a change script, with the same types, defaults and nullability. Keys resolve to the gold dimensions; amounts are additive measures. Values are written by usp_load_fact_membership_events_segments.",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011"
+      ],
+      "columns": [
+        {
+          "name": "payment_method_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "Resolves to dim_payment_method"
+        },
+        {
+          "name": "payment_method_carried",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "payer_type_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "Resolves to dim_payer_type"
+        },
+        {
+          "name": "payer_type_carried",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "concession_type_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "Resolves to dim_concession_type"
+        },
+        {
+          "name": "concession_type_carried",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "subs_amount",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "fee_amount",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "invoiced_subtotal",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "credited_amount",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "currency_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "fk",
+          "description": "Resolves to dim_currency"
+        },
+        {
+          "name": "subs_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "fee_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "invoiced_subtotal_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "credited_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "net_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "amount_status",
+          "data_type": "varchar(30)",
+          "nullable": true,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.silv_data_anomaly",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Existing Phase 1 table; structure unchanged. Gains ten anomaly types, each owned by one new procedure: CORPORATE_FLAG_NO_SCHEME, DOUBLE_PAYMENT, CONCESSION_NOT_IN_REFERENCE and FULL_CONCESSION_NO_CONCESSION (segment anomalies); EVENT_NO_INVOICE, INVOICE_NO_EVENT, INVOICE_MATCHES_MULTIPLE_EVENTS, EVENT_MATCHES_MULTIPLE_INVOICES, READMISSION_FREE and READMISSION_NO_FEE (invoice anomalies). Rows are written to the existing columns anomaly_type, contact_no, anomaly_nk and detail (Q-030).",
+      "requirement_ids": [
+        "REQ-006",
+        "REQ-009",
+        "REQ-011"
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_data_anomaly_segment",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Derives the four segment anomaly types for contact-years from 2022 (RULE-025, RULE-026, RULE-052, RULE-053) and reconciles them with silv_data_anomaly: inserts new cases, deletes cases that no longer apply and leaves the rest untouched. anomaly_nk is the contact number and Campaign Year (plus the item code for CONCESSION_NOT_IN_REFERENCE). detail names the Campaign Year and the segment invoice. It touches only its own four types. Logged.",
+      "requirement_ids": [
+        "REQ-006",
+        "REQ-011",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.silv_payment_events",
+      "kind": "table",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 table. Its text column payment_source is removed, because payer type now lives on silv_member_year_attributes (RULE-027, Q-024). The existing procedure that loads it stops writing the column (procedure confirmed under Q-031). Dropping a column that holds data needs a named human's approval (Q-035).",
+      "requirement_ids": [
+        "REQ-006"
+      ]
+    },
+    {
+      "name": "Layercake.silv_event_amount",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "One row per Join, Renewal and Readmission event in silv_membership_events: its amount Campaign Year, its matched eligible invoice, the match outcome and every amount the event carries (ADR-002).",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "columns": [
+        {
+          "name": "event_nk",
+          "data_type": "nvarchar(100)",
+          "nullable": false,
+          "key": "pk",
+          "description": "Same type as silv_membership_events.event_nk (Q-030)"
+        },
+        {
+          "name": "contact_no",
+          "data_type": "nvarchar(20)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_type",
+          "data_type": "varchar(20)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_date",
+          "data_type": "date",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "amount_campaign_year",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "Own year for Renewal and Readmission; first paid position's year for a Join, or the Join's own year where there is none (Q-029)"
+        },
+        {
+          "name": "invoice_rec_id",
+          "data_type": "bigint",
+          "nullable": true,
+          "key": "none",
+          "description": "Matched eligible invoice; null where none"
+        },
+        {
+          "name": "match_outcome",
+          "data_type": "varchar(30)",
+          "nullable": false,
+          "key": "none",
+          "description": "Matched, No eligible invoice, Invoice shortfall (more events than invoices, RULE-085), or Before invoice data"
+        },
+        {
+          "name": "subs_amount",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "fee_amount",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "invoiced_subtotal",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "credited_amount",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none",
+          "description": "Positive"
+        },
+        {
+          "name": "currency_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "fk",
+          "description": "Foreign key to silv_ref_currency"
+        },
+        {
+          "name": "subs_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "fee_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "invoiced_subtotal_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none",
+          "description": "Headline value"
+        },
+        {
+          "name": "credited_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none",
+          "description": "Positive"
+        },
+        {
+          "name": "net_amount_gbp",
+          "data_type": "decimal(19,4)",
+          "nullable": true,
+          "key": "none",
+          "description": "invoiced_subtotal_gbp minus credited_amount_gbp"
+        },
+        {
+          "name": "amount_status",
+          "data_type": "varchar(30)",
+          "nullable": false,
+          "key": "none",
+          "description": "One of the six RULE-088 values (check constraint)"
+        },
+        {
+          "name": "load_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_event_amount",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Pairs each Join, Renewal and Readmission with its own eligible invoice and computes its amounts and amount_status, following the event amounts pattern. Writes only differences: new events inserted, changed rows updated, rows for events that no longer exist deleted. Logged.",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-011",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_data_anomaly_invoice",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Derives the six invoice anomaly types from silv_event_amount and vw_silv_eligible_invoice, for amount Campaign Years from 2022 only (RULE-093), and reconciles them with silv_data_anomaly as the segment anomaly load does. anomaly_nk is the event_nk for event-level types and the invoice rec_id for invoice-level types. It touches only its own six types. Logged.",
+      "requirement_ids": [
+        "REQ-009",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_membership_events_segments",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Writes the new columns on silv_membership_events (ADR-001). Keys and carried flags come from the silv_member_year_attributes row for the contact and the event's segment Campaign Year (RULE-017), or 0 where there is no row. Join, Renewal and Readmission amounts and amount_status come from silv_event_amount; Change and Lapse get nulls. Updates only rows whose new-column values differ. Never inserts or deletes events, and never touches Phase 1 columns. Logged.",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_fact_membership_events_segments",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Copies the new columns from silv_membership_events onto fact_membership_events by event_id, updating only rows that differ. It then runs the extended silver-to-gold check: equal row counts by payment_method_id, equal counts by amount_status, and equal sums of invoiced_subtotal, credited_amount, invoiced_subtotal_gbp, credited_amount_gbp and net_amount_gbp by currency_id (RULE-019). A failed check fails the load. Logged.",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.usp_run_payment_segments",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Runs the solution's loads in dependency order after the Phase 1 run: bronze loads; the line-type and currency lists and concession reference; the gold dimensions; member-year attributes; event amounts; the segment and invoice anomalies; the silver event columns; the gold fact columns. It stops at the first failure, which that load has already logged. A human schedules it to run after the Phase 1 run (Q-031).",
+      "requirement_ids": [
+        "REQ-001",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.usp_profile_custtrans_grain",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Count-only grain profile of synapse_fo.CUSTTRANS_RICS (RULE-095). It takes invoice rows (TRANSTYPE not 8 or 24, invoice number containing neither 'CRE' nor 'FTCN'), groups them by ACCOUNTNUM and INVOICE, and returns the number of invoices by rows per invoice, by distinct productcode per invoice, and by whether the invoice has a sales tax row. It reads the external source directly, so it can run before the invoice build.",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "name": "Layercake.usp_profile_corp_subscription_status",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Row counts of Subs.vwCorpSubscriptions by 'Sub Status' value and by 'Sub User Status' value (RULE-096). Settles the active value assumed under Q-027.",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "name": "Layercake.usp_report_retirement_comparison",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "For each Campaign Year, over paid positions: counts with a retired concession (the six item codes, Q-018) and a retirement date on or before campaign_year_end; retired concession only; retirement date only; neither; and the agreement rate (RULE-055 to RULE-057). Counts and rates only. No change to Practising / Retired logic.",
+      "requirement_ids": [
+        "REQ-012"
+      ]
+    },
+    {
+      "name": "Layercake.usp_report_employer_scheme_coverage",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Paid members by Campaign Year and payer type, counted by employer source: an employer through the corporate scheme link (the live subscription's Scheme No matched to CE.vwCorporateSchemes.apuk_subscriptionnumber with an AccountNumber); an employer on the CE contact record; neither. Returns coverage rates (RULE-059, RULE-061).",
+      "requirement_ids": [
+        "REQ-013"
+      ]
+    },
+    {
+      "name": "Layercake.usp_report_employer_source_agreement",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "For members with an employer from both sources, the counts naming the same firm and a different firm, and the agreement rate.",
+      "requirement_ids": [
+        "REQ-013"
+      ]
+    },
+    {
+      "name": "Layercake.usp_report_top_employers",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Paid members per firm for the largest employers in the last full Campaign Year (top 25 working list, Q-010), with individually funded members counted separately from corporate-funded ones (RULE-062, RULE-064). Counts per firm only.",
+      "requirement_ids": [
+        "REQ-013"
+      ]
+    },
+    {
+      "name": "Layercake.usp_report_payment_method_coverage",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Share of paid positions with payment_method_id above 0, by Campaign Year from 2021, and the same by event type (RULE-067).",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "name": "Layercake.usp_report_invoiced_subtotal_coverage",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Share of Join, Renewal and Readmission events with a non-null invoiced_subtotal, by Campaign Year, with event counts by amount_status (RULE-068).",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "name": "Layercake.usp_report_direct_debit_share",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Share of Partially Paid positions in the current Campaign Year (as of the date given) whose payment method is Direct Debit (RULE-069).",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "name": "Layercake.usp_report_last_full_year_totals",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "For the last full Campaign Year (as of the date given): paid members by payment method; corporate count and share of paid members; total invoiced_subtotal_gbp; total subs_amount by currency; paid members by concession type (RULE-070).",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    }
+  ],
+  "patterns": [
+    "Run order (ADR-001): Layercake.usp_run_payment_segments runs after the Phase 1 run, so every Phase 1 table it reads is already current. Phase 1 procedures are not changed, except that the silv_payment_events load stops writing payment_source.",
+    "Bronze (REQ-002, REQ-006, REQ-010): full comparison with the source on its key on every run. New rows are inserted with _loaded_at and _updated_at set. Changed rows are updated and _updated_at refreshed. Rows missing from the source get _is_deleted = 1 and _deleted_at; rows that reappear are restored. Unchanged rows are untouched, so a rerun on unchanged source logs 0 inserted, 0 updated and 0 deleted. Values are never transformed or defaulted. Each load checks that live rows equal the source rows in scope and fails if not (RULE-004, RULE-005). String columns take the database's default collation, so they compare with Phase 1 columns without collation conflicts.",
+    "Reference lists: payment method and payer type are static lists seeded by their migrations. Concession type is insert-and-update by business key. Line type and currency are insert-only. Ids never change between loads. Reserved ids 0 Unknown, -1 Unrecognised and -2 Not applicable have the same labels in all three segment lists (RULE-078). Each gold dimension mirrors its silver list by id.",
+    "Eligible and segment invoice (RULE-014, RULE-079): eligibility is defined once in vw_silv_eligible_invoice and used by both the attributes load and the event amount load. The latest eligible invoice by trans_date is the segment invoice. Ties on trans_date go to the higher rec_id (Q-036).",
+    "Attributes, all segments: contact-years before 2022 get -2 Not applicable for payment method, payer type and concession, with every carried flag 0 (RULE-080, Q-011). Years from 2022 with no eligible invoice carry forward from the latest earlier year that has one: always for payment method and payer type, and for concession only when that type is perpetual. A carried value gets carried flag 1. Where nothing can be carried, the value is 0 Unknown with flag 0 (RULE-016, RULE-023, RULE-051, Q-006).",
+    "Attributes, payment method (RULE-012 to RULE-015): the segment invoice's inv_payment_method, mapped by fn_map_payment_method. If that is null or empty but the invoice's payment lines (brnz_subs_invoice_line rows whose lastsettlevoucher is the invoice voucher) carry a payment mode, the mode covering the largest settled amount wins, and on a tie the earliest payment. If neither has a mode, 0 Unknown with flag 0.",
+    "Attributes, payer type (RULE-020 to RULE-024, RULE-082, RULE-083): a live corporate subscription for a year is a live brnz_corporate_subscription row for the contact with sub_campaign_year equal to that year and both sub_status and sub_user_status active. The active value is 'Active' (Q-027), held in one place in the load. Corporate when the segment invoice's method is Corporate and a live subscription exists. On a double payment (the segment invoice settled both by Corporate and by another method), Corporate where a live subscription exists, otherwise Individual (RULE-026). Otherwise Individual where the contact has a Phase 1 paid position that year, else 0 Unknown. corporate_account_ref is the live subscription's scheme_no for Corporate years (if there are several, the lowest scheme_no, Q-036), is carried with a carried Corporate payer type, and is null otherwise (Q-019).",
+    "Attributes, concession (RULE-049 to RULE-052): the segment invoice's lines with item codes starting 'CON' are matched to silv_ref_concession_type.item_code. Where there are several, the one with the highest discount (apuk_discount through the business key) wins. A code not in the reference gives -1 Unrecognised. No concession line gives No concession.",
+    "Event amounts (RULE-032 to RULE-041, RULE-084 to RULE-089; ADR-002): for each contact and amount Campaign Year from 2022, events are ordered by event date and eligible invoices by trans_date (ties by event_nk and rec_id). Equal counts pair in order. With more events than invoices, the invoices go to events in the order Readmission, Renewal, Join, earliest event date; the chosen events are paired with the invoices by date, and the rest get match outcome Invoice shortfall. With more invoices than events, the events are paired by date with the latest invoices, and the earlier surplus invoices go unmatched. No invoice is carried on two events.",
+    "Amount values: the matched invoice's own lines (accountnum and voucher equal to the invoice's) are typed through silv_ref_invoice_line_type. subs_amount is the sum of subscription and concession lines, before tax and credits. fee_amount is the sum of readmission fee lines on Readmissions and 0.00 on Joins and Renewals (Q-003). Unmapped lines are excluded (Q-016). invoiced_subtotal is subs_amount plus fee_amount. credited_amount is the invoice's credit amount, held as a positive value or 0.00. GBP columns use the source's own accounting-currency amounts, with no conversion (Q-004). net_amount_gbp is invoiced_subtotal_gbp minus credited_amount_gbp. currency_id comes from inv_currency. Unmatched and pre-2022 events have null amounts and currency.",
+    "amount_status (RULE-088): every Join, Renewal and Readmission gets exactly one of Before invoice data, No invoice, Unmapped lines, Full Concession, Fully credited or Invoiced: the first case that applies, in the order RULE-088 sets. Change and Lapse get null.",
+    "Event columns (RULE-017, RULE-018, RULE-081): an event's segment Campaign Year is its own year, except a Join, which uses its amount Campaign Year. The keys and the three carried flags come from that attributes row, or 0 where there is none. Gold copies silver by event_id.",
+    "Anomalies: each new procedure owns a fixed set of anomaly types and reconciles them on every run. It inserts cases newly raised, deletes cases no longer raised (for example after a corrected invoice) and leaves existing cases untouched, so a rerun on unchanged data changes no anomaly rows. anomaly_nk identifies the event, the invoice or the contact-year. Invoice anomalies are raised only for amount Campaign Years from 2022 (RULE-093). Each Readmission with fee_amount null or 0.00 gets exactly one row: EVENT_NO_INVOICE or INVOICE_MATCHES_MULTIPLE_EVENTS where it has no invoice; READMISSION_FREE where its invoice has no readmission fee line and its event date falls in the free-readmission window (Campaign Year quarter 2, ADR-004, Q-032); READMISSION_NO_FEE otherwise.",
+    "Idempotency and corrections: every load recomputes from current sources and writes only differences, so reruns change nothing, and late or corrected source rows flow through on the next run. Audit columns change only when a row's values change. No history is kept beyond the bronze soft-delete flags; silver and gold reflect the current sources (no type 2 history is asked for).",
+    "Error handling and logging: each load procedure follows base standards 3 (try/catch with XACT_ABORT, the error recorded, then re-raised). It logs start, rows inserted, updated and deleted, and outcome through Layercake.usp_etl_log_start and Layercake.usp_etl_log_end, with the start logged before the load's transaction.",
+    "Deployment: one migration per module (MIG-0003 onward), each with a down script. Changes to existing Layercake tables go through change scripts that the down script reverses exactly. Down scripts restore the previous definitions of changed code objects and rename new tables that hold rows to <table>_rolledback_MIGnnnn. No external object is created, altered or written to (RULE-076).",
+    "Spec questions this design depends on: Q-001 (payment method source) for attributes; Q-002, Q-019 and Q-027 for payer type, corporate_account_ref and the corporate anomalies; Q-003 for fee_amount; Q-004 for the GBP columns; Q-005 for corporate amounts (known gap); Q-006 for carry-forward; Q-007 for leaving the daily and annual tables unchanged; Q-008 for brnz_concession's source; Q-011 for pre-2022 handling; Q-012 for the segment invoice; Q-015 for no Mixed value; Q-017 for the subtotal-below-standard-rate check; Q-018 for the retired codes; Q-021 for the invoice line grain (brnz_subs_invoice_line, silv_ref_invoice_line_type, silv_event_amount); Q-024 for removing payment_source; Q-028 for Phase 1 column names; Q-029 for Joins with no paid position; Q-010 for the employer findings. Each assumption sits in one rule of one load, so an answer changes one procedure."
+  ],
+  "security": "No new personal data: contact_no already exists in Phase 1, and no names, emails or bank details are landed. No masking is needed. Every count-only procedure returns aggregates only, with no contact-level columns (RULE-057, RULE-064, RULE-066). Grants are scripted by the Developer in src/sql/grants/<MOD>.sql for a human to run: SELECT on the four new dimensions for the existing reporting role that reads fact_membership_events, and EXECUTE on the usp_profile_* and usp_report_* procedures for the analyst role that runs the profiling. Agents hold no grant rights. External sources are read with the project's existing read access and never written.",
+  "performance": "No volumes are given in the spec. Working estimate: about 140,000 members, so about 140,000 subscription invoices a year from 2022, a few million in-scope invoice lines, about one attributes row per member per year, and one silv_event_amount row per Join, Renewal and Readmission. Indexes: brnz_subs_invoice on (account_num, campaign_year) and voucher; brnz_subs_invoice_line on (accountnum, voucher) and lastsettlevoucher; brnz_corporate_subscription on (contact_no, sub_campaign_year); silv_event_amount on (contact_no, amount_campaign_year) and invoice_rec_id; silv_member_year_attributes is clustered on its key. No index is added to existing Phase 1 tables or to external objects. All loads are set-based full comparisons that write only differences, so the daily cost is dominated by reading the bronze sources.",
+  "requirement_coverage": [
+    {
+      "requirement_id": "REQ-001",
+      "design_elements": [
+        "Layercake.usp_run_payment_segments runs after Phase 1 (ADR-001)",
+        "Phase 1 procedures unchanged",
+        "Enrichment procedures update only the new columns"
+      ]
+    },
+    {
+      "requirement_id": "REQ-002",
+      "design_elements": [
+        "Layercake.brnz_subs_invoice",
+        "Layercake.brnz_subs_invoice_line",
+        "Layercake.usp_load_brnz_subs_invoice",
+        "Layercake.usp_load_brnz_subs_invoice_line",
+        "Bronze pattern"
+      ]
+    },
+    {
+      "requirement_id": "REQ-003",
+      "design_elements": [
+        "Layercake.silv_ref_payment_method",
+        "Layercake.fn_map_payment_method",
+        "Layercake.dim_payment_method",
+        "Layercake.usp_load_dim_payment_method",
+        "Reserved ids pattern"
+      ]
+    },
+    {
+      "requirement_id": "REQ-004",
+      "design_elements": [
+        "Layercake.silv_member_year_attributes",
+        "Layercake.vw_silv_eligible_invoice",
+        "Layercake.usp_load_silv_member_year_attributes"
+      ]
+    },
+    {
+      "requirement_id": "REQ-005",
+      "design_elements": [
+        "Layercake.silv_membership_events (new columns)",
+        "Layercake.fact_membership_events (new columns)",
+        "Layercake.usp_load_silv_membership_events_segments",
+        "Layercake.usp_load_fact_membership_events_segments"
+      ]
+    },
+    {
+      "requirement_id": "REQ-006",
+      "design_elements": [
+        "Layercake.brnz_corporate_subscription",
+        "Layercake.usp_load_brnz_corporate_subscription",
+        "Layercake.silv_ref_payer_type",
+        "Layercake.dim_payer_type",
+        "Layercake.usp_load_dim_payer_type",
+        "silv_member_year_attributes payer type and corporate_account_ref",
+        "Layercake.usp_load_silv_data_anomaly_segment",
+        "Layercake.silv_payment_events (payment_source removed)"
+      ]
+    },
+    {
+      "requirement_id": "REQ-007",
+      "design_elements": [
+        "Layercake.silv_ref_invoice_line_type",
+        "Layercake.usp_load_silv_ref_invoice_line_type",
+        "Layercake.silv_ref_currency",
+        "Layercake.usp_load_silv_ref_currency",
+        "Layercake.dim_currency",
+        "Layercake.usp_load_dim_currency"
+      ]
+    },
+    {
+      "requirement_id": "REQ-008",
+      "design_elements": [
+        "Layercake.silv_event_amount",
+        "Layercake.usp_load_silv_event_amount",
+        "Event amounts and amount_status patterns",
+        "Amount columns on silv_membership_events and fact_membership_events"
+      ]
+    },
+    {
+      "requirement_id": "REQ-009",
+      "design_elements": [
+        "Layercake.usp_load_silv_data_anomaly_invoice",
+        "Layercake.silv_data_anomaly",
+        "ADR-004 free-readmission window"
+      ]
+    },
+    {
+      "requirement_id": "REQ-010",
+      "design_elements": [
+        "Layercake.brnz_concession",
+        "Layercake.usp_load_brnz_concession",
+        "Layercake.silv_ref_concession_type",
+        "Layercake.usp_load_silv_ref_concession_type",
+        "Layercake.dim_concession_type",
+        "Layercake.usp_load_dim_concession_type"
+      ]
+    },
+    {
+      "requirement_id": "REQ-011",
+      "design_elements": [
+        "silv_member_year_attributes concession columns",
+        "concession_type_id on events and fact",
+        "Layercake.usp_load_silv_data_anomaly_segment (concession types)"
+      ]
+    },
+    {
+      "requirement_id": "REQ-012",
+      "design_elements": [
+        "Layercake.usp_report_retirement_comparison",
+        "membership_status_id unchanged (REQ-001 regression)"
+      ]
+    },
+    {
+      "requirement_id": "REQ-013",
+      "design_elements": [
+        "Layercake.usp_report_employer_scheme_coverage",
+        "Layercake.usp_report_employer_source_agreement",
+        "Layercake.usp_report_top_employers",
+        "No employer objects created"
+      ]
+    },
+    {
+      "requirement_id": "REQ-014",
+      "design_elements": [
+        "Layercake.usp_profile_custtrans_grain",
+        "Layercake.usp_profile_corp_subscription_status",
+        "Layercake.usp_report_payment_method_coverage",
+        "Layercake.usp_report_invoiced_subtotal_coverage",
+        "Layercake.usp_report_direct_debit_share",
+        "Layercake.usp_report_last_full_year_totals",
+        "ADR-003"
+      ]
+    },
+    {
+      "requirement_id": "REQ-015",
+      "design_elements": [
+        "Entity descriptions, patterns and known gaps in this design as source content for the handover pack and the Platform Schema document"
+      ]
+    },
+    {
+      "requirement_id": "REQ-016",
+      "design_elements": [
+        "Deployment pattern",
+        "Idempotency pattern",
+        "Layercake.usp_run_payment_segments"
+      ]
+    }
+  ],
+  "adr_ids": [
+    "ADR-001",
+    "ADR-002",
+    "ADR-003",
+    "ADR-004"
+  ],
+  "open_questions": [
+    {
+      "id": "Q-030",
+      "question": "The dev database could not be queried for this design (schema lookup unavailable), so spec Q-028 is not yet confirmed. The design assumes the following Phase 1 names, which the Developer confirms at the start of MOD-007: silv_membership_events.contact_no, campaign_year, event_type, event_date, event_nk and event_id (with their types); silv_data_anomaly columns anomaly_type, contact_no, anomaly_nk and detail (with no constraint limiting anomaly_type values); silv_member_base as the source of the contact list and first-event year; the object and column holding the Phase 1 paid position; the Full Concession and Partially Paid positions (v1 named Layercake.brnz_subs_status 'Member Invoice Position'); and Layercake.etl_run_log's run id. Are these right?",
+      "raised_by": "technical_architect",
+      "status": "open",
+      "blocks": [
+        "MOD-007",
+        "MOD-008",
+        "MOD-010",
+        "MOD-012",
+        "MOD-015"
+      ]
+    },
+    {
+      "id": "Q-031",
+      "question": "How are the Phase 1 silv_membership_events, fact_membership_events, silv_payment_events and silv_data_anomaly loaded? Do they rebuild in full each run or apply only changes, and do the anomaly writers delete anomaly types they do not own? What are the procedure names, and how is the Phase 1 run scheduled, so that usp_run_payment_segments can run straight after it? ADR-001 assumes change-only loads that leave other anomaly types alone.",
+      "raised_by": "technical_architect",
+      "status": "open",
+      "blocks": [
+        "MOD-009",
+        "MOD-012",
+        "MOD-016"
+      ]
+    },
+    {
+      "id": "Q-032",
+      "question": "Spec Q-023 is recorded as answered 'Campaign Year Quarter', but RULE-092, the spec's assumptions, AC-009-03 and AC-009-05 use calendar 1 April to 30 June. Is the free-readmission window the Campaign Year's second quarter, and does it coincide with April to June (does the Campaign Year start on 1 January)? Working assumption: Campaign Year quarter 2 (ADR-004).",
+      "raised_by": "technical_architect",
+      "status": "open",
+      "blocks": [
+        "MOD-011"
+      ]
+    },
+    {
+      "id": "Q-033",
+      "question": "Subs.vwCorpSubscriptions has no row key. The design assumes (Contact No, Scheme No, Sub Campaign Year) is unique per source row and lands on that key. Can a contact appear twice in the same scheme and year (for example as two subscription users)? If so, which row should bronze keep?",
+      "raised_by": "technical_architect",
+      "status": "open",
+      "blocks": [
+        "MOD-004"
+      ]
+    },
+    {
+      "id": "Q-034",
+      "question": "Who supplies the curated item-code to line-type mapping that seeds silv_ref_invoice_line_type (RULE-028, Damian's Story 3 design note)? Working assumption: the seed follows how Subs.usp_Refresh_SubsInvoices classifies item codes, Damian reviews it, and tests use synthetic codes.",
+      "raised_by": "technical_architect",
+      "status": "open",
+      "blocks": [
+        "MOD-005"
+      ]
+    },
+    {
+      "id": "Q-035",
+      "question": "Removing silv_payment_events.payment_source drops a column that holds data, which base standards 3.2 says needs a named human's approval. Does Mike approve the drop, given spec Q-024 (no downstream reader) is still open? The down script re-adds the column and restores the previous load procedure, which refills it on the next run.",
+      "raised_by": "technical_architect",
+      "status": "open",
+      "blocks": [
+        "MOD-009"
+      ]
+    },
+    {
+      "id": "Q-036",
+      "question": "The spec gives no tie-breaks. To keep results deterministic the design uses: equal trans_dates broken by the higher rec_id (segment invoice and pairing order); equal event dates broken by event_nk; and the lowest scheme_no where a contact has several live corporate subscriptions in one year (corporate_account_ref). Are these acceptable?",
+      "raised_by": "technical_architect",
+      "status": "open",
+      "blocks": [
+        "MOD-007",
+        "MOD-010"
+      ]
+    },
+    {
+      "id": "Q-037",
+      "question": "The spec maps the standard bronze audit columns _loaded_at, _updated_at, _is_deleted and _deleted_at (as on existing bronze tables), but the project's column-name convention (^[a-z][a-z0-9_]*$) rejects a leading underscore. Should the convention in config/project.yaml and PROJECT_STANDARDS.md be widened to allow the existing bronze audit columns (recommended, to match Phase 1 bronze), or should new bronze tables use other names? Until decided, the design keeps the spec's names, described in each bronze entity's text.",
+      "raised_by": "technical_architect",
+      "status": "open",
+      "blocks": [
+        "MOD-002",
+        "MOD-004",
+        "MOD-006"
+      ]
+    }
+  ]
+}

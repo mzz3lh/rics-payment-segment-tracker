@@ -1,0 +1,1992 @@
+{
+  "meta": {
+    "artefact_type": "spec",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "SPEC-001",
+    "version": 1,
+    "produced_by": "analyst",
+    "produced_at": "2026-10-23T14:29:49Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/requirements/BR-001-payment-segments-tracker.md",
+      "docs/reviews/SPEC-001-review-1.md",
+      "docs/reviews/SPEC-001-v1.json",
+      "docs/answers.md",
+      "docs/sources/external_catalogue.json",
+      "docs/sources/external/Subs/Subs.usp_Refresh_SubsInvoices.sql",
+      "docs/sources/external/Subs/Subs.vwCorpSubscriptions.sql",
+      "docs/sources/external/synapse_fo/synapse_fo.CUSTTRANS_RICS.sql",
+      "docs/sources/external/CE/CE.vwConcessionType.sql",
+      "docs/sources/external/CE/CE.vwConcession.sql"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-10-23T16:19:26Z",
+      "gate": "spec_signoff"
+    }
+  },
+  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake). Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Each Join, Renewal and Readmission event carries the amount invoiced for it, split into subscription and fee, with one headline GBP value (invoiced_subtotal_gbp), a net value and a status that explains any missing amount. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each event is matched to its own invoice, and no invoice is counted on two events. The employer segment is delivered as findings only. Phase 1 counts and measures do not change. This version makes the twelve changes in Damian Watson's review of 20 October 2026 and applies Mike's answers of 23 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
+  "glossary": {
+    "Campaign Year": "The RICS subscription year, as held in Layercake.ref_campaign_year_config and on the invoice source (Subs.tblSubsInvoices.Campaign_Year).",
+    "Eligible invoice": "A subscription invoice that may set a contact-year's segments and be matched to an event (RULE-014). Credit notes and enrolment- or application-fee-only invoices are never eligible. A fully credited invoice is eligible only when the contact-year has no other eligible invoice.",
+    "Segment invoice": "The eligible invoice that sets a contact-year's payment method, payer type and concession (RULE-079).",
+    "Amount Campaign Year": "The Campaign Year whose invoice an event's amounts come from: the event's own year for Renewal and Readmission, and the first paid position's year for a Join (RULE-032).",
+    "Live corporate subscription": "A row in Subs.vwCorpSubscriptions for the contact and Campaign Year where both 'Sub Status' and 'Sub User Status' are active (RULE-082).",
+    "Carried forward": "A segment value copied from the latest earlier Campaign Year with an eligible invoice, because the year itself has none. Flagged by the *_carried columns.",
+    "Reserved values": "Fixed ids in every segment reference table: 0 Unknown (the source has no value), -1 Unrecognised (the source has a value the mapping does not know), -2 Not applicable (no value is expected).",
+    "Headline value": "invoiced_subtotal_gbp: the invoiced subscription plus counted fees in GBP, before tax and before credits.",
+    "Invoice source coverage": "Campaign Year 2022 onward. Subs.usp_Refresh_SubsInvoices keeps only Campaign_Year >= 2022."
+  },
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "Phase 1 counts and measures unchanged",
+      "type": "non_functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "The new segments and amounts must not change any existing Phase 1 result. That covers active members, both paid measures, and Join, Renewal, Readmission and Lapse event counts by date, region and grade. The Phase 1 difference scripts must still read PASS. Adding keys, flags and amounts to events must not change the number of events or their identifiers. In this release acceptance runs on synthetic data only, and no pass threshold is set for real data (assumes Q-026).",
+      "business_rules": [
+        {
+          "id": "RULE-001",
+          "rule": "Active, paid (PaidMembers / paid_count), paid-by-event (PaidMembersEvent / paid_count_event) and Join, Renewal, Readmission and Lapse event counts by date, region and grade are identical before and after the change on the same source data."
+        },
+        {
+          "id": "RULE-002",
+          "rule": "The number of rows in Layercake.silv_membership_events and Layercake.fact_membership_events, and every event_nk and event_id, are unchanged by the change."
+        },
+        {
+          "id": "RULE-003",
+          "rule": "Under the working default for Q-007, fact_daily_member_count_detail, fact_annual_rate_base, silv_daily_count_detail and silv_annual_rate_base keep their current grain and columns."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-001-01",
+          "criterion": "On the same synthetic source data, Layercake.silv_daily_count has zero rows that differ before and after the change, matching on (date, region, grade) and comparing active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count."
+        },
+        {
+          "id": "AC-001-02",
+          "criterion": "On the same synthetic source data, the sums of ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents and LapseEvents in Layercake.fact_daily_member_count_detail, grouped by date_id, country_id and membership_grade_id, are identical before and after the change."
+        },
+        {
+          "id": "AC-001-03",
+          "criterion": "Row counts by event_type in Layercake.silv_membership_events and Layercake.fact_membership_events are identical before and after the change. The set of (event_nk, event_id) pairs in silv_membership_events is identical: zero added, zero removed, zero changed."
+        },
+        {
+          "id": "AC-001-04",
+          "criterion": "reference/phase1/Scripts/Reconciliation/active-member-difference.sql and reference/phase1/Scripts/Reconciliation/paid-member-difference.sql both read PASS after the change, run against the test database loaded with the synthetic data."
+        },
+        {
+          "id": "AC-001-05",
+          "criterion": "The column lists and row counts of fact_daily_member_count_detail, fact_annual_rate_base, silv_daily_count_detail and silv_annual_rate_base are identical before and after the change (assumes Q-007)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "title": "Bronze landing of subscription invoices and invoice lines",
+      "type": "data",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Land the subscription invoice data that Stories 1 to 4 need, from sources already in the warehouse. Invoice-level data (payment method, currency, credits, payment status, concession flags) comes from external table Subs.tblSubsInvoices into new Layercake.brnz_subs_invoice. Line-level data (item code, line amounts, payment lines and credits) comes from external table synapse_fo.CUSTTRANS_RICS into new Layercake.brnz_subs_invoice_line. The subscription, fee and tax split rests on CUSTTRANS_RICS holding one row per invoice line with an item code. That is the working default and is not yet proven. A human runs the count-only grain profile in Q-021 before any build of REQ-007, REQ-008 or REQ-011 (review change 1).",
+      "business_rules": [
+        {
+          "id": "RULE-004",
+          "rule": "Bronze tables are 1:1 copies of the source columns they land, with no transformation of values, plus the audit columns every existing bronze table carries (_loaded_at, _updated_at, _is_deleted, _deleted_at)."
+        },
+        {
+          "id": "RULE-005",
+          "rule": "Each bronze load runs a row-count check: rows with _is_deleted = 0 equal the source rows in scope. The load records its row counts through Layercake.usp_etl_log_start and Layercake.usp_etl_log_end."
+        },
+        {
+          "id": "RULE-077",
+          "rule": "Rows of synapse_fo.CUSTTRANS_RICS are in scope for brnz_subs_invoice_line when their ACCOUNTNUM and VOUCHER match an invoice in Subs.tblSubsInvoices (its lines of every RICINVOICETYPE), or their LASTSETTLEVOUCHER matches such a voucher (credits and payments settling it). This mirrors how Subs.usp_Refresh_SubsInvoices relates non-subscription lines and credits to an invoice (assumes Q-021)."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Subs.tblSubsInvoices.Account_Num",
+          "target": "Layercake.brnz_subs_invoice.account_num",
+          "transformation": "1:1. Equals the RICS contact number."
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Campaign_Year",
+          "target": "Layercake.brnz_subs_invoice.campaign_year",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Invoice",
+          "target": "Layercake.brnz_subs_invoice.invoice",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Voucher",
+          "target": "Layercake.brnz_subs_invoice.voucher",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Rec_ID",
+          "target": "Layercake.brnz_subs_invoice.rec_id",
+          "transformation": "1:1; source row key"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Trans_Date",
+          "target": "Layercake.brnz_subs_invoice.trans_date",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Inv_Payment_Method",
+          "target": "Layercake.brnz_subs_invoice.inv_payment_method",
+          "transformation": "1:1 (F&O PAYMMODE on the invoice)",
+          "nullable": true
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Inv_Currency",
+          "target": "Layercake.brnz_subs_invoice.inv_currency",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Exchange_Rate",
+          "target": "Layercake.brnz_subs_invoice.exchange_rate",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Full_Invoice_Amount_CUR",
+          "target": "Layercake.brnz_subs_invoice.full_invoice_amount_cur",
+          "transformation": "1:1. Used to tell a credit note from a zero-value invoice numbered 'CRE' (RULE-014)."
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Invoice_Amount_CUR",
+          "target": "Layercake.brnz_subs_invoice.invoice_amount_cur",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Invoice_Amount_GBP",
+          "target": "Layercake.brnz_subs_invoice.invoice_amount_gbp",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Inv_Credit_Amount_CUR",
+          "target": "Layercake.brnz_subs_invoice.inv_credit_amount_cur",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Inv_Credit_Amount_GBP",
+          "target": "Layercake.brnz_subs_invoice.inv_credit_amount_gbp",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Fully_Credited",
+          "target": "Layercake.brnz_subs_invoice.fully_credited",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Payment_Status",
+          "target": "Layercake.brnz_subs_invoice.payment_status",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.Has_Concession",
+          "target": "Layercake.brnz_subs_invoice.has_concession",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.tblSubsInvoices.100%_Concession",
+          "target": "Layercake.brnz_subs_invoice.full_concession_flag",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.RECID",
+          "target": "Layercake.brnz_subs_invoice_line.recid",
+          "transformation": "1:1; source row key"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.ACCOUNTNUM",
+          "target": "Layercake.brnz_subs_invoice_line.accountnum",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.INVOICE",
+          "target": "Layercake.brnz_subs_invoice_line.invoice",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.VOUCHER",
+          "target": "Layercake.brnz_subs_invoice_line.voucher",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.LASTSETTLEVOUCHER",
+          "target": "Layercake.brnz_subs_invoice_line.lastsettlevoucher",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.TRANSDATE",
+          "target": "Layercake.brnz_subs_invoice_line.transdate",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.TRANSTYPE",
+          "target": "Layercake.brnz_subs_invoice_line.transtype",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.RICINVOICETYPE",
+          "target": "Layercake.brnz_subs_invoice_line.ricinvoicetype",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.productcode",
+          "target": "Layercake.brnz_subs_invoice_line.productcode",
+          "transformation": "1:1. The item code used for the line-type mapping and the concession value.",
+          "nullable": true
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.AMOUNTCUR",
+          "target": "Layercake.brnz_subs_invoice_line.amountcur",
+          "transformation": "1:1 (invoice currency)"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.AMOUNTMST",
+          "target": "Layercake.brnz_subs_invoice_line.amountmst",
+          "transformation": "1:1 (GBP accounting currency)"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.SETTLEAMOUNTCUR",
+          "target": "Layercake.brnz_subs_invoice_line.settleamountcur",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.CURRENCYCODE",
+          "target": "Layercake.brnz_subs_invoice_line.currencycode",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.PAYMMODE",
+          "target": "Layercake.brnz_subs_invoice_line.paymmode",
+          "transformation": "1:1 (payment mode on payment lines)",
+          "nullable": true
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.PAYMREFERENCE",
+          "target": "Layercake.brnz_subs_invoice_line.paymreference",
+          "transformation": "1:1"
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.ORDERNUM",
+          "target": "Layercake.brnz_subs_invoice_line.ordernum",
+          "transformation": "1:1"
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.brnz_subs_invoice._loaded_at, _updated_at, _is_deleted, _deleted_at (and the same on brnz_subs_invoice_line)",
+          "transformation": "Audit columns populated as on existing bronze tables."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-002-01",
+          "criterion": "With 5 synthetic rows in Subs.tblSubsInvoices, the first load leaves 5 rows in Layercake.brnz_subs_invoice with _is_deleted = 0. Every mapped column equals the source value for the same rec_id."
+        },
+        {
+          "id": "AC-002-02",
+          "criterion": "With 12 synthetic rows in synapse_fo.CUSTTRANS_RICS that meet RULE-077, the first load leaves 12 rows in Layercake.brnz_subs_invoice_line with _is_deleted = 0. Every mapped column equals the source value for the same recid."
+        },
+        {
+          "id": "AC-002-03",
+          "criterion": "A source row with Inv_Payment_Method null lands with inv_payment_method null. Bronze applies no defaulting."
+        },
+        {
+          "id": "AC-002-04",
+          "criterion": "The first load records rows_inserted = 5 for brnz_subs_invoice in Layercake.etl_run_log with status success. A second load on unchanged source records 0 rows inserted and 0 updated, and the table still holds 5 rows."
+        },
+        {
+          "id": "AC-002-05",
+          "criterion": "_loaded_at and _updated_at are populated (not null) on every landed row."
+        },
+        {
+          "id": "AC-002-06",
+          "criterion": "Subs.tblSubsInvoices holds invoice voucher V1 for account A1. synapse_fo.CUSTTRANS_RICS holds 3 rows with ACCOUNTNUM A1 and VOUCHER V1, 1 credit row with LASTSETTLEVOUCHER V1, and 2 rows with VOUCHER V9, which is not in Subs.tblSubsInvoices. brnz_subs_invoice_line then holds exactly 4 rows, none with voucher V9 (assumes Q-021)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "title": "Payment method reference list and dimension",
+      "type": "data",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Create Layercake.silv_ref_payment_method holding the five payment methods the dashboard filters on and the reserved values shared by every segment: 0 Unknown, -1 Unrecognised, -2 Not applicable (review change 12). Gold Layercake.dim_payment_method is copied from it.",
+      "business_rules": [
+        {
+          "id": "RULE-006",
+          "rule": "silv_ref_payment_method holds the reserved rows 0 Unknown, -1 Unrecognised and -2 Not applicable, plus Direct Debit, Card, Bank transfer, Cheque and Corporate. The five methods are identity-keyed. No id changes between loads."
+        },
+        {
+          "id": "RULE-007",
+          "rule": "Source payment mode codes map as follows: DD to Direct Debit, Card to Card, Bank to Bank transfer, Cheque to Cheque, Corporate to Corporate. Null or an empty string maps to Unknown (0)."
+        },
+        {
+          "id": "RULE-008",
+          "rule": "Any other source code maps to Unrecognised (-1), so unrecognised codes stay visible and separate from missing values (review changes 12 and 2.6; Q-014)."
+        },
+        {
+          "id": "RULE-009",
+          "rule": "There is no Mixed value (assumes Q-015)."
+        },
+        {
+          "id": "RULE-010",
+          "rule": "dim_payment_method holds one row per silv_ref_payment_method row, with the same id and name."
+        },
+        {
+          "id": "RULE-078",
+          "rule": "The reserved rows have the same ids and labels in every segment reference table in this spec (payment method, payer type, concession type): 0 'Unknown', -1 'Unrecognised', -2 'Not applicable'."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "derived",
+          "target": "Layercake.silv_ref_payment_method.id",
+          "transformation": "Fixed ids 0, -1 and -2 for the reserved rows; identity for the five methods."
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_ref_payment_method.payment_method_name",
+          "transformation": "Fixed list: Unknown, Unrecognised, Not applicable, Direct Debit, Card, Bank transfer, Cheque, Corporate."
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_ref_payment_method.source_code",
+          "transformation": "The source PAYMMODE code each method maps from: DD, Card, Bank, Cheque, Corporate. Null for the reserved rows.",
+          "nullable": true
+        },
+        {
+          "source": "Layercake.silv_ref_payment_method.id",
+          "target": "Layercake.dim_payment_method.id",
+          "transformation": "Copy"
+        },
+        {
+          "source": "Layercake.silv_ref_payment_method.payment_method_name",
+          "target": "Layercake.dim_payment_method.payment_method_name",
+          "transformation": "Copy"
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-003-01",
+          "criterion": "Layercake.silv_ref_payment_method contains exactly 8 rows: 0 'Unknown', -1 'Unrecognised', -2 'Not applicable', 'Direct Debit', 'Card', 'Bank transfer', 'Cheque' and 'Corporate' (assumes Q-015)."
+        },
+        {
+          "id": "AC-003-02",
+          "criterion": "Seven synthetic invoices with payment modes DD, Card, Bank, Cheque, Corporate, null and '' resolve to Direct Debit, Card, Bank transfer, Cheque, Corporate, Unknown (0) and Unknown (0) respectively."
+        },
+        {
+          "id": "AC-003-03",
+          "criterion": "A synthetic invoice with payment mode 'XYZ' resolves to Unrecognised (-1), not Unknown (0)."
+        },
+        {
+          "id": "AC-003-04",
+          "criterion": "After a second load, every payment method name has the same id as after the first load."
+        },
+        {
+          "id": "AC-003-05",
+          "criterion": "Layercake.dim_payment_method has the same row count and the same (id, name) pairs as Layercake.silv_ref_payment_method."
+        },
+        {
+          "id": "AC-003-06",
+          "criterion": "Ids 0, -1 and -2 carry the labels 'Unknown', 'Unrecognised' and 'Not applicable' in silv_ref_payment_method, silv_ref_payer_type and silv_ref_concession_type alike: 9 rows across the three tables, 0 label differences."
+        }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "title": "Member-year attributes with payment method",
+      "type": "functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Create Layercake.silv_member_year_attributes, built before silv_membership_events. It holds one row per contact per Campaign Year, from the contact's first membership event to the current Campaign Year. This requirement defines which invoices are eligible: credit notes are excluded, and the case where every invoice is fully credited is defined (review change 5). It also defines which eligible invoice sets a contact-year's segments, and adds payment_method_id and payment_method_carried. REQ-006 and REQ-011 add payer type and concession on the same rules, so all segments use the same invoices (review change 8).",
+      "business_rules": [
+        {
+          "id": "RULE-011",
+          "rule": "The table holds exactly one row per contact per Campaign Year, from the Campaign Year of the contact's first membership event to the current Campaign Year inclusive."
+        },
+        {
+          "id": "RULE-014",
+          "rule": "An invoice in Layercake.brnz_subs_invoice for the contact (account_num = contact_no) and Campaign Year is eligible when: (a) it is not a credit note, meaning its invoice number does not contain 'FTCN' and does not contain 'CRE' with a non-zero full_invoice_amount_cur (the owner's own test in Subs.usp_Refresh_SubsInvoices); (b) it is not fully credited (fully_credited is not 'Y'); and (c) its mapped lines are not all enrolment or application fee lines. Where a contact-year has no invoice meeting (a) to (c), its fully credited invoices that meet (a) and (c) are eligible instead (assumes Q-012). A credit note is never eligible."
+        },
+        {
+          "id": "RULE-079",
+          "rule": "Where a contact-year has more than one eligible invoice, the latest by trans_date is the segment invoice and sets the year's payment method, payer type and concession (assumes Q-012). Each event's amounts still come from its own invoice (RULE-032)."
+        },
+        {
+          "id": "RULE-012",
+          "rule": "A contact-year's payment method is the payment mode of its segment invoice (brnz_subs_invoice.inv_payment_method), mapped through silv_ref_payment_method (assumes Q-001)."
+        },
+        {
+          "id": "RULE-013",
+          "rule": "Where the segment invoice has no payment mode but its payment lines do, the method is the one covering the largest settled amount. On a tie, the method of the earliest payment wins."
+        },
+        {
+          "id": "RULE-015",
+          "rule": "A Campaign Year that has an eligible invoice but no payment mode on the segment invoice or its payment lines gets Unknown (0) with payment_method_carried = 0."
+        },
+        {
+          "id": "RULE-016",
+          "rule": "A Campaign Year from 2022 onward with no eligible invoice takes the payment method of the latest earlier Campaign Year that has one, with payment_method_carried = 1. If no earlier year has one, it gets Unknown (0) with payment_method_carried = 0 (assumes Q-006)."
+        },
+        {
+          "id": "RULE-080",
+          "rule": "Contact-years before 2022, the first Campaign Year the invoice source holds, get Not applicable (-2) for payment method, payer type and concession type, with every carried flag 0 (assumes Q-011)."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.silv_membership_events.contact_no",
+          "target": "Layercake.silv_member_year_attributes.contact_no",
+          "transformation": "One row per contact per Campaign Year. The contact list and first-event year come from the Phase 1 event derivation inputs (for example Layercake.silv_member_base), because the table is built before silv_membership_events."
+        },
+        {
+          "source": "Layercake.ref_campaign_year_config.campaign_year",
+          "target": "Layercake.silv_member_year_attributes.campaign_year",
+          "transformation": "Every Campaign Year from the contact's first event year to the current Campaign Year."
+        },
+        {
+          "source": "Layercake.brnz_subs_invoice.inv_payment_method",
+          "target": "Layercake.silv_member_year_attributes.payment_method_id",
+          "transformation": "RULE-012 to RULE-016, RULE-079 and RULE-080. The code is mapped through Layercake.silv_ref_payment_method.source_code, with the payment-line fallback from Layercake.brnz_subs_invoice_line.paymmode. Never null.",
+          "nullable": false
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_member_year_attributes.payment_method_carried",
+          "transformation": "1 when the value was carried forward from an earlier year, else 0.",
+          "nullable": false
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-004-01",
+          "criterion": "Contact C1 has a first event in Campaign Year 2023 and is loaded with the load date in Campaign Year 2026. C1 has exactly 4 rows: 2023, 2024, 2025 and 2026."
+        },
+        {
+          "id": "AC-004-02",
+          "criterion": "C1 has eligible invoices with payment mode DD in 2023 and Card in 2024, and none in 2025 or 2026. The rows are: 2023 Direct Debit carried 0, 2024 Card carried 0, 2025 Card carried 1, 2026 Card carried 1 (assumes Q-006)."
+        },
+        {
+          "id": "AC-004-03",
+          "criterion": "Contact C2 has a first event in 2024 and no invoices in any year. Every row has payment_method_id 0 (Unknown) and payment_method_carried 0 (assumes Q-006)."
+        },
+        {
+          "id": "AC-004-04",
+          "criterion": "Contact C3 has a 2024 invoice with a null payment mode and no payment lines. The 2024 row has payment_method_id 0 (Unknown) and payment_method_carried 0."
+        },
+        {
+          "id": "AC-004-05",
+          "criterion": "Contact C4 has two 2025 invoices: INV-A dated 2024-10-15 with Card, fully credited, and INV-B dated 2024-11-20 with DD, not fully credited. The 2025 row is Direct Debit (assumes Q-012)."
+        },
+        {
+          "id": "AC-004-06",
+          "criterion": "Contact C5's 2025 invoice has no payment mode. Its payment lines settle 200.00 by Card on 2024-11-01 and 300.00 by DD on 2024-12-01, so the 2025 row is Direct Debit. Contact C6's lines settle 250.00 by Card on 2024-11-01 and 250.00 by DD on 2024-12-01, so the 2025 row is Card."
+        },
+        {
+          "id": "AC-004-07",
+          "criterion": "No two rows share (contact_no, campaign_year). Every payment_method_id exists in Layercake.silv_ref_payment_method: 0 orphans, 0 nulls."
+        },
+        {
+          "id": "AC-004-08",
+          "criterion": "Contact C8 has two eligible 2025 invoices: INV-C dated 2024-10-20 with DD and INV-D dated 2025-03-01 with Card. The 2025 row is Card, carried 0 (assumes Q-012)."
+        },
+        {
+          "id": "AC-004-09",
+          "criterion": "Contact C9 has a 2025 subscription invoice with Card dated 2024-10-10 and a later enrolment-fee-only invoice with Corporate dated 2024-12-01. The 2025 row is Card."
+        },
+        {
+          "id": "AC-004-10",
+          "criterion": "Contact C10 has a 2025 invoice with DD dated 2024-10-10 and a later document numbered 'CRE-0001' with Cheque and full_invoice_amount_cur -450.00. The 2025 row is Direct Debit: the credit note is never the segment invoice."
+        },
+        {
+          "id": "AC-004-11",
+          "criterion": "Contact C11's only 2025 invoice has Card and is fully credited. The 2025 row is Card with payment_method_carried 0 (assumes Q-012)."
+        },
+        {
+          "id": "AC-004-12",
+          "criterion": "Contact C12 has a first event in 2020 and a 2022 invoice with DD. The 2020 and 2021 rows have payment_method_id -2 (Not applicable) with carried 0, and the 2022 row is Direct Debit (assumes Q-011)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "title": "Payment method and carried flags on every event and in gold",
+      "type": "functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Every row of Layercake.silv_membership_events (Join, Change, Lapse, Readmission and Renewal) carries payment_method_id from silv_member_year_attributes, so every event and paid member can be filtered by payment method. A Join takes its segment values from the same Campaign Year as its amounts (review change 4; Q-013). Every event also carries the carried-forward flags of its attributes row, so a copied value can be told apart from a real one (review change 7). Layercake.fact_membership_events carries the same columns.",
+      "business_rules": [
+        {
+          "id": "RULE-017",
+          "rule": "Each event takes its segment values from the silv_member_year_attributes row with the same contact_no and the event's segment Campaign Year. For Change, Lapse, Renewal and Readmission that is the event's own Campaign Year. For a Join it is the Join's amount Campaign Year (RULE-032): the Campaign Year of the contact's first paid position, or the Join's own Campaign Year where the contact has no paid position (assumes Q-029)."
+        },
+        {
+          "id": "RULE-018",
+          "rule": "payment_method_id is never null on an event. An event with no attributes row gets Unknown (0)."
+        },
+        {
+          "id": "RULE-019",
+          "rule": "fact_membership_events.payment_method_id is copied from silver. The silver-to-gold row-count check also compares counts by payment_method_id."
+        },
+        {
+          "id": "RULE-081",
+          "rule": "Every event carries payment_method_carried, payer_type_carried and concession_type_carried copied from the same attributes row that sets its keys (0 where there is no row). fact_membership_events carries the same flags."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.silv_member_year_attributes.payment_method_id",
+          "target": "Layercake.silv_membership_events.payment_method_id",
+          "transformation": "Join on contact_no and the event's segment Campaign Year (RULE-017). 0 where no row matches.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_member_year_attributes.payment_method_carried",
+          "target": "Layercake.silv_membership_events.payment_method_carried",
+          "transformation": "Same attributes row as the key. 0 where no row matches.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_member_year_attributes.payer_type_carried",
+          "target": "Layercake.silv_membership_events.payer_type_carried",
+          "transformation": "Same attributes row as the key. 0 where no row matches.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_member_year_attributes.concession_type_carried",
+          "target": "Layercake.silv_membership_events.concession_type_carried",
+          "transformation": "Same attributes row as the key. 0 where no row matches.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_membership_events.payment_method_id",
+          "target": "Layercake.fact_membership_events.payment_method_id",
+          "transformation": "Copy"
+        },
+        {
+          "source": "Layercake.silv_membership_events.payment_method_carried, payer_type_carried, concession_type_carried",
+          "target": "Layercake.fact_membership_events (same columns)",
+          "transformation": "Copy"
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-005-01",
+          "criterion": "With C1's attributes from AC-004-02 and C1's first paid position in 2023, C1's Join in 2023, Change in 2024, Renewal in 2024 and Lapse in 2025 carry Direct Debit, Card, Card and Card respectively (assumes Q-006)."
+        },
+        {
+          "id": "AC-005-02",
+          "criterion": "No row of silv_membership_events or fact_membership_events has a null payment_method_id. Every value resolves to a row of Layercake.dim_payment_method: 0 orphans."
+        },
+        {
+          "id": "AC-005-03",
+          "criterion": "Counts of fact_membership_events rows by payment_method_id equal counts of silv_membership_events rows by payment_method_id."
+        },
+        {
+          "id": "AC-005-04",
+          "criterion": "Contact C7 joins in Campaign Year 2023 (2023 attributes: Card) and has a first paid position in 2024 (2024 attributes: Direct Debit). The Join event carries Direct Debit, the same year as its amounts."
+        },
+        {
+          "id": "AC-005-05",
+          "criterion": "C1's 2024 Renewal carries payment_method_carried 0 and C1's 2025 Lapse carries payment_method_carried 1, in both silv_membership_events and fact_membership_events (assumes Q-006)."
+        },
+        {
+          "id": "AC-005-06",
+          "criterion": "No event in silv_membership_events or fact_membership_events has a null payment_method_carried, payer_type_carried or concession_type_carried. On every event with an attributes row, the three flags equal that row's flags: 0 mismatches."
+        },
+        {
+          "id": "AC-005-07",
+          "criterion": "Contact C13 joins in Campaign Year 2024 and has no paid position in any year. With 2024 attributes of Card, the Join carries Card (assumes Q-029)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "title": "Payer type (Individual or Corporate)",
+      "type": "functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Mark every membership event and paid member as Individual or Corporate. Corporate scheme subscriptions (Subs.vwCorpSubscriptions) are landed into new Layercake.brnz_corporate_subscription (name proposed). The requirement creates Layercake.silv_ref_payer_type with the shared reserved values, adds payer_type_id, payer_type_carried and corporate_account_ref to silv_member_year_attributes, and carries payer_type_id onto every event and fact_membership_events, with gold Layercake.dim_payer_type. The Corporate test uses the live status of the corporate subscription (review change 9) and the same eligible invoices as payment method. It states which payer type wins on a double payment (review change 8). The text payment_source on silv_payment_events is retired.",
+      "business_rules": [
+        {
+          "id": "RULE-020",
+          "rule": "silv_ref_payer_type holds the reserved rows 0 Unknown, -1 Unrecognised and -2 Not applicable, plus Individual and Corporate."
+        },
+        {
+          "id": "RULE-082",
+          "rule": "A contact is in a live corporate subscription for a Campaign Year when Subs.vwCorpSubscriptions has a row for the contact ('Contact No') with 'Sub Campaign Year' equal to that Campaign Year, and both 'Sub Status' and 'Sub User Status' on that row are active (assumes Q-027 for the active value). 'Round' plays no part (Mike, 2026-10-23)."
+        },
+        {
+          "id": "RULE-021",
+          "rule": "A contact-year from 2022 onward is Corporate where its segment invoice (RULE-079) has payment method Corporate and the contact is in a live corporate subscription for that Campaign Year. It is Individual where the contact has a Phase 1 paid position that Campaign Year and the Corporate test fails. Otherwise it is Unknown (0) (assumes Q-002). Years before 2022 follow RULE-080."
+        },
+        {
+          "id": "RULE-083",
+          "rule": "Payer type uses the same eligible invoices (RULE-014) and the same segment invoice (RULE-079) as payment method. An enrolment- or application-fee-only invoice sets neither, so payment method and payer type cannot disagree because of it."
+        },
+        {
+          "id": "RULE-022",
+          "rule": "A Campaign Year from 2022 onward with no eligible invoice carries forward the payer type of the latest earlier Campaign Year that has one, with payer_type_carried = 1. If no earlier year has one, the payer type is Unknown (0) with payer_type_carried = 0 (assumes Q-006)."
+        },
+        {
+          "id": "RULE-023",
+          "rule": "corporate_account_ref holds the scheme number ('Scheme No') of the live corporate subscription for Corporate contact-years, and is null for every other contact-year (assumes Q-019)."
+        },
+        {
+          "id": "RULE-024",
+          "rule": "Every event takes payer_type_id from the attributes row for its contact and segment Campaign Year (RULE-017), or 0 where there is none. fact_membership_events carries it. dim_payer_type is copied from silv_ref_payer_type."
+        },
+        {
+          "id": "RULE-025",
+          "rule": "An anomaly row of type CORPORATE_FLAG_NO_SCHEME is written to silv_data_anomaly for each contact-year from 2022 onward whose segment invoice has payment method Corporate but where the contact is not in a live corporate subscription that year (assumes Q-002)."
+        },
+        {
+          "id": "RULE-026",
+          "rule": "Where a contact-year's segment invoice is settled both by Corporate and by another payment method, one anomaly row of type DOUBLE_PAYMENT is written. The contact-year has exactly one payer type: Corporate where the contact is in a live corporate subscription that year, otherwise Individual (assumes Q-002)."
+        },
+        {
+          "id": "RULE-027",
+          "rule": "silv_payment_events.payment_source is removed. Payer type lives on silv_member_year_attributes (assumes Q-024)."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Subs.vwCorpSubscriptions.Contact No",
+          "target": "Layercake.brnz_corporate_subscription.contact_no",
+          "transformation": "1:1 bronze landing with standard audit columns"
+        },
+        {
+          "source": "Subs.vwCorpSubscriptions.Scheme No",
+          "target": "Layercake.brnz_corporate_subscription.scheme_no",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.vwCorpSubscriptions.Scheme Name",
+          "target": "Layercake.brnz_corporate_subscription.scheme_name",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.vwCorpSubscriptions.Sub Campaign Year",
+          "target": "Layercake.brnz_corporate_subscription.sub_campaign_year",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.vwCorpSubscriptions.Sub Status",
+          "target": "Layercake.brnz_corporate_subscription.sub_status",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Subs.vwCorpSubscriptions.Sub User Status",
+          "target": "Layercake.brnz_corporate_subscription.sub_user_status",
+          "transformation": "1:1"
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_ref_payer_type.id, payer_type_name",
+          "transformation": "Fixed list: 0 Unknown, -1 Unrecognised, -2 Not applicable, Individual, Corporate. Ids are stable."
+        },
+        {
+          "source": "Layercake.brnz_subs_invoice.inv_payment_method",
+          "target": "Layercake.silv_member_year_attributes.payer_type_id",
+          "transformation": "RULE-021, RULE-022, RULE-026, RULE-080, RULE-082 and RULE-083. The live-subscription test uses Layercake.brnz_corporate_subscription (contact_no, sub_campaign_year, sub_status, sub_user_status), and Individual uses the Phase 1 paid position. Never null.",
+          "nullable": false
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_member_year_attributes.payer_type_carried",
+          "transformation": "1 when carried forward, else 0.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.brnz_corporate_subscription.scheme_no",
+          "target": "Layercake.silv_member_year_attributes.corporate_account_ref",
+          "transformation": "Scheme number for Corporate contact-years; null otherwise (assumes Q-019).",
+          "nullable": true
+        },
+        {
+          "source": "Layercake.silv_member_year_attributes.payer_type_id",
+          "target": "Layercake.silv_membership_events.payer_type_id",
+          "transformation": "Join on contact_no and segment Campaign Year (RULE-017). 0 where no row matches.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_membership_events.payer_type_id",
+          "target": "Layercake.fact_membership_events.payer_type_id",
+          "transformation": "Copy"
+        },
+        {
+          "source": "Layercake.silv_ref_payer_type.id",
+          "target": "Layercake.dim_payer_type.id (with payer_type_name)",
+          "transformation": "Copy"
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_data_anomaly (anomaly_type, contact_no, anomaly_nk, detail)",
+          "transformation": "CORPORATE_FLAG_NO_SCHEME and DOUBLE_PAYMENT rows per RULE-025 and RULE-026. The detail names the Campaign Year and invoice."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-006-01",
+          "criterion": "Layercake.silv_ref_payer_type contains exactly 5 rows: 0 Unknown, -1 Unrecognised, -2 Not applicable, Individual and Corporate. Layercake.dim_payer_type has the same (id, name) pairs."
+        },
+        {
+          "id": "AC-006-02",
+          "criterion": "Contact P1, 2025: the segment invoice has payment mode Corporate, and Subs.vwCorpSubscriptions has a row with Scheme No 'SCH-001', Sub Campaign Year 2025, Sub Status 'Active' and Sub User Status 'Active'. Result: payer type Corporate, payer_type_carried 0, corporate_account_ref 'SCH-001' (assumes Q-002, Q-019, Q-027)."
+        },
+        {
+          "id": "AC-006-03",
+          "criterion": "Contact P2, 2025: the segment invoice has payment mode Card and there is a paid position. Result: payer type Individual and corporate_account_ref null."
+        },
+        {
+          "id": "AC-006-04",
+          "criterion": "Contact P3, 2025: the segment invoice has payment mode Corporate, there is no corporate subscription for 2025, and there is a paid position. Result: payer type Individual and exactly one CORPORATE_FLAG_NO_SCHEME anomaly row for P3 (assumes Q-002)."
+        },
+        {
+          "id": "AC-006-05",
+          "criterion": "Contact P4 has a first event in 2025 and no invoice and no paid position in any year. Result: 2025 payer type Unknown (0), payer_type_carried 0."
+        },
+        {
+          "id": "AC-006-06",
+          "criterion": "Contact P5, 2025: an enrolment-fee-only invoice with payment mode Corporate, a subscription invoice with Card, and a paid position. Result: payer type Individual and payment method Card on the 2025 row. The two segments do not contradict."
+        },
+        {
+          "id": "AC-006-07",
+          "criterion": "Contact P6, 2025: the segment invoice is settled 225.00 by Card and 225.00 by Corporate, and P6 is in a live corporate subscription for 2025. Result: exactly one DOUBLE_PAYMENT anomaly row for P6, and exactly one 2025 attributes row for P6, with payer type Corporate (assumes Q-002, Q-027)."
+        },
+        {
+          "id": "AC-006-08",
+          "criterion": "P1 has a Lapse event in 2026 and no 2026 invoice. The 2026 attributes row is Corporate with payer_type_carried 1, and the Lapse event carries Corporate with payer_type_carried 1 (assumes Q-006)."
+        },
+        {
+          "id": "AC-006-09",
+          "criterion": "No event in silv_membership_events or fact_membership_events has a null payer_type_id. Every value resolves to Layercake.dim_payer_type: 0 orphans."
+        },
+        {
+          "id": "AC-006-10",
+          "criterion": "After the change, Layercake.silv_payment_events has no payment_source column, and every REQ-001 criterion still passes."
+        },
+        {
+          "id": "AC-006-11",
+          "criterion": "A second load on unchanged data adds no anomaly rows: the count of CORPORATE_FLAG_NO_SCHEME and DOUBLE_PAYMENT rows is the same after both loads."
+        },
+        {
+          "id": "AC-006-12",
+          "criterion": "Contact P7, 2025: the segment invoice has payment mode Corporate, and the 2025 corporate subscription row has Sub Status 'Active' but Sub User Status 'Inactive'. There is a paid position. Result: payer type Individual and exactly one CORPORATE_FLAG_NO_SCHEME row for P7 (assumes Q-002, Q-027)."
+        },
+        {
+          "id": "AC-006-13",
+          "criterion": "Contact P8, 2025: the segment invoice is settled 225.00 by Card and 225.00 by Corporate, P8 is in no live corporate subscription for 2025, and there is a paid position. Result: payer type Individual and exactly one DOUBLE_PAYMENT row for P8 (assumes Q-002)."
+        },
+        {
+          "id": "AC-006-14",
+          "criterion": "Changing the Round value on P1's corporate subscription row from '1' to '2' and reloading leaves P1's 2025 payer type Corporate and corporate_account_ref 'SCH-001'."
+        },
+        {
+          "id": "AC-006-15",
+          "criterion": "Contact P9 has a Renewal in Campaign Year 2021. The 2021 attributes row and the event have payer_type_id -2 (Not applicable) (assumes Q-011)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-007",
+      "title": "Invoice line-type mapping and currency reference",
+      "type": "data",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Hold the mapping from invoice item code to line type in a silver reference table (Layercake.silv_ref_invoice_line_type, name proposed), so new item codes show up rather than being dropped. Create Layercake.silv_ref_currency with gold Layercake.dim_currency. The mapping depends on CUSTTRANS_RICS carrying an item code per line (Q-021).",
+      "business_rules": [
+        {
+          "id": "RULE-028",
+          "rule": "The line-type mapping holds one row per item code (productcode with ricinvoicetype) and its line type: subscription, concession, readmission fee, enrolment or application fee, tax, other, or unmapped (assumes Q-021)."
+        },
+        {
+          "id": "RULE-029",
+          "rule": "An item code seen in brnz_subs_invoice_line that is not yet in the mapping is added with line type 'unmapped'. The load never overwrites an existing mapping."
+        },
+        {
+          "id": "RULE-030",
+          "rule": "Amounts on unmapped item codes are left out of subs_amount and fee_amount until the code is mapped. Every event whose invoice has an unmapped line is flagged by amount_status 'Unmapped lines' (RULE-088; review change 6; Q-016)."
+        },
+        {
+          "id": "RULE-031",
+          "rule": "silv_ref_currency holds one row per currency code found on subscription invoices, with ids that do not change between loads. dim_currency is copied from it."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.brnz_subs_invoice_line.productcode",
+          "target": "Layercake.silv_ref_invoice_line_type.item_code",
+          "transformation": "Distinct codes; new codes inserted as unmapped."
+        },
+        {
+          "source": "Layercake.brnz_subs_invoice_line.ricinvoicetype",
+          "target": "Layercake.silv_ref_invoice_line_type.ric_invoice_type",
+          "transformation": "Copy with the item code"
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_ref_invoice_line_type.line_type",
+          "transformation": "Curated per RULE-028 from the design note's line-type mapping (BR-001 Story 3 D1, D6); 'unmapped' for new codes."
+        },
+        {
+          "source": "Layercake.brnz_subs_invoice.inv_currency",
+          "target": "Layercake.silv_ref_currency.currency_code",
+          "transformation": "Distinct codes, insert-only, identity id."
+        },
+        {
+          "source": "Layercake.silv_ref_currency.id",
+          "target": "Layercake.dim_currency.id (with currency_code)",
+          "transformation": "Copy"
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-007-01",
+          "criterion": "A synthetic invoice line with the new item code 'NEWFEE' leaves one mapping row for 'NEWFEE' with line type 'unmapped' after the load, and still exactly one after a second load."
+        },
+        {
+          "id": "AC-007-02",
+          "criterion": "An item code mapped by hand to 'readmission fee' keeps that line type after the next load."
+        },
+        {
+          "id": "AC-007-03",
+          "criterion": "With subscription invoices in GBP, EUR and HKD, Layercake.silv_ref_currency holds exactly those 3 codes. Ids are unchanged after a second load, and Layercake.dim_currency has the same (id, currency_code) pairs."
+        }
+      ]
+    },
+    {
+      "id": "REQ-008",
+      "title": "Invoiced amounts on Join, Readmission and Renewal events",
+      "type": "functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Each Join, Readmission and Renewal event carries the amount invoiced for it, split into membership subscription and associated fee, so subscription revenue can be reported by segment from the same events that drive membership counts. Each event is matched to its own invoice, and no invoice is counted on two events (review change 2; Mike, 2026-10-23). The event carries subs_amount, fee_amount, invoiced_subtotal, credited_amount and currency_id in invoice currency, and the same amounts in GBP. invoiced_subtotal_gbp is the headline value, net_amount_gbp is invoiced minus credited, and credits are positive (review change 3). amount_status explains every amount, including a missing one (review change 6). Change and Lapse events carry no amounts. fact_membership_events carries the same columns as additive measures.",
+      "business_rules": [
+        {
+          "id": "RULE-032",
+          "rule": "Each Join, Renewal and Readmission event is matched to its own eligible invoice (RULE-014) for its contact in its amount Campaign Year. For Renewal and Readmission that is the event's own Campaign Year. For a Join it is the Campaign Year of the contact's first paid position, or the Join's own Campaign Year where the contact has no paid position (assumes Q-029). Each such event has exactly one invoice (Mike, 2026-10-23)."
+        },
+        {
+          "id": "RULE-084",
+          "rule": "Within one contact and amount Campaign Year, the events are ordered by event date and the eligible invoices by trans_date, then paired in that order: the earliest event takes the earliest invoice, the next event the next invoice, and so on (assumes Q-022)."
+        },
+        {
+          "id": "RULE-085",
+          "rule": "Where a contact and amount Campaign Year has more events than eligible invoices, the invoices go to events in priority order: Readmission, then Renewal, then Join, then the earliest event date. Among the events that receive one, invoices are paired by date (RULE-084). Every other event gets no invoice. This fallback only stops an invoice being counted twice."
+        },
+        {
+          "id": "RULE-086",
+          "rule": "Where a contact and amount Campaign Year has more eligible invoices than events, the events are paired by date with the latest invoices by trans_date. The earlier surplus invoices are not carried on any event (assumes Q-022)."
+        },
+        {
+          "id": "RULE-089",
+          "rule": "No eligible invoice's amounts are carried on more than one event."
+        },
+        {
+          "id": "RULE-033",
+          "rule": "subs_amount is the sum of the matched invoice's subscription and concession lines, before tax and before credits (assumes Q-021)."
+        },
+        {
+          "id": "RULE-034",
+          "rule": "On Readmission events, fee_amount is the sum of the matched invoice's readmission fee lines. Enrolment and application fees are not counted on Joins, and no fee type applies to Renewals. fee_amount is 0.00 where no counted fee line exists (assumes Q-003)."
+        },
+        {
+          "id": "RULE-035",
+          "rule": "invoiced_subtotal = subs_amount + fee_amount."
+        },
+        {
+          "id": "RULE-036",
+          "rule": "credited_amount holds the credits raised against the matched invoice as a positive amount, or 0.00 where there are none. Credits never reduce subs_amount, fee_amount or invoiced_subtotal."
+        },
+        {
+          "id": "RULE-037",
+          "rule": "Amounts are held in invoice currency with currency_id. The GBP equivalents (subs_amount_gbp, fee_amount_gbp, invoiced_subtotal_gbp, credited_amount_gbp) come from the source's own GBP (accounting currency) amounts. This solution performs no conversion (assumes Q-004)."
+        },
+        {
+          "id": "RULE-087",
+          "rule": "invoiced_subtotal_gbp is the headline value of an event. net_amount_gbp = invoiced_subtotal_gbp - credited_amount_gbp."
+        },
+        {
+          "id": "RULE-038",
+          "rule": "For corporate-funded members, the individual's allocated invoice lines are carried. Firm-level discounts are not spread to individuals and are recorded as a known gap (assumes Q-005)."
+        },
+        {
+          "id": "RULE-039",
+          "rule": "Change and Lapse events have null subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, every GBP amount, net_amount_gbp and amount_status."
+        },
+        {
+          "id": "RULE-040",
+          "rule": "An event matched to a Full Concession invoice carries invoiced_subtotal 0.00, not null."
+        },
+        {
+          "id": "RULE-041",
+          "rule": "A Join, Renewal or Readmission event with no matched invoice has null amounts and null currency_id. Its amount_status says why."
+        },
+        {
+          "id": "RULE-088",
+          "rule": "Every Join, Renewal and Readmission event has an amount_status, taken from the first case that applies. 'Before invoice data': the amount Campaign Year is before 2022 (assumes Q-011). 'No invoice': no invoice was matched. 'Unmapped lines': the matched invoice has at least one line with line type 'unmapped'. 'Full Concession': the matched invoice's payment_status is 'Full Concession'. 'Fully credited': the matched invoice is fully credited (assumes Q-012). Otherwise 'Invoiced'."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.brnz_subs_invoice_line.amountcur",
+          "target": "Layercake.silv_membership_events.subs_amount",
+          "transformation": "Sum over lines of the matched invoice whose item code maps to subscription or concession (RULE-032, RULE-033, RULE-084 to RULE-086).",
+          "nullable": true
+        },
+        {
+          "source": "Layercake.brnz_subs_invoice_line.amountcur",
+          "target": "Layercake.silv_membership_events.fee_amount",
+          "transformation": "Sum over counted fee lines per RULE-034; 0.00 where none.",
+          "nullable": true
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_membership_events.invoiced_subtotal",
+          "transformation": "subs_amount + fee_amount",
+          "nullable": true
+        },
+        {
+          "source": "Layercake.brnz_subs_invoice.inv_credit_amount_cur",
+          "target": "Layercake.silv_membership_events.credited_amount",
+          "transformation": "Credits against the matched invoice, held as a positive amount; 0.00 where none (RULE-036).",
+          "nullable": true
+        },
+        {
+          "source": "Layercake.brnz_subs_invoice.inv_currency",
+          "target": "Layercake.silv_membership_events.currency_id",
+          "transformation": "Lookup to Layercake.silv_ref_currency.id",
+          "nullable": true
+        },
+        {
+          "source": "Layercake.brnz_subs_invoice_line.amountmst",
+          "target": "Layercake.silv_membership_events.subs_amount_gbp, fee_amount_gbp, invoiced_subtotal_gbp",
+          "transformation": "Same line selection as the invoice-currency columns, summed in GBP (assumes Q-004).",
+          "nullable": true
+        },
+        {
+          "source": "Layercake.brnz_subs_invoice.inv_credit_amount_gbp",
+          "target": "Layercake.silv_membership_events.credited_amount_gbp",
+          "transformation": "As credited_amount, in GBP, positive (assumes Q-004).",
+          "nullable": true
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_membership_events.net_amount_gbp",
+          "transformation": "invoiced_subtotal_gbp - credited_amount_gbp (RULE-087).",
+          "nullable": true
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_membership_events.amount_status",
+          "transformation": "RULE-088. Null on Change and Lapse.",
+          "nullable": true
+        },
+        {
+          "source": "Layercake.silv_membership_events.subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, GBP columns, net_amount_gbp and amount_status",
+          "target": "Layercake.fact_membership_events (same columns)",
+          "transformation": "Copy; amounts are additive measures."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-008-01",
+          "criterion": "A Renewal in 2025 whose invoice has a GBP subscription line of 450.00 and a tax line of 90.00 carries subs_amount 450.00, fee_amount 0.00, invoiced_subtotal 450.00 and currency GBP (assumes Q-021)."
+        },
+        {
+          "id": "AC-008-02",
+          "criterion": "A Readmission in 2025 whose GBP invoice has a subscription line of 450.00 and a readmission fee line of 100.00 carries subs_amount 450.00, fee_amount 100.00 and invoiced_subtotal 550.00."
+        },
+        {
+          "id": "AC-008-03",
+          "criterion": "A Join in Campaign Year 2024 has its first paid position in 2025. The 2025 invoice has a subscription line of 200.00 and an enrolment fee line of 50.00. The Join carries subs_amount 200.00, fee_amount 0.00 and invoiced_subtotal 200.00 (assumes Q-003)."
+        },
+        {
+          "id": "AC-008-04",
+          "criterion": "A Renewal's GBP invoice has a subscription line of 450.00, with credits of 50.00 raised against it. The Renewal carries invoiced_subtotal 450.00, credited_amount 50.00 (positive), credited_amount_gbp 50.00, net_amount_gbp 400.00 and amount_status 'Invoiced'."
+        },
+        {
+          "id": "AC-008-05",
+          "criterion": "A Renewal's invoice has a subscription line of 500.00 EUR with a source GBP amount of 430.00, and an EUR 100.00 credit with a source GBP amount of 86.00. The Renewal carries subs_amount 500.00, currency EUR, subs_amount_gbp 430.00, invoiced_subtotal_gbp 430.00, credited_amount_gbp 86.00 and net_amount_gbp 344.00 (assumes Q-004)."
+        },
+        {
+          "id": "AC-008-06",
+          "criterion": "A Renewal's Full Concession invoice has a subscription line of 450.00 and a concession line of -450.00. The Renewal carries subs_amount 0.00 and invoiced_subtotal 0.00 (not null), with amount_status 'Full Concession'."
+        },
+        {
+          "id": "AC-008-07",
+          "criterion": "Every Change and Lapse event has null subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, GBP amounts, net_amount_gbp and amount_status."
+        },
+        {
+          "id": "AC-008-08",
+          "criterion": "A 2025 Renewal with no invoice for its contact and Campaign Year has null amounts, null currency_id and amount_status 'No invoice'."
+        },
+        {
+          "id": "AC-008-09",
+          "criterion": "A Renewal's contact has INV-A (400.00, fully credited) and a later INV-B (420.00, not fully credited) in the year. The Renewal carries invoiced_subtotal 420.00, and INV-A's amounts appear on no event (assumes Q-012)."
+        },
+        {
+          "id": "AC-008-10",
+          "criterion": "A corporate-funded Renewal whose allocated individual invoice has a subscription line of 380.00 carries subs_amount 380.00, whatever discount sits on the firm's invoice (assumes Q-005)."
+        },
+        {
+          "id": "AC-008-11",
+          "criterion": "Sums of invoiced_subtotal, credited_amount, invoiced_subtotal_gbp, credited_amount_gbp and net_amount_gbp by currency_id in fact_membership_events equal the same sums in silv_membership_events. Counts by amount_status are equal in both tables, and REQ-001 event counts are unchanged."
+        },
+        {
+          "id": "AC-008-12",
+          "criterion": "Contact R1, 2025: a Renewal dated 2024-11-05 and a Readmission dated 2025-03-10. Eligible invoices: INV-1 dated 2024-10-20 (subscription 450.00, DD) and INV-2 dated 2025-03-01 (subscription 450.00, readmission fee 100.00, Card). Result: the Renewal carries invoiced_subtotal 450.00 and fee_amount 0.00, and the Readmission carries invoiced_subtotal 550.00 and fee_amount 100.00. Both have amount_status 'Invoiced' (assumes Q-022)."
+        },
+        {
+          "id": "AC-008-13",
+          "criterion": "R1's 2025 attributes row, and so both of R1's 2025 events, carry payment method Card from INV-2, the later invoice (assumes Q-012)."
+        },
+        {
+          "id": "AC-008-14",
+          "criterion": "Contact R2, 2025: a Renewal dated 2024-11-05, a Readmission dated 2025-03-10, and one eligible invoice INV-3 dated 2024-10-25 (subscription 450.00, readmission fee 100.00). Result: the Readmission carries invoiced_subtotal 550.00, and the Renewal has null amounts and amount_status 'No invoice'."
+        },
+        {
+          "id": "AC-008-15",
+          "criterion": "Contact R3, 2025: one Renewal dated 2024-11-05 and two eligible invoices, INV-4 dated 2024-10-01 (400.00) and INV-5 dated 2024-12-01 (420.00). The Renewal carries invoiced_subtotal 420.00 (assumes Q-022)."
+        },
+        {
+          "id": "AC-008-16",
+          "criterion": "Contact R4's only 2025 invoice is a GBP subscription of 300.00, fully credited by 300.00. R4's 2025 Renewal carries invoiced_subtotal 300.00, credited_amount 300.00, net_amount_gbp 0.00 and amount_status 'Fully credited' (assumes Q-012)."
+        },
+        {
+          "id": "AC-008-17",
+          "criterion": "Contact R5 has an eligible 2025 invoice INV-6 (subscription 450.00) and a later document numbered 'CRE-0002' with full_invoice_amount_cur -100.00. R5's 2025 Renewal carries invoiced_subtotal 450.00, from INV-6."
+        },
+        {
+          "id": "AC-008-18",
+          "criterion": "A 2025 Renewal's invoice has a subscription line of 450.00 and a line of 25.00 with the unmapped item code 'NEWFEE'. The Renewal carries subs_amount 450.00, fee_amount 0.00, invoiced_subtotal 450.00 and amount_status 'Unmapped lines'."
+        },
+        {
+          "id": "AC-008-19",
+          "criterion": "A Renewal in Campaign Year 2021 has null amounts and amount_status 'Before invoice data' (assumes Q-011)."
+        },
+        {
+          "id": "AC-008-20",
+          "criterion": "Across contacts R1, R2 and R3, the events' invoiced_subtotal totals 1970.00, against 2370.00 over their eligible invoices. No invoice's subtotal is counted on two events (assumes Q-022)."
+        },
+        {
+          "id": "AC-008-21",
+          "criterion": "In the synthetic data set, 0 events have credited_amount or credited_amount_gbp below 0.00, and 0 Join, Renewal or Readmission events have a null amount_status."
+        }
+      ]
+    },
+    {
+      "id": "REQ-009",
+      "title": "Anomalies linking invoices and events",
+      "type": "functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Record in Layercake.silv_data_anomaly the events with no matching invoice, the invoices with no event, data that breaks the one-invoice-per-event assumption, and Readmission events with no readmission fee. Each of these situations gets its own reason code (anomaly type). Anomalies are limited to the Campaign Years the invoice source covers (review change 11). Anomaly type names are proposals and the design confirms them.",
+      "business_rules": [
+        {
+          "id": "RULE-093",
+          "rule": "The anomaly types in this requirement are raised only for amount Campaign Years the invoice source covers (2022 onward). Events and invoices from earlier years raise none."
+        },
+        {
+          "id": "RULE-042",
+          "rule": "Each Join, Renewal or Readmission event whose contact and amount Campaign Year has no eligible invoice gets one anomaly row of type EVENT_NO_INVOICE."
+        },
+        {
+          "id": "RULE-043",
+          "rule": "Each eligible invoice in a contact-year where no Join, Renewal or Readmission event takes its amounts from that year gets one anomaly row of type INVOICE_NO_EVENT."
+        },
+        {
+          "id": "RULE-090",
+          "rule": "Each event left without an invoice under RULE-085 (more events than eligible invoices) gets one anomaly row of type INVOICE_MATCHES_MULTIPLE_EVENTS, and no EVENT_NO_INVOICE row."
+        },
+        {
+          "id": "RULE-091",
+          "rule": "Each surplus invoice under RULE-086 (more eligible invoices than events) gets one anomaly row of type EVENT_MATCHES_MULTIPLE_INVOICES, and no INVOICE_NO_EVENT row (assumes Q-022)."
+        },
+        {
+          "id": "RULE-044",
+          "rule": "Each Readmission event whose fee_amount is null or 0.00 has exactly one anomaly row explaining why: EVENT_NO_INVOICE or INVOICE_MATCHES_MULTIPLE_EVENTS where it has no invoice, READMISSION_FREE where its invoice has no readmission fee line and the readmission falls under the free-readmission policy (RULE-092), otherwise READMISSION_NO_FEE."
+        },
+        {
+          "id": "RULE-092",
+          "rule": "A readmission falls under the free-readmission policy when its event date is between 1 April and 30 June of the calendar year, inclusive (assumes Q-023)."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "derived",
+          "target": "Layercake.silv_data_anomaly (anomaly_type, contact_no, anomaly_nk, detail)",
+          "transformation": "One row per case in RULE-042 to RULE-044 and RULE-090 to RULE-092. anomaly_nk identifies the event or invoice, so reruns do not duplicate rows."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-009-01",
+          "criterion": "A Renewal in 2025 with no eligible invoice gives exactly one EVENT_NO_INVOICE row with that contact_no."
+        },
+        {
+          "id": "AC-009-02",
+          "criterion": "A 2025 eligible invoice for a contact with no Join, Renewal or Readmission event taking amounts from 2025 gives exactly one INVOICE_NO_EVENT row with that contact_no."
+        },
+        {
+          "id": "AC-009-03",
+          "criterion": "In the synthetic data set, 0 Readmission events with an amount Campaign Year from 2022 and fee_amount null or 0.00 lack an EVENT_NO_INVOICE, INVOICE_MATCHES_MULTIPLE_EVENTS, READMISSION_FREE or READMISSION_NO_FEE row, and 0 have more than one. A Readmission dated 2025-08-12 whose invoice has no readmission fee line has exactly one READMISSION_NO_FEE row."
+        },
+        {
+          "id": "AC-009-04",
+          "criterion": "A second load on unchanged data leaves the count of rows of every anomaly type in this requirement unchanged."
+        },
+        {
+          "id": "AC-009-05",
+          "criterion": "A Readmission dated 2025-05-14 whose invoice has no readmission fee line has exactly one READMISSION_FREE row and no READMISSION_NO_FEE row (assumes Q-023)."
+        },
+        {
+          "id": "AC-009-06",
+          "criterion": "Contact R1 (AC-008-12) has 0 INVOICE_NO_EVENT, 0 EVENT_NO_INVOICE, 0 INVOICE_MATCHES_MULTIPLE_EVENTS and 0 EVENT_MATCHES_MULTIPLE_INVOICES rows (assumes Q-022)."
+        },
+        {
+          "id": "AC-009-07",
+          "criterion": "Contact R2 (AC-008-14) has exactly one INVOICE_MATCHES_MULTIPLE_EVENTS row, for its Renewal, and 0 EVENT_NO_INVOICE rows."
+        },
+        {
+          "id": "AC-009-08",
+          "criterion": "Contact R3 (AC-008-15) has exactly one EVENT_MATCHES_MULTIPLE_INVOICES row, for INV-4, and 0 INVOICE_NO_EVENT rows (assumes Q-022)."
+        },
+        {
+          "id": "AC-009-09",
+          "criterion": "A Renewal and a Readmission in Campaign Year 2021, neither with an invoice, give 0 anomaly rows of any type in this requirement."
+        }
+      ]
+    },
+    {
+      "id": "REQ-010",
+      "title": "Concession type reference and dimension",
+      "type": "data",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Land the source concession reference 1:1 into new Layercake.brnz_concession. Build Layercake.silv_ref_concession_type from it with insert-and-update (as silv_ref_country), holding the shared reserved values and No concession, and copy it to gold Layercake.dim_concession_type. The working default source is CE.vwConcessionType (Q-008). Each type records whether it is full or reduced, and whether it is perpetual, which governs carry-forward (review change 10).",
+      "business_rules": [
+        {
+          "id": "RULE-045",
+          "rule": "brnz_concession is a 1:1 landing of the concession reference with the standard bronze audit columns (assumes Q-008)."
+        },
+        {
+          "id": "RULE-046",
+          "rule": "silv_ref_concession_type is insert-and-update: new concession types are added, changed names are updated, and existing ids never change. It holds the reserved rows 0 Unknown, -1 Unrecognised and -2 Not applicable, and one 'No concession' row."
+        },
+        {
+          "id": "RULE-047",
+          "rule": "Full and reduced concessions are told apart by the reference's discount: discount 100 is a full concession, and any other discount is reduced."
+        },
+        {
+          "id": "RULE-048",
+          "rule": "Each concession type carries the item code used on invoice lines: the reference Product_Number with any 'rcs' prefix removed (as CE.vwConcessionType and Subs.usp_Refresh_SubsInvoices do)."
+        },
+        {
+          "id": "RULE-094",
+          "rule": "A concession type is perpetual when apuk_perpetualnonperpetual = 200000000 (Perpetual, as decoded in the owner's Subs procedures). Any other value, including 200000001 (Non-Perpetual) and null, is not perpetual. The reserved rows and No concession are not perpetual."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "CE.vwConcessionType.apuk_concessiontypeid",
+          "target": "Layercake.brnz_concession.apuk_concessiontypeid",
+          "transformation": "1:1"
+        },
+        {
+          "source": "CE.vwConcessionType.apuk_name",
+          "target": "Layercake.brnz_concession.apuk_name",
+          "transformation": "1:1"
+        },
+        {
+          "source": "CE.vwConcessionType.apuk_discount",
+          "target": "Layercake.brnz_concession.apuk_discount",
+          "transformation": "1:1"
+        },
+        {
+          "source": "CE.vwConcessionType.Product_Number",
+          "target": "Layercake.brnz_concession.product_number",
+          "transformation": "1:1"
+        },
+        {
+          "source": "CE.vwConcessionType.statecode",
+          "target": "Layercake.brnz_concession.statecode",
+          "transformation": "1:1"
+        },
+        {
+          "source": "CE.vwConcessionType.apuk_perpetualnonperpetual",
+          "target": "Layercake.brnz_concession.apuk_perpetualnonperpetual",
+          "transformation": "1:1"
+        },
+        {
+          "source": "Layercake.brnz_concession.apuk_concessiontypeid",
+          "target": "Layercake.silv_ref_concession_type.concession_type_bk",
+          "transformation": "Business key for insert-and-update; identity id."
+        },
+        {
+          "source": "Layercake.brnz_concession.apuk_name",
+          "target": "Layercake.silv_ref_concession_type.concession_type_name",
+          "transformation": "Updated when the source name changes. Fixed names for the reserved rows and No concession."
+        },
+        {
+          "source": "Layercake.brnz_concession.product_number",
+          "target": "Layercake.silv_ref_concession_type.item_code",
+          "transformation": "Any 'rcs' prefix removed (RULE-048)."
+        },
+        {
+          "source": "Layercake.brnz_concession.apuk_discount",
+          "target": "Layercake.silv_ref_concession_type.is_full_concession",
+          "transformation": "1 where apuk_discount = 100, else 0. 0 for the reserved rows and No concession."
+        },
+        {
+          "source": "Layercake.brnz_concession.apuk_perpetualnonperpetual",
+          "target": "Layercake.silv_ref_concession_type.is_perpetual",
+          "transformation": "1 where 200000000, else 0 (RULE-094)."
+        },
+        {
+          "source": "Layercake.silv_ref_concession_type.id",
+          "target": "Layercake.dim_concession_type (id, concession_type_name, is_full_concession, is_perpetual)",
+          "transformation": "Copy"
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-010-01",
+          "criterion": "There are 3 synthetic concession types: Retired (discount 100), Exceptional Hardship (discount 50) and Life Member (discount 100). Layercake.silv_ref_concession_type then holds 7 rows: 0 Unknown, -1 Unrecognised, -2 Not applicable, No concession and the 3 types. Retired and Life Member have is_full_concession 1, and every other row has 0."
+        },
+        {
+          "id": "AC-010-02",
+          "criterion": "Renaming Exceptional Hardship in the source and reloading updates its name and keeps its id."
+        },
+        {
+          "id": "AC-010-03",
+          "criterion": "Adding a fourth source type and reloading adds one row with a new id. The ids of the existing 7 rows are unchanged."
+        },
+        {
+          "id": "AC-010-04",
+          "criterion": "A source Product_Number of 'rcsCONRETIRED' gives item_code 'CONRETIRED'."
+        },
+        {
+          "id": "AC-010-05",
+          "criterion": "Layercake.dim_concession_type has the same row count and (id, name) pairs as Layercake.silv_ref_concession_type."
+        },
+        {
+          "id": "AC-010-06",
+          "criterion": "Retired has apuk_perpetualnonperpetual 200000000, Exceptional Hardship 200000001 and Life Member null. They get is_perpetual 1, 0 and 0 respectively."
+        }
+      ]
+    },
+    {
+      "id": "REQ-011",
+      "title": "Concession type on member-years and every event",
+      "type": "functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Add concession_type_id and concession_type_carried to silv_member_year_attributes, carry concession_type_id onto every event and fact_membership_events, and record concession anomalies. Every event and paid member can then be segmented by concession type. Only perpetual concessions are carried forward to years with no invoice (review change 10). The concession line source depends on Q-021.",
+      "business_rules": [
+        {
+          "id": "RULE-049",
+          "rule": "A contact-year's concession comes from its segment invoice (RULE-079): the invoice's concession lines (item code starting 'CON') matched to silv_ref_concession_type.item_code. Where the invoice carries more than one concession line, the one with the highest discount sets the value, as Subs.usp_Refresh_SubsInvoices ranks them (assumes Q-021)."
+        },
+        {
+          "id": "RULE-050",
+          "rule": "A contact-year whose segment invoice has no concession line gets No concession."
+        },
+        {
+          "id": "RULE-051",
+          "rule": "A Campaign Year from 2022 onward with no eligible invoice carries forward the concession of the latest earlier Campaign Year that has one, with concession_type_carried = 1, but only when that concession type is perpetual (RULE-094). Otherwise, including where the earlier year was No concession or there is no earlier year, it gets Unknown (0) with concession_type_carried = 0 (assumes Q-006)."
+        },
+        {
+          "id": "RULE-052",
+          "rule": "A concession item code not found in silv_ref_concession_type gives Unrecognised (-1) and one anomaly row of type CONCESSION_NOT_IN_REFERENCE."
+        },
+        {
+          "id": "RULE-053",
+          "rule": "A Full Concession position whose invoice has no full-rate concession type gets one anomaly row of type FULL_CONCESSION_NO_CONCESSION."
+        },
+        {
+          "id": "RULE-054",
+          "rule": "Every event takes concession_type_id from the attributes row for its contact and segment Campaign Year (RULE-017), or 0 where there is none. fact_membership_events carries it. Years before 2022 follow RULE-080."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.brnz_subs_invoice_line.productcode",
+          "target": "Layercake.silv_member_year_attributes.concession_type_id",
+          "transformation": "RULE-049 to RULE-052 and RULE-080, via Layercake.silv_ref_concession_type.item_code and is_perpetual. Never null.",
+          "nullable": false
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_member_year_attributes.concession_type_carried",
+          "transformation": "1 when carried forward, else 0.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_member_year_attributes.concession_type_id",
+          "target": "Layercake.silv_membership_events.concession_type_id",
+          "transformation": "Join on contact_no and segment Campaign Year (RULE-017). 0 where no row matches.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_membership_events.concession_type_id",
+          "target": "Layercake.fact_membership_events.concession_type_id",
+          "transformation": "Copy"
+        },
+        {
+          "source": "Layercake.brnz_subs_invoice.payment_status",
+          "target": "Layercake.silv_data_anomaly (CONCESSION_NOT_IN_REFERENCE and FULL_CONCESSION_NO_CONCESSION rows)",
+          "transformation": "RULE-052, and RULE-053 for Full Concession positions with no full-rate concession type on the invoice."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-011-01",
+          "criterion": "Contact K1's 2025 invoice has a CONRETIRED line (Retired, discount 100). The 2025 row has the Retired concession type with concession_type_carried 0, and K1's 2025 events carry it."
+        },
+        {
+          "id": "AC-011-02",
+          "criterion": "Contact K2's 2025 invoice has no concession line. The 2025 row is No concession."
+        },
+        {
+          "id": "AC-011-03",
+          "criterion": "K1 has no 2026 invoice and Retired is perpetual. The 2026 row has the Retired concession type with concession_type_carried 1 (assumes Q-006)."
+        },
+        {
+          "id": "AC-011-04",
+          "criterion": "Contact K3's invoice has concession lines for Exceptional Hardship (discount 50) and Retired (discount 100). The row has the Retired concession type."
+        },
+        {
+          "id": "AC-011-05",
+          "criterion": "Contact K4's invoice has item code 'CONUNKNOWN', which is not in the reference. Result: concession_type_id -1 (Unrecognised) and exactly one CONCESSION_NOT_IN_REFERENCE row for K4."
+        },
+        {
+          "id": "AC-011-06",
+          "criterion": "Contact K5 has a Full Concession position in 2025 and an invoice with no concession line. K5 gets exactly one FULL_CONCESSION_NO_CONCESSION row. In the synthetic set, every Full Concession position has either a full-rate concession type or such an anomaly row: 0 exceptions."
+        },
+        {
+          "id": "AC-011-07",
+          "criterion": "K1's 2025 Renewal (subscription line 450.00, Retired concession line -450.00) has invoiced_subtotal 0.00. Contact K6's Renewal (subscription line 450.00, Exceptional Hardship line -225.00) has invoiced_subtotal 225.00, below the 450.00 standard rate (assumes Q-017)."
+        },
+        {
+          "id": "AC-011-08",
+          "criterion": "No event in silv_membership_events or fact_membership_events has a null concession_type_id. Every value resolves to Layercake.dim_concession_type: 0 orphans."
+        },
+        {
+          "id": "AC-011-09",
+          "criterion": "Contact K7 has Exceptional Hardship (not perpetual) on its 2025 invoice and no 2026 invoice. The 2026 row has concession_type_id 0 (Unknown) with concession_type_carried 0 (assumes Q-006)."
+        },
+        {
+          "id": "AC-011-10",
+          "criterion": "Contact K8 is No concession in 2025 and has no 2026 invoice. The 2026 row has concession_type_id 0 (Unknown) with concession_type_carried 0 (assumes Q-006)."
+        },
+        {
+          "id": "AC-011-11",
+          "criterion": "Contact K9 has a Renewal in Campaign Year 2021. The 2021 row and the event have concession_type_id -2 (Not applicable) (assumes Q-011)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-012",
+      "title": "Retired concession compared with retirement date",
+      "type": "reporting",
+      "priority": "should",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Provide a count-only comparison of the retired concession against apuk_retirementdate, held in Phase 1 as silv_member_base.retirement_date, which drives Practising / Retired today. It gives the agreement rate by Campaign Year. Mike runs it on real data, and examples of disagreements are a human step. No change is made to the status logic (assumes Q-009).",
+      "business_rules": [
+        {
+          "id": "RULE-055",
+          "rule": "A retired concession is a concession type whose item code is one of CONPWRQ1, CONPWRQ2, CONPWRQ3, CONRETIRED, CONRETIREDFL or CONRETIREDSPECIAL, the retired codes used by Subs.usp_Refresh_SubsInvoices (assumes Q-018)."
+        },
+        {
+          "id": "RULE-056",
+          "rule": "For each Campaign Year the comparison covers paid positions and counts four groups: retired concession and a retirement date on or before the Campaign Year end; retired concession only; retirement date only; neither. Agreement rate = (first group + fourth group) / all paid positions (assumes Q-018)."
+        },
+        {
+          "id": "RULE-057",
+          "rule": "The comparison returns counts and rates only, never contact-level rows."
+        },
+        {
+          "id": "RULE-058",
+          "rule": "No change is made to the Practising / Retired status logic."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.silv_member_year_attributes.concession_type_id",
+          "target": "Retirement comparison output (count-only query)",
+          "transformation": "Retired flag via Layercake.silv_ref_concession_type.item_code (RULE-055)."
+        },
+        {
+          "source": "Layercake.silv_member_base.retirement_date",
+          "target": "Retirement comparison output (count-only query)",
+          "transformation": "Compared with Layercake.ref_campaign_year_config.campaign_year_end (RULE-056)."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-012-01",
+          "criterion": "There are 10 synthetic paid positions in 2025: 4 with both, 1 with a retired concession only, 2 with a retirement date only and 3 with neither. The comparison returns 4, 1, 2 and 3, and an agreement rate of 70.0% for 2025 (assumes Q-018)."
+        },
+        {
+          "id": "AC-012-02",
+          "criterion": "The comparison output has no contact_no or other contact-level column."
+        },
+        {
+          "id": "AC-012-03",
+          "criterion": "membership_status_id on every silv_membership_events and fact_membership_events row is unchanged by the change (part of the REQ-001 comparison)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-013",
+      "title": "Employer segment feasibility findings",
+      "type": "reporting",
+      "priority": "could",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Lower priority. Delivered as findings only in this release (Q-020; review section 5): full employer segmentation is planned for early 2027, and corporate views are being picked up separately. The requirement provides count-only queries that profile the two candidate employer sources for coverage, currency and agreement, and an employer data quality note with a recommendation to build or not (BR-001 Story 5 D1, D6). The two sources are the firm linked through the live corporate subscription's scheme number (CE.vwCorporateSchemes), and the employer or parent account on the CE contact record (field identified during discovery). No employer landing, reference, key or dimension is built. The v1 build rules RULE-063 to RULE-065 are withdrawn with the build.",
+      "business_rules": [
+        {
+          "id": "RULE-059",
+          "rule": "This release creates no employer object: no brnz_account, brnz_corporate_scheme, ref_employer_group or dim_employer, and no employer_id or employer_carried column."
+        },
+        {
+          "id": "RULE-060",
+          "rule": "The findings queries count paid members by Campaign Year and payer type: those with an employer through the corporate scheme link (the live corporate subscription's 'Scheme No' matched to CE.vwCorporateSchemes.apuk_subscriptionnumber with an AccountNumber), those with an employer on the contact record, and those with both that agree on the firm. They report coverage and agreement rates."
+        },
+        {
+          "id": "RULE-061",
+          "rule": "The findings report paid members per employer for the largest employers in the last full Campaign Year, as counts per firm, with the top 25 as the working list (assumes Q-010)."
+        },
+        {
+          "id": "RULE-062",
+          "rule": "Individually funded members whose contact record names an employer are counted separately from corporate-funded members (assumes Q-010)."
+        },
+        {
+          "id": "RULE-064",
+          "rule": "The queries return counts and rates by Campaign Year, payer type and firm only, never contact-level rows or contact identifiers."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-013-01",
+          "criterion": "After deployment, none of Layercake.brnz_account, Layercake.brnz_corporate_scheme, Layercake.ref_employer_group or Layercake.dim_employer exists, and silv_member_year_attributes, silv_membership_events and fact_membership_events have no employer_id or employer_carried column."
+        },
+        {
+          "id": "AC-013-02",
+          "criterion": "In synthetic 2025 data there are 10 paid members: 5 corporate, of whom 4 have a live subscription whose scheme number matches a CE.vwCorporateSchemes row with an AccountNumber; and 5 individual. Scheme-link employer coverage for 2025 is 80.0% for Corporate and 0.0% for Individual."
+        },
+        {
+          "id": "AC-013-03",
+          "criterion": "Among synthetic members with an employer from both sources, 3 name the same firm and 1 names a different firm. The agreement rate is 75.0%."
+        },
+        {
+          "id": "AC-013-04",
+          "criterion": "No findings query output contains contact_no or any other contact-level column."
+        },
+        {
+          "id": "AC-013-05",
+          "criterion": "The handover pack contains an employer data quality note with coverage by Campaign Year and payer type, the agreement rate between the two sources, and a recommendation to build the segment or not."
+        }
+      ]
+    },
+    {
+      "id": "REQ-014",
+      "title": "Count-only profiling and coverage queries",
+      "type": "reporting",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Prepare queries that return counts, sums and rates only. Mike runs them on real data and brings the results back as answers, and the agents' tests run them on synthetic data. They cover: the CUSTTRANS_RICS grain profile (Q-021, review change 1); corporate subscription status values (Q-027); payment method coverage; invoiced subtotal coverage and amount_status counts; the Direct Debit share of Partially Paid positions; and totals by payment method, payer type, concession and currency for the last full Campaign Year. In this release there is no pass threshold for real-data results (assumes Q-026).",
+      "business_rules": [
+        {
+          "id": "RULE-066",
+          "rule": "Every query returns aggregates only (counts, sums, rates), never contact-level rows or contact identifiers."
+        },
+        {
+          "id": "RULE-095",
+          "rule": "The grain profile groups synapse_fo.CUSTTRANS_RICS invoice rows (TRANSTYPE not 8 or 24, invoice number not containing 'CRE' or 'FTCN') by ACCOUNTNUM and INVOICE. It returns the number of invoices by rows per invoice, by distinct productcode per invoice, and by whether the invoice has a row whose PostingType_Description contains 'tax'. It also returns row counts by RICINVOICETYPE and PostingType_Description, the number of invoices whose summed AMOUNTCUR equals their CustTrans_AmountCur, and the number of Subs.tblSubsInvoices invoices by rows per (Account_Num, Invoice)."
+        },
+        {
+          "id": "RULE-096",
+          "rule": "The corporate status profile returns row counts of Subs.vwCorpSubscriptions by 'Sub Status' and 'Sub User Status' value."
+        },
+        {
+          "id": "RULE-067",
+          "rule": "Payment method coverage is the share of paid positions whose payment method is one of the five methods (payment_method_id above 0), by Campaign Year from 2021. It is also reported by event type, so Change and Lapse events are checked on their own."
+        },
+        {
+          "id": "RULE-068",
+          "rule": "Invoiced subtotal coverage is the share of Join, Renewal and Readmission events with a non-null invoiced_subtotal, by Campaign Year, with event counts by amount_status."
+        },
+        {
+          "id": "RULE-069",
+          "rule": "Direct Debit share is the share of Partially Paid positions in the current Campaign Year whose payment method is Direct Debit."
+        },
+        {
+          "id": "RULE-070",
+          "rule": "For the last full Campaign Year the queries return: paid members by payment method; the corporate count and the corporate share of paid members; the total of invoiced_subtotal_gbp, and the total subscription invoiced (subs_amount) by currency; and paid members by concession type."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-014-01",
+          "criterion": "Synthetic 2025 data has 8 paid positions: 6 with one of the five methods, 1 Unknown and 1 Unrecognised. Payment method coverage for 2025 is 75.0%, and the same query by event type returns separate rows for Change and Lapse."
+        },
+        {
+          "id": "AC-014-02",
+          "criterion": "Synthetic 2025 data has 10 Join, Renewal and Readmission events, 9 with an invoiced subtotal and 1 with amount_status 'No invoice'. Coverage for 2025 is 90.0%, and the amount_status counts are 9 across the other statuses and 1 for 'No invoice'."
+        },
+        {
+          "id": "AC-014-03",
+          "criterion": "Synthetic current-year data has 4 Partially Paid positions, 3 of them Direct Debit. The Direct Debit share is 75.0%."
+        },
+        {
+          "id": "AC-014-04",
+          "criterion": "Synthetic last-full-year data has 100 paid members, 16 of them Corporate. The query returns a corporate count of 16 and a corporate share of 16.0%."
+        },
+        {
+          "id": "AC-014-05",
+          "criterion": "Synthetic last-full-year Renewals of 450.00 GBP, 450.00 GBP and 500.00 EUR (source GBP 430.00) return subscription invoiced by currency of GBP 900.00 and EUR 500.00, and a total invoiced_subtotal_gbp of 1330.00 (assumes Q-004)."
+        },
+        {
+          "id": "AC-014-06",
+          "criterion": "No query output contains contact_no or any other contact-level column."
+        },
+        {
+          "id": "AC-014-07",
+          "criterion": "Synthetic CUSTTRANS_RICS holds invoice A with 3 rows (two distinct productcodes, plus one row with PostingType_Description 'Sales tax') and invoice B with 1 row. The grain profile reports 1 invoice with 1 row and 1 invoice with 3 rows, 1 invoice with more than one distinct productcode, and 1 invoice with a tax row."
+        },
+        {
+          "id": "AC-014-08",
+          "criterion": "Synthetic Subs.vwCorpSubscriptions rows with Sub Status 'Active' x3 and 'Inactive' x1, and Sub User Status 'Active' x2 and 'Inactive' x2, return those four counts."
+        }
+      ]
+    },
+    {
+      "id": "REQ-015",
+      "title": "Platform Schema document content",
+      "type": "non_functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "The handover pack gives the bronze, silver and gold content for the Platform Schema document, which lives outside this repo and is updated by a human. It covers every new or changed object in this spec, the headline value, the amount statuses, the reserved segment values, the known gaps and anomaly types, and the content that closes to-do 7.2 #9 (Story 2) and 7.2 #6 (Story 3).",
+      "business_rules": [
+        {
+          "id": "RULE-072",
+          "rule": "Every new or changed bronze, silver and gold object named in this spec is described in the handover pack with its source, grain and rule."
+        },
+        {
+          "id": "RULE-073",
+          "rule": "Known gaps are written as limitations. They include the corporate firm-level discount not carried on individual events (assumes Q-005), and segments and amounts not available before Campaign Year 2022 (assumes Q-011). Assumptions still pending an open question are written as assumptions."
+        },
+        {
+          "id": "RULE-097",
+          "rule": "The pack names invoiced_subtotal_gbp as the headline value, defines net_amount_gbp, lists the amount_status values with their meaning, and explains the reserved segment values Unknown, Unrecognised and Not applicable."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-015-01",
+          "criterion": "Each object in this spec's mappings (for example brnz_subs_invoice, silv_member_year_attributes, dim_payment_method, fact_membership_events) has a description in the handover pack's data model or lineage document: 0 objects missing."
+        },
+        {
+          "id": "AC-015-02",
+          "criterion": "The handover pack has content labelled for to-do 7.2 #9 (payer type) and to-do 7.2 #6 (invoiced amounts)."
+        },
+        {
+          "id": "AC-015-03",
+          "criterion": "The known limitations document lists the corporate firm-level discount gap (assumes Q-005) and the pre-2022 limitation (assumes Q-011). It also lists all 10 anomaly types: CORPORATE_FLAG_NO_SCHEME, DOUBLE_PAYMENT, EVENT_NO_INVOICE, INVOICE_NO_EVENT, INVOICE_MATCHES_MULTIPLE_EVENTS, EVENT_MATCHES_MULTIPLE_INVOICES, READMISSION_FREE, READMISSION_NO_FEE, CONCESSION_NOT_IN_REFERENCE and FULL_CONCESSION_NO_CONCESSION."
+        },
+        {
+          "id": "AC-015-04",
+          "criterion": "The pack names invoiced_subtotal_gbp as the headline value, defines net_amount_gbp as invoiced_subtotal_gbp minus credited_amount_gbp, and lists all 6 amount_status values and the 3 reserved segment values."
+        }
+      ]
+    },
+    {
+      "id": "REQ-016",
+      "title": "Migrations, rollback and rerunnable loads",
+      "type": "non_functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Every change ships through the framework migrations (src/sql/deploy/, journal etl.MigrationHistory) with a tested rollback. This is how BR-001's 'migration recorded in schema_migration' is met. Loads are rerunnable.",
+      "business_rules": [
+        {
+          "id": "RULE-074",
+          "rule": "Every new or changed object is deployed by a framework migration with a partner down script. Changes to existing Layercake tables use change scripts that the down script reverses exactly."
+        },
+        {
+          "id": "RULE-075",
+          "rule": "Running the full load twice on unchanged source data changes nothing on the second run."
+        },
+        {
+          "id": "RULE-076",
+          "rule": "No external object (Subs, synapse_fo, synapse_ce, CE schemas) is created, altered or written to."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-016-01",
+          "criterion": "migrations.py check passes, and migrations.py roundtrip passes for every migration in the change."
+        },
+        {
+          "id": "AC-016-02",
+          "criterion": "A second full load on unchanged synthetic data records 0 rows inserted, 0 updated and 0 deleted for every new or changed table in Layercake.etl_run_log, and the silv_data_anomaly row count is unchanged."
+        },
+        {
+          "id": "AC-016-03",
+          "criterion": "migrations.py check reports no change to any external object."
+        }
+      ]
+    }
+  ],
+  "assumptions": [
+    "Payment method comes from the invoice's payment mode (Subs.tblSubsInvoices.Inv_Payment_Method), with payment lines from synapse_fo.CUSTTRANS_RICS as the fallback. The invoice account number equals the contact number, and the invoice's Campaign Year is used directly (Q-001).",
+    "A contact-year is Corporate when its segment invoice has payment method Corporate and the contact is in a live corporate subscription for that year. On a double payment the contact-year is Corporate where a live corporate subscription exists, otherwise Individual (Q-002).",
+    "A contact is in a live corporate subscription for a Campaign Year when they exist in Subs.vwCorpSubscriptions for that Sub Campaign Year and both 'Sub Status' and 'Sub User Status' are active. 'Round' is not used, because a round is a tranche of processing corporate records and later rounds may change it (Mike, 2026-10-23). The active value is taken to be 'Active' (Q-027).",
+    "Enrolment and application fees are not counted on Joins, and Renewals carry no fee. Only readmission fees are counted, on Readmission events (Q-003).",
+    "GBP amounts are the source's own accounting-currency amounts (AMOUNTMST and Inv_Credit_Amount_GBP), with no conversion by this solution (Q-004).",
+    "Corporate firm-level discounts are not spread to individuals. The individual's allocated invoice lines are carried, and the discount is a stated known gap (Q-005).",
+    "Payment method and payer type carry forward from the latest earlier invoiced year to years with no invoice. Concessions carry forward only when perpetual. Every carried value is flagged (Q-006).",
+    "Segment keys are added to the event fact only. Daily detail and the annual rate base keep their grain (Q-007).",
+    "The concession reference is CE.vwConcessionType (Q-008).",
+    "Practising / Retired status logic is unchanged, and the retirement date keeps driving it (Q-009).",
+    "Employer findings use the top 25 employers by paid members in the last full Campaign Year, and count individually funded members with a contact-record employer separately (Q-010).",
+    "Campaign Years before 2022, which the invoice source does not hold, get Not applicable (-2) for payment method, payer type and concession, and amount_status 'Before invoice data'. They raise no invoice anomalies (Q-011).",
+    "When a contact-year has more than one eligible invoice, the latest by trans_date sets the contact-year's payment method, payer type and concession. When every invoice in a contact-year is fully credited, those invoices stand in as eligible, so events show the invoiced and credited amounts with amount_status 'Fully credited' (Q-012).",
+    "Invoices are raised only when a member joins, renews or readmits, so each Join, Renewal or Readmission event has exactly one invoice. A contact with two such events in one Campaign Year has two legitimate invoices (Mike, 2026-10-23). Events and invoices are paired in date order, and where invoices outnumber events the latest invoices are used (Q-022).",
+    "There is no Mixed payment method (Q-015).",
+    "The standard rate for the concession cross-check is the gross subscription line on the same invoice before the concession (Q-017).",
+    "Retired concessions are the six retired item codes used by Subs.usp_Refresh_SubsInvoices, and the comparison covers paid positions (Q-018).",
+    "corporate_account_ref holds the live corporate subscription's Scheme No (Q-019).",
+    "synapse_fo.CUSTTRANS_RICS holds one row per invoice line with an item code (productcode), and tax appears as its own line, as Subs.usp_Refresh_SubsInvoices treats it (Q-021).",
+    "A free readmission is a Readmission whose event date falls between 1 April and 30 June of the calendar year (Q-023).",
+    "Removing silv_payment_events.payment_source breaks nothing downstream (Q-024).",
+    "Acceptance in this release is on synthetic data only, with no pass threshold for real data (for example minimum payment method coverage) (Q-026).",
+    "The Layercake column names used in this spec (for example silv_membership_events.event_date, contact_no, campaign_year and event_type; silv_data_anomaly columns; the Phase 1 paid position) are taken from the v1 draft and the Phase 1 baseline (Q-028).",
+    "A Join whose contact has no paid position in any year takes its segments, and looks for its invoice, in the Join's own Campaign Year (Q-029)."
+  ],
+  "out_of_scope": [
+    "Power BI work: semantic model, DAX and report pages.",
+    "Payment method, payer type and concession keys on fact_daily_member_count_detail, fact_annual_rate_base, silv_daily_count_detail and silv_annual_rate_base (working default for Q-007).",
+    "Building the employer segment (landing, grouping, key and dimension). This release delivers findings only; full employer segmentation is planned for early 2027 (Q-020).",
+    "Spreading corporate firm-level discounts across individuals (working default for Q-005).",
+    "Any change to the Practising / Retired status logic (BR-001 Story 4 D5).",
+    "apuk_dualmembership: plays no part in this release (Q-025).",
+    "Real-data steps, which are done by a human: profiling, reconciliation to Finance figures and spreadsheets, Finance and Corporate team reviews, and traces of real contacts. The agents provide count-only queries.",
+    "Editing the Platform Schema document itself. The handover pack supplies its content and a human updates it.",
+    "Any change to objects other systems own (Subs, synapse_fo, synapse_ce, CE and other external schemas)."
+  ],
+  "open_questions": [
+    {
+      "id": "Q-001",
+      "question": "Is the F&O invoice payment mode (Subs.tblSubsInvoices.Inv_Payment_Method / synapse_fo.CUSTTRANS_RICS.PAYMMODE) the system of record for payment method, and since which Campaign Year is it reliable? Is its grain one value per subscription invoice, with payment lines as the fallback? (RICS Data; BR-001 question 1, Story 1 D1, D2; review section 4)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "Q-002",
+      "question": "Is the right test for a corporate-funded member a Corporate payment method on the year's subscription invoice plus a live corporate scheme subscription for that Campaign Year? Or should the scheme code or sub ID alone decide? On a double payment (an invoice settled both by Corporate and another method), should the contact-year be Corporate where a live scheme subscription exists, otherwise Individual? (Finance; BR-001 question 2, Story 2 D1, D3, D5; review 2.3, 2.4 and section 4)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-006"
+      ]
+    },
+    {
+      "id": "Q-003",
+      "question": "Should an enrolment or application fee count as an associated fee on a Join? Do other fee types exist, for example on Renewals, that should be counted? If Finance counts enrolment fees as membership income, Join values will look low against Finance's figures. (Finance; BR-001 question 3, Story 3 D3; review 1.8)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-008"
+      ]
+    },
+    {
+      "id": "Q-004",
+      "question": "Should amounts be reported in invoice currency, GBP or both, and which exchange rate applies: the rate posted on the invoice (the source's accounting-currency amounts) or another source? (Finance; BR-001 question 4, Story 3 D4; review section 4)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-008"
+      ]
+    },
+    {
+      "id": "Q-005",
+      "question": "Should corporate firm discounts (GBP 2,500 or GBP 5,000 for the largest firms) be spread across individuals, or reported at firm level only, with the individual's allocated line carried on the event? How large is the resulting difference from Finance's corporate revenue? (Finance; BR-001 question 5, Story 3 D5; review 1.9)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-008",
+        "REQ-015"
+      ]
+    },
+    {
+      "id": "Q-006",
+      "question": "Where an event's Campaign Year has no invoice (a Lapse, say), should payment method and payer type carry forward from the latest earlier year, flagged as carried forward, or be Unknown? For concessions, the review proposes carrying forward perpetual concessions only, or none. Which? (Finance, Membership Growth; BR-001 question 6, Story 1 D3; review 2.5 and section 4)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-004",
+        "REQ-006",
+        "REQ-011"
+      ]
+    },
+    {
+      "id": "Q-007",
+      "question": "Are paid members by payment method, payer type or concession needed day by day? That would change the grain of fact_daily_member_count_detail and fact_annual_rate_base and need a deliberate rebuild. Or are the event and annual views enough? (Finance, Membership Growth; BR-001 question 7)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-001"
+      ]
+    },
+    {
+      "id": "Q-008",
+      "question": "Which source table is the concession reference (working default CE.vwConcessionType)? Does its key match the concession value on the invoice, and is it complete and current? (Finance, Membership; BR-001 question 8, Story 4 D1)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-010"
+      ]
+    },
+    {
+      "id": "Q-009",
+      "question": "Should the retired concession or the retirement date drive Practising / Retired status? (Finance, Membership Growth; BR-001 question 9)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-012"
+      ]
+    },
+    {
+      "id": "Q-010",
+      "question": "How many employers should the employer view cover (proposed: the top 25 by paid members in the last full Campaign Year)? Should it include individually funded members whose contact record names an employer? (Commercial, Corporate team; BR-001 question 10, Story 5 D2, D3)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-013"
+      ]
+    },
+    {
+      "id": "Q-011",
+      "question": "The invoice source (Subs.tblSubsInvoices) holds Campaign Year 2022 onward only, while Story 1 D4 profiles coverage from 2021. For Campaign Year 2021 and earlier, should segments be Not applicable with amount_status 'Before invoice data', stated as a known limitation (review 2.8, 2.9)? Or should they be derived from an older source, for example synapse_fo.CUSTTRANS_RICS directly?",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-004",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011",
+        "REQ-015"
+      ]
+    },
+    {
+      "id": "Q-012",
+      "question": "When a contact has more than one eligible subscription invoice in one Campaign Year, which invoice sets the year's payment method, payer type and concession? Working default: the latest by trans date. Beyond a second event in the year, can more than one live invoice per year be legitimate (for example a mid-year grade change, or a Round 2 individual invoice after a corporate credit)? When every invoice in the year is fully credited, should the fully credited invoice still be used, so the event shows invoiced and credited amounts with net zero and status 'Fully credited', or should the year be treated as having no invoice? (Finance; review 1.5 and section 4)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-004",
+        "REQ-008"
+      ]
+    },
+    {
+      "id": "Q-013",
+      "question": "For a Join, should the segment keys come from the first paid position's Campaign Year (the year its amounts come from) or from the Join event's own Campaign Year?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "From the same Campaign Year as the Join's amounts, the first paid position's year (Damian Watson, review 1 change 4, 2026-10-20)."
+    },
+    {
+      "id": "Q-014",
+      "question": "If profiling finds payment mode codes other than Bank, Card, Cheque, DD and Corporate (or an empty string), should they map to Not recorded, get their own entry, or be grouped as Other?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "They map to a reserved Unrecognised value, kept separate from Unknown (missing) and Not applicable, with the same ids and labels in every segment (Damian Watson, review 1 changes 12 and 2.6, 2026-10-20)."
+    },
+    {
+      "id": "Q-015",
+      "question": "Should a Mixed payment method value be added, and if so, what share of mixed payers in profiling counts as 'common' (BR-001 Story 1 D3)? Recommendation: decide from the count-only profiling results.",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-003"
+      ]
+    },
+    {
+      "id": "Q-016",
+      "question": "Until a new invoice item code is mapped to a line type, should its amount be left out of subs_amount and fee_amount, or counted under an 'other' amount?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "Left out until mapped, with the event flagged by an amount status ('Unmapped lines') so the lower figure is explained (Damian Watson, review 1 change 6, 2026-10-20)."
+    },
+    {
+      "id": "Q-017",
+      "question": "For the Story 4 T5 check that concession members' invoiced subtotal is below the standard rate, what is the standard rate: the gross subscription line on the same invoice before the concession, or a published rate by grade and country (and from which source)?",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-011"
+      ]
+    },
+    {
+      "id": "Q-018",
+      "question": "For the comparison of retired concession and retirement date: which concession types count as retired (the six retired item codes used in Subs.usp_Refresh_SubsInvoices, or the 'Retired Concessions' group in CE.vwConcessionGroup), and which population is compared (paid positions or all members)?",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-012"
+      ]
+    },
+    {
+      "id": "Q-019",
+      "question": "Does the corporate sub ID / scheme number reliably link to the firm, so that corporate_account_ref should be landed (BR-001 Story 2 D4)? Which field holds it: Subs.vwCorpSubscriptions 'Scheme No' or the quote's scheme number?",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-006"
+      ]
+    },
+    {
+      "id": "Q-020",
+      "question": "Should the employer segment be built, or reported as findings only (BR-001 Story 5 D6)?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "Findings only in this release, as review 1 section 5 recommends (Mike, docs/answers.md, SPEC-001 review 1)."
+    },
+    {
+      "id": "Q-021",
+      "question": "What is the grain of synapse_fo.CUSTTRANS_RICS: one row per invoice line with an item code, or one row per transaction (one total per invoice, as the Platform Schema describes synapse_fo.custtrans)? Please run the count-only profile in REQ-014 (RULE-095) and bring back the counts. Core query: WITH inv AS (SELECT ACCOUNTNUM, INVOICE, COUNT(*) AS row_cnt, COUNT(DISTINCT productcode) AS item_codes, MAX(CASE WHEN PostingType_Description LIKE '%tax%' THEN 1 ELSE 0 END) AS has_tax_row, CASE WHEN SUM(AMOUNTCUR) = MAX(CustTrans_AmountCur) THEN 1 ELSE 0 END AS lines_sum_to_total FROM synapse_fo.CUSTTRANS_RICS WHERE TRANSTYPE NOT IN (8, 24) AND INVOICE NOT LIKE '%CRE%' AND INVOICE NOT LIKE '%FTCN%' GROUP BY ACCOUNTNUM, INVOICE) SELECT row_cnt, item_codes, has_tax_row, lines_sum_to_total, COUNT(*) AS invoices FROM inv GROUP BY row_cnt, item_codes, has_tax_row, lines_sum_to_total ORDER BY invoices DESC; plus SELECT RICINVOICETYPE, PostingType_Description, COUNT(*) AS row_count FROM synapse_fo.CUSTTRANS_RICS GROUP BY RICINVOICETYPE, PostingType_Description; plus SELECT rows_per_invoice, COUNT(*) AS invoices FROM (SELECT Account_Num, Invoice, COUNT(*) AS rows_per_invoice FROM Subs.tblSubsInvoices GROUP BY Account_Num, Invoice) x GROUP BY rows_per_invoice. Rules that depend on line grain: RULE-028 to RULE-030 (line-type mapping), RULE-033 and RULE-034 (subscription and fee split, tax excluded), RULE-049 (concession from the invoice's concession line) and RULE-077 (line landing scope). If CUSTTRANS_RICS is transaction grain, those rules cannot be applied from this source. Line-level amounts and the tax split would then need a different source, such as synapse_fo.CUSTINVOICETRANS (invoice lines) and synapse_fo.TAXTRANS (tax), both in the external catalogue. Concessions might instead come from CE.vwConcession (per contact, with apuk_subscriptionyear). That means a new bronze landing and a design change before REQ-007, REQ-008 and REQ-011 are built. (Mike, human profiling step; review 1.1)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-002",
+        "REQ-007",
+        "REQ-008",
+        "REQ-011"
+      ]
+    },
+    {
+      "id": "Q-022",
+      "question": "When a contact has two or more Join, Renewal or Readmission events taking amounts from one Campaign Year, how is each event matched to its own invoice? The sources hold no direct link between event and invoice. Working default: events ordered by event date are paired with eligible invoices ordered by trans date (earliest with earliest). Where invoices outnumber events, the events take the latest invoices and the earlier surplus invoices are flagged EVENT_MATCHES_MULTIPLE_INVOICES. Is that right, or is there a link (for example ORDERNUM to the CE sales order and quote) that should decide the match?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "blocks": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "answer": "Yes: pair events and invoices in date order; the latest live invoice sets the year's segments."
+    },
+    {
+      "id": "Q-023",
+      "question": "Free readmissions in Q2 are policy (review section 3). How is a free readmission recognised in the data? If by date, which Q2: calendar April to June of the event date, the Campaign Year's second quarter, or the RICS fiscal Q2 (the warehouse calendars use July to September, or November to January)? Or is there a flag or item code on the invoice?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "blocks": [
+        "REQ-009"
+      ],
+      "answer": "Campaign Year Quarter."
+    },
+    {
+      "id": "Q-024",
+      "question": "Does removing the text column silv_payment_events.payment_source break anything downstream (reports, views or extracts that read it)? (Mike; review section 4)",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-006"
+      ]
+    },
+    {
+      "id": "Q-025",
+      "question": "Should apuk_dualmembership on the concession reference play any part in this release?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "No. It is unused, per Damian's review, and plays no part in this release (Mike, 2026-10-23)."
+    },
+    {
+      "id": "Q-026",
+      "question": "Is acceptance for this release on synthetic data only, or should a pass threshold be set for real data, for example a minimum payment method coverage by Campaign Year? (Damian, Mike; review section 4)",
+      "raised_by": "analyst",
+      "status": "answered",
+      "blocks": [
+        "REQ-001",
+        "REQ-014"
+      ],
+      "answer": "Synthetic data only, no real-data pass threshold in this release."
+    },
+    {
+      "id": "Q-027",
+      "question": "What value do 'Sub Status' and 'Sub User Status' in Subs.vwCorpSubscriptions hold for an active subscription and subscription user? Working default: 'Active'. The count-only status profile in REQ-014 (RULE-096) lists the values.",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-006"
+      ]
+    },
+    {
+      "id": "Q-028",
+      "question": "The dev database could not be queried when this spec was written. Can the Architect confirm the Layercake column names this spec relies on? In particular: the event date on silv_membership_events (taken as event_date), contact_no, campaign_year, event_type, event_nk and event_id; the silv_data_anomaly columns (anomaly_type, contact_no, anomaly_nk, detail); Layercake.etl_run_log; ref_campaign_year_config.campaign_year_end; silv_member_base.retirement_date; and where the Phase 1 paid position is held.",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-004",
+        "REQ-005",
+        "REQ-008",
+        "REQ-009"
+      ]
+    },
+    {
+      "id": "Q-029",
+      "question": "Where a Join's contact has no paid position in any year, should the Join take its segments and look for its invoice in the Join's own Campaign Year (working default), or carry no invoice and Unknown segments?",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-005",
+        "REQ-008"
+      ]
+    }
+  ]
+}

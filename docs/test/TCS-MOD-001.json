@@ -1,0 +1,95 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-001",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-10-25T12:12:34Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-10-25T19:38:59Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-001",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-001-001",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-07",
+      "category": "happy_path",
+      "description": "Grain profile (RULE-095) over synthetic CUSTTRANS_RICS: invoice A has 3 rows with two distinct productcodes plus a 'Sales tax' row; invoice B has 1 row.",
+      "preconditions": "synapse_fo.CUSTTRANS_RICS faked. Invoice A (C0000001/INV-A, TRANSTYPE 2) has 3 rows: SUBS_MRICS 'Customer balance', RAFEE_MRICS 'Customer balance', and SUBS_MRICS with PostingType_Description 'Sales tax'. The tax row reuses an existing productcode, so the invoice has 2 distinct codes whether or not the tax row is counted. Invoice B (C0000002/INV-B, TRANSTYPE 2) has 1 row: SUBS_MRICS 'Customer balance'. The design does not define the result shape, and the question to the test owner is unanswered. Assumed: one result set (measure varchar(50), measure_value varchar(50), invoice_count int) with one row per value that occurs; measure is 'rows_per_invoice', 'distinct_productcodes' or 'has_sales_tax_row' ('1'/'0'); no parameters.",
+      "expected": "Exactly these rows: rows_per_invoice '1' = 1, rows_per_invoice '3' = 1; distinct_productcodes '1' = 1, distinct_productcodes '2' = 1 (1 invoice with more than one distinct productcode); has_sales_tax_row '0' = 1, has_sales_tax_row '1' = 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD001].[test TC-001-001 grain profile counts invoices by rows, distinct productcodes and Sales tax row]"
+    },
+    {
+      "id": "TC-001-002",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-07",
+      "category": "negative",
+      "description": "The grain profile counts only invoice rows. It leaves out rows with TRANSTYPE 8 or 24 and rows whose invoice number contains 'CRE' or 'FTCN', both inside a counted invoice and as whole invoices.",
+      "preconditions": "synapse_fo.CUSTTRANS_RICS faked. Invoice C0000002/INV-B has one TRANSTYPE 2 row (SUBS_MRICS, 'Customer balance'), a TRANSTYPE 8 'Sales tax' row and a TRANSTYPE 24 RAFEE_MRICS row. The other rows are all excluded: CRE-0001 (2 rows, one 'Sales tax'), FTCN-0001 (1 row), INV-P (TRANSTYPE 8 only) and INV-Q (TRANSTYPE 24 only). Same assumed result shape as TC-001-001.",
+      "expected": "Only INV-B is profiled, as 1 row with no tax row: rows_per_invoice '1' = 1, distinct_productcodes '1' = 1, has_sales_tax_row '0' = 1, and no other rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD001].[test TC-001-002 grain profile excludes TRANSTYPE 8 and 24 and CRE and FTCN invoice rows]"
+    },
+    {
+      "id": "TC-001-003",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-07",
+      "category": "duplicates",
+      "description": "The grain profile groups by ACCOUNTNUM and INVOICE, so one invoice number on two accounts counts as two invoices, not one invoice of 2 rows.",
+      "preconditions": "synapse_fo.CUSTTRANS_RICS faked. INV-X appears once under C0000007 (SUBS_MRICS) and once under C0000008 (RAFEE_MRICS), both TRANSTYPE 2 and 'Customer balance'. Same assumed result shape as TC-001-001.",
+      "expected": "rows_per_invoice '1' = 2, distinct_productcodes '1' = 2, has_sales_tax_row '0' = 2, and no other rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD001].[test TC-001-003 grain profile counts one invoice number on two accounts as two invoices]"
+    },
+    {
+      "id": "TC-001-004",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-08",
+      "category": "happy_path",
+      "description": "The corporate status profile (RULE-096) returns row counts of Subs.vwCorpSubscriptions by 'Sub Status' value and by 'Sub User Status' value.",
+      "preconditions": "Subs.vwCorpSubscriptions faked with 4 rows for 2025, as (Sub Status, Sub User Status): (Active, Active) x2, (Active, Inactive), (Inactive, Inactive). That gives Sub Status Active x3 / Inactive x1 and Sub User Status Active x2 / Inactive x2. The design does not define the result shape, and the question to the test owner is unanswered. Assumed: one result set (status_column varchar(50), status_value nvarchar(100), row_count int), where status_column is 'Sub Status' or 'Sub User Status', with one row per value that occurs; no parameters.",
+      "expected": "Exactly these rows: Sub Status Active = 3, Sub Status Inactive = 1, Sub User Status Active = 2, Sub User Status Inactive = 2.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD001].[test TC-001-004 corporate status profile counts rows by Sub Status and by Sub User Status]"
+    },
+    {
+      "id": "TC-001-005",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-08",
+      "category": "duplicates",
+      "description": "The status profile counts source rows, not distinct contacts or years, and lists every status value it finds, not only Active and Inactive.",
+      "preconditions": "Subs.vwCorpSubscriptions faked with 3 rows, all for contact 1000001: SCH-001 2024 (Active, Active), SCH-001 2025 (Active, Active) and SCH-002 2025 (Cancelled, Active). Same assumed result shape as TC-001-004.",
+      "expected": "Sub Status Active = 2, Sub Status Cancelled = 1, Sub User Status Active = 3, and no other rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD001].[test TC-001-005 corporate status profile counts rows not contacts]"
+    }
+  ]
+}

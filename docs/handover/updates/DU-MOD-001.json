@@ -1,0 +1,324 @@
+{
+  "meta": {
+    "artefact_type": "doc_update",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "DU-MOD-001",
+    "version": 1,
+    "produced_by": "technical_writer",
+    "produced_at": "2026-10-25T20:51:07Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/dev/CN-MOD-001.json",
+      "docs/test/TR-MOD-001-1.json"
+    ]
+  },
+  "scope": "module",
+  "module_id": "MOD-001",
+  "documents": [
+    {
+      "path": "docs/handover/01-solution-overview.md",
+      "section": "Purpose",
+      "change_summary": "Added the solution's purpose: payment method, payer type and concession segments plus invoiced amounts on events, with Phase 1 results unchanged.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#Adds financial segments and invoiced amounts",
+        "docs/specs/SPEC-001.json#REQ-001"
+      ]
+    },
+    {
+      "path": "docs/handover/01-solution-overview.md",
+      "section": "Scope",
+      "change_summary": "Added the release scope, what is outside it (real-data steps and the Platform Schema document update), and that the pack currently covers MOD-001.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#The employer segment is delivered as findings only",
+        "docs/specs/SPEC-001.json#Real-data steps, which are done by a human",
+        "docs/specs/SPEC-001.json#Editing the Platform Schema document itself",
+        "docs/design/MP-001.json#MOD-001",
+        "docs/design/MP-001.json#Source profiling queries"
+      ]
+    },
+    {
+      "path": "docs/handover/01-solution-overview.md",
+      "section": "Requirements delivered",
+      "change_summary": "Explained the ID scheme and listed REQ-014 as partly delivered (AC-014-07 and AC-014-08 by MOD-001; AC-014-01 to AC-014-06 to follow in MOD-015).",
+      "evidence": [
+        "docs/specs/SPEC-001.json#REQ-014",
+        "docs/specs/SPEC-001.json#Count-only profiling and coverage queries",
+        "docs/specs/SPEC-001.json#AC-014-07",
+        "docs/specs/SPEC-001.json#AC-014-08",
+        "docs/design/MP-001.json#MOD-015",
+        "docs/design/MP-001.json#AC-014-01",
+        "docs/test/TR-MOD-001-1.json#REQ-014"
+      ],
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "path": "docs/handover/02-architecture.md",
+      "section": "Architecture overview",
+      "change_summary": "Described the layered Layercake design and that only the two read-only MOD-001 source profiles are in place so far.",
+      "evidence": [
+        "docs/design/DES-001.json#Extends the Phase 1 Layercake membership solution",
+        "docs/design/DES-001.json#reporting queries",
+        "docs/design/MP-001.json#Builds no tables and changes no existing object",
+        "docs/dev/CN-MOD-001.json#Neither writes anything",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#before the invoice build"
+      ]
+    },
+    {
+      "path": "docs/handover/02-architecture.md",
+      "section": "Data model",
+      "change_summary": "Added the two profile procedures, the rules each applies and the result each returns; no tables are added.",
+      "evidence": [
+        "docs/design/MP-001.json#Builds no tables and changes no existing object",
+        "docs/dev/CN-MOD-001.json#Neither takes parameters",
+        "docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain",
+        "docs/specs/SPEC-001.json#RULE-095",
+        "docs/specs/SPEC-001.json#Q-021",
+        "docs/dev/CN-MOD-001.json#rows_per_invoice",
+        "docs/test/TCS-MOD-001.json#TC-001-002",
+        "docs/test/TCS-MOD-001.json#TC-001-003",
+        "docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status",
+        "docs/specs/SPEC-001.json#RULE-096",
+        "docs/specs/SPEC-001.json#Q-027",
+        "docs/dev/CN-MOD-001.json#status_column",
+        "docs/test/TCS-MOD-001.json#TC-001-005",
+        "docs/dev/CN-MOD-001.json#lists a missing status as its own NULL value"
+      ]
+    },
+    {
+      "path": "docs/handover/02-architecture.md",
+      "section": "Design decisions",
+      "change_summary": "Added ADR-003 (count-only queries as read-only procedures) and what it means for MOD-001, noting its decision record is still pending.",
+      "evidence": [
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Option A: Read-only procedures with an as-of date",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Running them needs only EXECUTE",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Pending: filled in by a human at the architecture validation gate",
+        "docs/design/DES-001.json#architecture_validation"
+      ]
+    },
+    {
+      "path": "docs/handover/03-data-lineage.md",
+      "section": "Sources",
+      "change_summary": "Added the two external sources the profiles read, synapse_fo.CUSTTRANS_RICS and Subs.vwCorpSubscriptions, and that nothing is landed.",
+      "evidence": [
+        "PROJECT_STANDARDS.md#Objects owned by other systems (external)",
+        "docs/sources/external_catalogue.json#synapse_fo.CUSTTRANS_RICS",
+        "docs/sources/external_catalogue.json#Subs.vwCorpSubscriptions",
+        "docs/sources/external/synapse_fo/synapse_fo.CUSTTRANS_RICS.sql#PostingType_Description",
+        "docs/design/MP-001.json#count-only procedures over the external sources",
+        "docs/dev/CN-MOD-001.json#Neither writes anything"
+      ]
+    },
+    {
+      "path": "docs/handover/03-data-lineage.md",
+      "section": "Source-to-target mappings",
+      "change_summary": "Added column-to-measure tables showing how each profile turns source columns into counts.",
+      "evidence": [
+        "docs/design/MP-001.json#Builds no tables and changes no existing object",
+        "docs/specs/SPEC-001.json#RULE-095",
+        "docs/specs/SPEC-001.json#RULE-096",
+        "docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain",
+        "docs/dev/CN-MOD-001.json#PostingType_Description = 'Sales tax'",
+        "docs/dev/CN-MOD-001.json#invoice_count",
+        "docs/test/TCS-MOD-001.json#TC-001-001",
+        "docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status",
+        "docs/dev/CN-MOD-001.json#row_count",
+        "docs/test/TCS-MOD-001.json#TC-001-004"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Components and load order",
+      "change_summary": "Listed the two hand-run profiles, which have no parameters, can run in either order and are intended to run before the invoice build.",
+      "evidence": [
+        "docs/design/MP-001.json#MOD-001",
+        "docs/design/MP-001.json#so Mike can run them before the invoice build",
+        "docs/dev/CN-MOD-001.json#Neither takes parameters",
+        "docs/specs/SPEC-001.json#Q-021",
+        "docs/specs/SPEC-001.json#Q-027"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Scheduling",
+      "change_summary": "Stated the profiles are not scheduled and are run by Mike on real data when needed.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#REQ-014",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Mike runs them on real data"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Monitoring",
+      "change_summary": "Stated the profiles write no load-log entry and return counts only.",
+      "evidence": [
+        "docs/dev/CN-MOD-001.json#Neither writes anything or logs a load",
+        "docs/design/DES-001.json#Every count-only procedure returns aggregates only"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Error handling",
+      "change_summary": "Stated that a failed profile run leaves the database unchanged because the profiles write nothing.",
+      "evidence": [
+        "docs/dev/CN-MOD-001.json#Neither writes anything",
+        "docs/design/MP-001.json#Builds no tables and changes no existing object"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Recovery and reruns",
+      "change_summary": "Stated that a profile can simply be run again as often as needed.",
+      "evidence": [
+        "docs/dev/CN-MOD-001.json#Neither writes anything",
+        "docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain",
+        "docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Deployment and rollback",
+      "change_summary": "Added migration MIG-0003 with its up and down scripts, the passed rollback test, the EXECUTE grant script and its placeholder role, and that a person deploys to production.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#journal etl.MigrationHistory",
+        "docs/design/DES-001.json#Deployment: one migration per module",
+        "docs/setup/ENVIRONMENTS.md#Humans deploy",
+        "docs/dev/CN-MOD-001.json#MIG-0003",
+        "docs/dev/CN-MOD-001.json#down restores the pre-migration schema",
+        "docs/dev/CN-MOD-001.json#re-apply after rollback matches first apply",
+        "docs/dev/CN-MOD-001.json#RPST_Dev",
+        "docs/dev/CN-MOD-001.json#src/sql/grants/MOD-001.sql",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Running them needs only EXECUTE",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#they must be deployed to production"
+      ]
+    },
+    {
+      "path": "docs/handover/05-test-summary.md",
+      "section": "Test approach",
+      "change_summary": "Described automated tSQLt testing on synthetic data in a clean test database, and the MOD-001 test condition categories.",
+      "evidence": [
+        "docs/test/TCS-MOD-001.json#TCS-MOD-001",
+        "docs/test/TCS-MOD-001.json#test_design_review",
+        "docs/setup/ENVIRONMENTS.md#Rebuilt clean from `main` + the module commit for each test run",
+        "docs/setup/ENVIRONMENTS.md#tSQLt and the `test_*` schemas exist in dev and test only",
+        "docs/specs/SPEC-001.json#Real-data steps, which are done by a human"
+      ]
+    },
+    {
+      "path": "docs/handover/05-test-summary.md",
+      "section": "Results by module",
+      "change_summary": "Added MOD-001's result: 5 of 5 test conditions passed on the first run, no defects, plus four unit tests passed.",
+      "evidence": [
+        "docs/test/TR-MOD-001-1.json#TR-MOD-001-1",
+        "docs/test/TR-MOD-001-1.json#\"verdict\": \"pass\"",
+        "docs/test/TR-MOD-001-1.json#REQ-014",
+        "docs/dev/CN-MOD-001.json#test_MOD001_dev"
+      ],
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "path": "docs/handover/05-test-summary.md",
+      "section": "Traceability",
+      "change_summary": "Added the REQ-014 / AC / TC traceability table for TC-001-001 to TC-001-005, all Passed.",
+      "evidence": [
+        "docs/test/TCS-MOD-001.json#TC-001-001",
+        "docs/test/TCS-MOD-001.json#TC-001-002",
+        "docs/test/TCS-MOD-001.json#TC-001-003",
+        "docs/test/TCS-MOD-001.json#TC-001-004",
+        "docs/test/TCS-MOD-001.json#TC-001-005",
+        "docs/test/TR-MOD-001-1.json#TC-001-005"
+      ],
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "path": "docs/handover/06-known-limitations.md",
+      "section": "Assumptions awaiting confirmation",
+      "change_summary": "Added the Q-021 (CUSTTRANS_RICS grain) and Q-027 (active status value) working assumptions, what rests on each and which profile settles it.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#Q-021",
+        "docs/specs/SPEC-001.json#tax appears as its own line, as Subs.usp_Refresh_SubsInvoices treats it",
+        "docs/specs/SPEC-001.json#before any build of REQ-007, REQ-008 or REQ-011",
+        "docs/specs/SPEC-001.json#Q-027",
+        "docs/specs/SPEC-001.json#Working default: 'Active'",
+        "docs/specs/SPEC-001.json#both 'Sub Status' and 'Sub User Status' are active",
+        "docs/answers.md#Do not use 'Round'",
+        "docs/design/DES-001.json#Q-027 for payer type"
+      ],
+      "requirement_ids": [
+        "REQ-007",
+        "REQ-008",
+        "REQ-011"
+      ]
+    },
+    {
+      "path": "docs/handover/06-known-limitations.md",
+      "section": "Known limitations",
+      "change_summary": "Added the unconfirmed result layout, the grain-profile edge cases decided during the build, the placeholder role in the grant script and the pending ADR-003 decision record.",
+      "evidence": [
+        "docs/dev/CN-MOD-001.json#Result shape of both procedures is not defined in DES-001",
+        "docs/dev/CN-MOD-001.json#The design does not settle these cases",
+        "docs/dev/CN-MOD-001.json#PostingType_Description = 'Sales tax'",
+        "docs/dev/CN-MOD-001.json#[<analyst_role>]",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Pending: filled in by a human at the architecture validation gate"
+      ]
+    },
+    {
+      "path": "docs/handover/06-known-limitations.md",
+      "section": "Recommended next steps",
+      "change_summary": "Added next steps: set the role and grant, deploy MIG-0003, run both profiles to answer Q-021 and Q-027, confirm the result layout and edge cases, and record the ADR-003 decision.",
+      "evidence": [
+        "docs/dev/CN-MOD-001.json#A human must replace it before running the script",
+        "docs/dev/CN-MOD-001.json#MIG-0003",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#they must be deployed to production before Mike can run them there",
+        "docs/design/MP-001.json#so Mike can run them before the invoice build",
+        "docs/dev/CN-MOD-001.json#the Tester's question about it is still unanswered"
+      ]
+    },
+    {
+      "path": "docs/handover/07-glossary.md",
+      "section": "Terms",
+      "change_summary": "Added the first glossary terms: Campaign Year, count-only query, grain, the two profiles, live corporate subscription, item code, Layercake, migration, Phase 1, the ID prefixes and synthetic data.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#Campaign Year",
+        "docs/specs/SPEC-001.json#Live corporate subscription",
+        "docs/specs/SPEC-001.json#Working default: 'Active'",
+        "docs/specs/SPEC-001.json#Q-021",
+        "docs/design/DES-001.json#reporting queries",
+        "docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain",
+        "docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status",
+        "docs/design/DES-001.json#Item code for the line-type mapping",
+        "docs/design/DES-001.json#Extends the Phase 1 Layercake membership solution",
+        "docs/dev/CN-MOD-001.json#MIG-0003",
+        "docs/setup/ENVIRONMENTS.md#Synthetic only",
+        "docs/design/MP-001.json#MOD-001"
+      ]
+    }
+  ],
+  "unverified_statements": [
+    {
+      "text": "The name of the analyst's database role that should get EXECUTE on the two profile procedures.",
+      "reason": "The change note says the role name is not known; the grant script uses the placeholder [<analyst_role>]. The pack says it is still to be confirmed."
+    },
+    {
+      "text": "When MIG-0003 will be deployed to production, and by whom.",
+      "reason": "The environments document says only that people deploy to production, outside the delivered tooling. No artefact gives a date or names who does it."
+    },
+    {
+      "text": "The agreed result layout of the two profile procedures.",
+      "reason": "The design does not define it and the question about it is still unanswered. The pack describes the layout as built and tested and says it is not yet confirmed."
+    },
+    {
+      "text": "What changes in the invoice build if the grain profile shows CUSTTRANS_RICS is at transaction grain.",
+      "reason": "The spec says only that the subscription/fee/tax split rests on line grain and that REQ-007, REQ-008 and REQ-011 wait for the profile. The text that would say what changes was not visible in the artefacts I could read, so the pack does not describe it."
+    }
+  ]
+}
