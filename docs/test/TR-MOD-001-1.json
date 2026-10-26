@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-10-25T20:40:18Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-001-1",
+    "source_artefacts": [
+      "CN-MOD-001",
+      "TCS-MOD-001",
+      "tests/tsqlt/test_MOD001.sql"
+    ]
+  },
+  "module_id": "MOD-001",
+  "loop_number": 1,
+  "run": {
+    "environment": "test",
+    "commit": "52fdc97a9d3ea7a4b2ca6438e3ee58830af7d335",
+    "started_at": "2026-10-25T20:40:13Z",
+    "finished_at": "2026-10-25T20:40:14Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-001-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-001-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-001-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-001-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-001-005",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-014",
+      "status": "met"
+    }
+  ],
+  "verdict": "pass"
+}
