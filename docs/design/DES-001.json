@@ -56,7 +56,7 @@
       "name": "Layercake.brnz_subs_invoice",
       "kind": "table",
       "load_pattern": "scd1",
-      "description": "1:1 landing of Subs.tblSubsInvoices (Campaign Year 2022 onward). One row per source row, keyed on rec_id. Column types and lengths are copied from the source columns. Also carries the four standard bronze audit columns (_loaded_at, _updated_at, _is_deleted, _deleted_at) exactly as existing bronze tables do: datetime2(3) not null, datetime2(3) not null, bit not null, datetime2(3) null. They are given here in text because their leading underscore falls outside the project's column-name pattern (Q-037).",
+      "description": "1:1 landing of Subs.tblSubsInvoices (Campaign Year 2022 onward). One row per source row, keyed on rec_id. Column types and lengths are copied from the source columns. Also carries the four standard bronze audit columns (_loaded_at, _updated_at, _is_deleted, _deleted_at) exactly as existing bronze tables do: datetime2(3) not null, datetime2(3) not null, bit not null, datetime2(3) null. They are listed as columns (Q-037, answered 2026-10-26).",
       "requirement_ids": [
         "REQ-002"
       ],
@@ -175,6 +175,34 @@
           "nullable": true,
           "key": "none",
           "description": "Source column 100%_Concession"
+        },
+        {
+          "name": "_loaded_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was first landed. Defaults to SYSDATETIME(), as on existing bronze tables (Q-037)."
+        },
+        {
+          "name": "_updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was last changed by a load. Defaults to SYSDATETIME() (Q-037)."
+        },
+        {
+          "name": "_is_deleted",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: 1 when the row is no longer in the source (soft delete). Defaults to 0 (Q-037)."
+        },
+        {
+          "name": "_deleted_at",
+          "data_type": "datetime2(3)",
+          "nullable": true,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was soft-deleted; null while it is live (Q-037)."
         }
       ]
     },
@@ -287,6 +315,34 @@
           "data_type": "nvarchar(20)",
           "nullable": true,
           "key": "none"
+        },
+        {
+          "name": "_loaded_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was first landed. Defaults to SYSDATETIME(), as on existing bronze tables (Q-037)."
+        },
+        {
+          "name": "_updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was last changed by a load. Defaults to SYSDATETIME() (Q-037)."
+        },
+        {
+          "name": "_is_deleted",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: 1 when the row is no longer in the source (soft delete). Defaults to 0 (Q-037)."
+        },
+        {
+          "name": "_deleted_at",
+          "data_type": "datetime2(3)",
+          "nullable": true,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was soft-deleted; null while it is live (Q-037)."
         }
       ]
     },
@@ -464,6 +520,34 @@
           "data_type": "nvarchar(100)",
           "nullable": true,
           "key": "none"
+        },
+        {
+          "name": "_loaded_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was first landed. Defaults to SYSDATETIME(), as on existing bronze tables (Q-037)."
+        },
+        {
+          "name": "_updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was last changed by a load. Defaults to SYSDATETIME() (Q-037)."
+        },
+        {
+          "name": "_is_deleted",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: 1 when the row is no longer in the source (soft delete). Defaults to 0 (Q-037)."
+        },
+        {
+          "name": "_deleted_at",
+          "data_type": "datetime2(3)",
+          "nullable": true,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was soft-deleted; null while it is live (Q-037)."
         }
       ]
     },
@@ -766,6 +850,34 @@
           "data_type": "int",
           "nullable": true,
           "key": "none"
+        },
+        {
+          "name": "_loaded_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was first landed. Defaults to SYSDATETIME(), as on existing bronze tables (Q-037)."
+        },
+        {
+          "name": "_updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was last changed by a load. Defaults to SYSDATETIME() (Q-037)."
+        },
+        {
+          "name": "_is_deleted",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column: 1 when the row is no longer in the source (soft delete). Defaults to 0 (Q-037)."
+        },
+        {
+          "name": "_deleted_at",
+          "data_type": "datetime2(3)",
+          "nullable": true,
+          "key": "none",
+          "description": "Standard bronze audit column: when the row was soft-deleted; null while it is live (Q-037)."
         }
       ]
     },
@@ -1864,12 +1976,13 @@
       "id": "Q-037",
       "question": "The spec maps the standard bronze audit columns _loaded_at, _updated_at, _is_deleted and _deleted_at (as on existing bronze tables), but the project's column-name convention (^[a-z][a-z0-9_]*$) rejects a leading underscore. Should the convention in config/project.yaml and PROJECT_STANDARDS.md be widened to allow the existing bronze audit columns (recommended, to match Phase 1 bronze), or should new bronze tables use other names? Until decided, the design keeps the spec's names, described in each bronze entity's text.",
       "raised_by": "technical_architect",
-      "status": "open",
+      "status": "answered",
       "blocks": [
         "MOD-002",
         "MOD-004",
         "MOD-006"
-      ]
+      ],
+      "answer": "Approved by Mike by merging RPST PR #6 (2026-10-26): widen the convention, as the Architect recommended. config/project.yaml and PROJECT_STANDARDS.md now allow an optional leading underscore (^_?[a-z][a-z0-9_]*$), matching the Phase 1 bronze tables, and the four standard audit columns (_loaded_at, _updated_at, _is_deleted, _deleted_at) are listed on brnz_subs_invoice, brnz_subs_invoice_line, brnz_corporate_subscription and brnz_concession with the existing bronze types."
     }
   ]
 }
