@@ -42,3 +42,6 @@ the agent's working assumption. Example:
 
 ## DES-001 load_id (Mike, 2026-10-26)
 - Every load_id column is bigint and holds Layercake.etl_run_log.log_id (bigint identity, one row per step) of the load that last wrote the row; not run_id. DES-001 now says bigint for all nine (dim_payment_method, dim_payer_type, silv_ref_invoice_line_type, silv_ref_currency, dim_currency, silv_ref_concession_type, dim_concession_type, silv_member_year_attributes, silv_event_amount). This amends the approved design; merging the change is the approval.
+
+## MOD-003 dim_payment_method population (Mike, 2026-10-26)
+- dim_payment_method is not seeded by its migration. It is populated dynamically by Layercake.usp_load_dim_payment_method from silv_ref_payment_method, so after MIG-0005 it is empty until that load runs. Until MOD-016 adds usp_run_payment_segments (which runs it with the other loads), it is run by hand. The same applies to the other gold dimensions over seeded reference lists (dim_payer_type, dim_currency, dim_concession_type).
