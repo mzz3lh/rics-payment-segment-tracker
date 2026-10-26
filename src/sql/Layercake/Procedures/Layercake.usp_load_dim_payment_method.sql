@@ -3,6 +3,7 @@
     Gold layer - Layercake.silv_ref_payment_method -> Layercake.dim_payment_method
     Mirrors the reference list by id: inserts missing ids, updates names
     that changed, leaves unchanged rows untouched (RULE-010). Logged.
+    Never deletes: facts may still point at an id that left the list.
 ====================================================================*/
 CREATE OR ALTER PROCEDURE Layercake.usp_load_dim_payment_method
     @run_id uniqueidentifier = NULL
@@ -22,15 +23,15 @@ BEGIN
     BEGIN TRY
         EXEC Layercake.usp_etl_log_start @run_id, 'gold', 'dim_payment_method', @log_id OUTPUT;
 
-        SET @now = SYSUTCDATETIME();
+        SET @now = SYSDATETIME();
 
         BEGIN TRANSACTION;
 
-        -- Names compare as bytes: the collation is case-insensitive, and a
-        -- case-only change must still reach the dimension.
+        -- Names compare as bytes: the collation is case-insensitive and '='
+        -- ignores trailing spaces, and such a change must still reach the dimension.
         UPDATE d
         SET payment_method_name = s.payment_method_name,
-            load_id             = CAST(@log_id AS int),
+            load_id             = @log_id,
             updated_at          = @now
         FROM Layercake.dim_payment_method AS d
         INNER JOIN Layercake.silv_ref_payment_method AS s
@@ -41,7 +42,7 @@ BEGIN
         SET @upd = @@ROWCOUNT;
 
         INSERT INTO Layercake.dim_payment_method (id, payment_method_name, load_id, created_at, updated_at)
-        SELECT s.id, s.payment_method_name, CAST(@log_id AS int), @now, @now
+        SELECT s.id, s.payment_method_name, @log_id, @now, @now
         FROM Layercake.silv_ref_payment_method AS s
         WHERE NOT EXISTS (SELECT 1 FROM Layercake.dim_payment_method AS d WHERE d.id = s.id);
         SET @ins = @@ROWCOUNT;

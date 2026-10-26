@@ -107,6 +107,47 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE test_MOD003_dev.[test usp_load_dim_payment_method stores a log_id beyond the int range in load_id]
+AS
+BEGIN
+    -- load_id holds etl_run_log.log_id, a bigint identity (answers 2026-10-26): no narrowing to int.
+    EXEC tSQLt.FakeTable 'Layercake.silv_ref_payment_method';
+    EXEC tSQLt.FakeTable 'Layercake.dim_payment_method';
+    EXEC tSQLt.FakeTable 'Layercake.etl_run_log', @Identity = 1, @Defaults = 1;
+
+    SET IDENTITY_INSERT Layercake.etl_run_log ON;
+    INSERT INTO Layercake.etl_run_log (log_id, layer, step_name, status)
+    VALUES (3000000000, 'gold', 'earlier step', 'Success');
+    SET IDENTITY_INSERT Layercake.etl_run_log OFF;
+
+    INSERT INTO Layercake.silv_ref_payment_method (id, payment_method_name, source_code, created_at, updated_at)
+    VALUES (2, 'Card', 'Card', '2026-01-01', '2026-01-01');
+
+    EXEC Layercake.usp_load_dim_payment_method;
+
+    SELECT d.id, d.load_id
+    INTO #Actual
+    FROM Layercake.dim_payment_method AS d;
+
+    SELECT v.id, v.load_id
+    INTO #Expected
+    FROM (VALUES (2, CAST(3000000001 AS bigint))) AS v(id, load_id);
+
+    EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
+
+    SELECT l.log_id, l.status, l.rows_inserted, l.rows_updated, l.rows_deleted
+    INTO #ActualLog
+    FROM Layercake.etl_run_log AS l
+    WHERE l.step_name = 'dim_payment_method';
+
+    SELECT v.log_id, v.status, v.rows_inserted, v.rows_updated, v.rows_deleted
+    INTO #ExpectedLog
+    FROM (VALUES (CAST(3000000001 AS bigint), CAST('Success' AS varchar(10)), 1, 0, 0)) AS v(log_id, status, rows_inserted, rows_updated, rows_deleted);
+
+    EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
+END;
+GO
+
 CREATE PROCEDURE test_MOD003_dev.[test usp_load_dim_payment_method corrects a trailing-space change and keeps a row gone from silver]
 AS
 BEGIN
