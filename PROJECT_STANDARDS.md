@@ -43,7 +43,7 @@ Overrides of the base standards, so that new code matches the solution and nothi
 - Schemas (2.1): `Layercake`, `audit`, `etl`; new objects go only in these (`MIG-0000` still
   creates the base layer schemas, unused).
 - Table names (2.1): `^[a-z][a-z0-9_]*$`.
-- Column names (2.1): `^[a-z][a-z0-9_]*$`.
+- Column names (2.1): `^_?[a-z][a-z0-9_]*$`; the leading underscore is only for the standard bronze audit columns (`_loaded_at`, `_updated_at`, `_is_deleted`, `_deleted_at`), as in the Phase 1 bronze tables.
 - Load logging (3): load procedures call `Layercake.usp_etl_log_start`, `Layercake.usp_etl_log_end` instead of the `audit` procedures.
 - Changing an existing object: the Developer changes it in place (a table through its change scripts); the
   module's down script restores the previous definition (base standards 3.1).
