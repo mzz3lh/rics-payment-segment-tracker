@@ -1,0 +1,474 @@
+{
+  "meta": {
+    "artefact_type": "doc_update",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "DU-MOD-002",
+    "version": 1,
+    "produced_by": "technical_writer",
+    "produced_at": "2026-10-26T13:21:58Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/dev/CN-MOD-001.json",
+      "docs/test/TR-MOD-001-1.json",
+      "docs/dev/CN-MOD-002.json",
+      "docs/test/TR-MOD-002-1.json"
+    ]
+  },
+  "scope": "module",
+  "module_id": "MOD-002",
+  "documents": [
+    {
+      "path": "docs/handover/01-solution-overview.md",
+      "section": "Scope",
+      "change_summary": "Added MOD-002, Subscription invoice bronze, to the modules the pack covers, noting that it does not interpret line types or payment modes.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#The employer segment is delivered as findings only",
+        "docs/specs/SPEC-001.json#Real-data steps, which are done by a human",
+        "docs/specs/SPEC-001.json#Editing the Platform Schema document itself",
+        "docs/design/MP-001.json#MOD-001",
+        "docs/design/MP-001.json#Source profiling queries",
+        "docs/design/MP-001.json#Subscription invoice bronze",
+        "docs/design/MP-001.json#Does not interpret line types or payment modes"
+      ]
+    },
+    {
+      "path": "docs/handover/01-solution-overview.md",
+      "section": "Requirements delivered",
+      "change_summary": "Added REQ-002 as delivered, with all six acceptance criteria passed, and a pointer to the Q-021 grain assumption it rests on.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#REQ-002",
+        "docs/specs/SPEC-001.json#Bronze landing of subscription invoices and invoice lines",
+        "docs/specs/SPEC-001.json#Invoice-level data (payment method, currency, credits, payment status, concession flags)",
+        "docs/design/MP-001.json#AC-002-06",
+        "docs/test/TR-MOD-002-1.json#REQ-002",
+        "docs/specs/SPEC-001.json#REQ-014",
+        "docs/specs/SPEC-001.json#Count-only profiling and coverage queries",
+        "docs/specs/SPEC-001.json#AC-014-07",
+        "docs/specs/SPEC-001.json#AC-014-08",
+        "docs/design/MP-001.json#MOD-015",
+        "docs/design/MP-001.json#AC-014-01",
+        "docs/test/TR-MOD-001-1.json#REQ-014"
+      ],
+      "requirement_ids": [
+        "REQ-002",
+        "REQ-014"
+      ]
+    },
+    {
+      "path": "docs/handover/02-architecture.md",
+      "section": "Architecture overview",
+      "change_summary": "Added the bronze layer delivered by MOD-002 alongside the MOD-001 reporting procedures.",
+      "evidence": [
+        "docs/design/DES-001.json#Extends the Phase 1 Layercake membership solution",
+        "docs/design/DES-001.json#reporting queries",
+        "docs/design/MP-001.json#Builds no tables and changes no existing object",
+        "docs/dev/CN-MOD-001.json#Neither writes anything",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#before the invoice build",
+        "docs/design/DES-001.json#1:1 landings of external sources",
+        "docs/specs/SPEC-001.json#RULE-004",
+        "docs/design/DES-001.json#load logging",
+        "docs/design/MP-001.json#Subscription invoice bronze"
+      ]
+    },
+    {
+      "path": "docs/handover/02-architecture.md",
+      "section": "Data model",
+      "change_summary": "Added sub-sections for brnz_subs_invoice, brnz_subs_invoice_line (including the RULE-077 scope, which requires a matching account) and their two loads, covering audit columns, soft delete and restore, the row-count check and logging.",
+      "evidence": [
+        "docs/design/MP-001.json#Builds no tables and changes no existing object",
+        "docs/dev/CN-MOD-002.json#objects_changed",
+        "docs/design/DES-001.json#Layercake.brnz_subs_invoice",
+        "docs/design/DES-001.json#1:1 landing of Subs.tblSubsInvoices (Campaign Year 2022 onward)",
+        "docs/specs/SPEC-001.json#REQ-002",
+        "docs/specs/SPEC-001.json#Invoice source coverage",
+        "docs/specs/SPEC-001.json#RULE-004",
+        "docs/test/TCS-MOD-002.json#TC-002-003",
+        "docs/design/DES-001.json#Standard bronze audit column: when the row was first landed",
+        "docs/design/DES-001.json#scd1",
+        "docs/test/TCS-MOD-002.json#TC-002-007",
+        "docs/test/TCS-MOD-002.json#TC-002-008",
+        "docs/test/TCS-MOD-002.json#TC-002-009",
+        "docs/dev/CN-MOD-002.json#deviations",
+        "docs/design/DES-001.json#Layercake.brnz_subs_invoice_line",
+        "docs/design/DES-001.json#1:1 landing of the synapse_fo.CUSTTRANS_RICS rows in scope under RULE-077",
+        "docs/specs/SPEC-001.json#RULE-077",
+        "docs/answers.md#RULE-077 settling rows",
+        "docs/dev/CN-MOD-002.json#no DATAAREAID match",
+        "docs/dev/CN-MOD-002.json#Each line lands once even when it matches several invoices",
+        "docs/test/TCS-MOD-002.json#TC-002-013",
+        "docs/test/TCS-MOD-002.json#TC-002-014",
+        "docs/test/TCS-MOD-002.json#TC-002-015",
+        "docs/dev/CN-MOD-002.json#transdate keeps milliseconds",
+        "docs/specs/SPEC-001.json#Q-021",
+        "docs/design/DES-001.json#Layercake.usp_load_brnz_subs_invoice",
+        "docs/design/DES-001.json#Layercake.usp_load_brnz_subs_invoice_line",
+        "docs/design/DES-001.json#full comparison with the source on its key on every run",
+        "docs/specs/SPEC-001.json#RULE-005",
+        "docs/test/TCS-MOD-002.json#TC-002-019",
+        "docs/test/TCS-MOD-002.json#TC-002-005",
+        "docs/test/TCS-MOD-002.json#TC-002-004",
+        "docs/dev/CN-MOD-002.json#A row-count mismatch between live rows and the source (RULE-005) also fails the load",
+        "docs/dev/CN-MOD-002.json#Line scope (RULE-077) reads Subs.tblSubsInvoices directly",
+        "docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain",
+        "docs/specs/SPEC-001.json#RULE-095",
+        "docs/dev/CN-MOD-001.json#rows_per_invoice",
+        "docs/test/TCS-MOD-001.json#TC-001-002",
+        "docs/test/TCS-MOD-001.json#TC-001-003",
+        "docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status",
+        "docs/specs/SPEC-001.json#RULE-096",
+        "docs/specs/SPEC-001.json#Q-027",
+        "docs/dev/CN-MOD-001.json#status_column",
+        "docs/test/TCS-MOD-001.json#TC-001-005",
+        "docs/dev/CN-MOD-001.json#lists a missing status as its own NULL value"
+      ],
+      "requirement_ids": [
+        "REQ-002"
+      ]
+    },
+    {
+      "path": "docs/handover/02-architecture.md",
+      "section": "Design decisions",
+      "change_summary": "Added ADR-001 (all new loads run as one block after the Phase 1 run, through a run procedure that MOD-016 will add) and noted that its decision record is still pending.",
+      "evidence": [
+        "docs/design/adr/ADR-001-how-segment-keys-and-amounts-reach-the-event-tables.md#Option A: Post-Phase-1 enrichment block",
+        "docs/design/adr/ADR-001-how-segment-keys-and-amounts-reach-the-event-tables.md#MOD-016 adds the run procedure",
+        "docs/design/DES-001.json#All new loads run as one block after the Phase 1 run (ADR-001)",
+        "docs/design/adr/ADR-001-how-segment-keys-and-amounts-reach-the-event-tables.md#Pending: filled in by a human at the architecture validation gate",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Option A: Read-only procedures with an as-of date",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Running them needs only EXECUTE",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Pending: filled in by a human at the architecture validation gate",
+        "docs/design/DES-001.json#architecture_validation"
+      ]
+    },
+    {
+      "path": "docs/handover/03-data-lineage.md",
+      "section": "Sources",
+      "change_summary": "Added Subs.tblSubsInvoices and the bronze use of synapse_fo.CUSTTRANS_RICS to the sources table.",
+      "evidence": [
+        "PROJECT_STANDARDS.md#Objects owned by other systems (external)",
+        "docs/sources/external_catalogue.json#Subs.tblSubsInvoices",
+        "docs/sources/external_catalogue.json#synapse_fo.CUSTTRANS_RICS",
+        "docs/sources/external_catalogue.json#Subs.vwCorpSubscriptions",
+        "docs/specs/SPEC-001.json#Invoice source coverage",
+        "docs/sources/external/synapse_fo/synapse_fo.CUSTTRANS_RICS.sql#PostingType_Description",
+        "docs/design/MP-001.json#count-only procedures over the external sources",
+        "docs/dev/CN-MOD-001.json#Neither writes anything",
+        "docs/specs/SPEC-001.json#REQ-002",
+        "docs/specs/SPEC-001.json#RULE-004",
+        "docs/dev/CN-MOD-002.json#Line scope (RULE-077) reads Subs.tblSubsInvoices directly"
+      ]
+    },
+    {
+      "path": "docs/handover/03-data-lineage.md",
+      "section": "Source-to-target mappings",
+      "change_summary": "Added the one-to-one column mappings for brnz_subs_invoice and brnz_subs_invoice_line, with the RULE-077 line scope.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#RULE-004",
+        "docs/specs/SPEC-001.json#_loaded_at, _updated_at, _is_deleted, _deleted_at (and the same on brnz_subs_invoice_line)",
+        "docs/test/TCS-MOD-002.json#TC-002-003",
+        "docs/design/MP-001.json#Builds no tables and changes no existing object",
+        "docs/specs/SPEC-001.json#RULE-095",
+        "docs/specs/SPEC-001.json#RULE-096",
+        "docs/specs/SPEC-001.json#Subs.tblSubsInvoices.Rec_ID",
+        "docs/specs/SPEC-001.json#1:1. Equals the RICS contact number.",
+        "docs/specs/SPEC-001.json#1:1 (F&O PAYMMODE on the invoice)",
+        "docs/specs/SPEC-001.json#Used to tell a credit note from a zero-value invoice numbered 'CRE' (RULE-014)",
+        "docs/specs/SPEC-001.json#Subs.tblSubsInvoices.100%_Concession",
+        "docs/design/DES-001.json#Source column 100%_Concession",
+        "docs/answers.md#the source writes 'N/A' for invoices with no credit",
+        "docs/test/TCS-MOD-002.json#TC-002-001",
+        "docs/test/TCS-MOD-002.json#TC-002-002",
+        "docs/specs/SPEC-001.json#RULE-077",
+        "docs/answers.md#RULE-077 settling rows",
+        "docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.RECID",
+        "docs/specs/SPEC-001.json#1:1. The item code used for the line-type mapping and the concession value.",
+        "docs/specs/SPEC-001.json#1:1 (invoice currency)",
+        "docs/specs/SPEC-001.json#1:1 (GBP accounting currency)",
+        "docs/specs/SPEC-001.json#1:1 (payment mode on payment lines)",
+        "docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.ORDERNUM",
+        "docs/dev/CN-MOD-002.json#transdate keeps milliseconds",
+        "docs/test/TCS-MOD-002.json#TC-002-011",
+        "docs/test/TCS-MOD-002.json#TC-002-014",
+        "docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain",
+        "docs/dev/CN-MOD-001.json#PostingType_Description = 'Sales tax'",
+        "docs/dev/CN-MOD-001.json#invoice_count",
+        "docs/test/TCS-MOD-001.json#TC-001-001",
+        "docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status",
+        "docs/dev/CN-MOD-001.json#row_count",
+        "docs/test/TCS-MOD-001.json#TC-001-004"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Components and load order",
+      "change_summary": "Added the two bronze loads and explained that the line load reads Subs.tblSubsInvoices directly and that the design places both loads in the run procedure that MOD-016 will add.",
+      "evidence": [
+        "docs/dev/CN-MOD-002.json#objects_changed",
+        "docs/design/MP-001.json#MOD-002",
+        "docs/dev/CN-MOD-002.json#Line scope (RULE-077) reads Subs.tblSubsInvoices directly",
+        "docs/design/adr/ADR-001-how-segment-keys-and-amounts-reach-the-event-tables.md#Layercake.usp_run_payment_segments",
+        "docs/design/MP-001.json#runs every new load in dependency order after the Phase 1 run",
+        "docs/design/MP-001.json#MOD-001",
+        "docs/design/MP-001.json#so Mike can run them before the invoice build",
+        "docs/dev/CN-MOD-001.json#Neither takes parameters",
+        "docs/specs/SPEC-001.json#Q-021",
+        "docs/specs/SPEC-001.json#Q-027"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Scheduling",
+      "change_summary": "Stated that the loads are to run after the Phase 1 run through the run procedure a person will schedule, and that the schedule is still to be confirmed.",
+      "evidence": [
+        "docs/design/adr/ADR-001-how-segment-keys-and-amounts-reach-the-event-tables.md#which a human schedules after the Phase 1 run",
+        "docs/design/DES-001.json#runs after the Phase 1 run",
+        "docs/specs/SPEC-001.json#REQ-014",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Mike runs them on real data"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Monitoring",
+      "change_summary": "Added the load-log entries each bronze load writes (outcome, row counts, error message) and the row-count check.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#RULE-005",
+        "docs/dev/CN-MOD-002.json#with status 'Success' or 'Failed'",
+        "docs/test/TCS-MOD-002.json#TC-002-004",
+        "docs/test/TCS-MOD-002.json#TC-002-005",
+        "docs/test/TCS-MOD-002.json#TC-002-010",
+        "docs/dev/CN-MOD-002.json#A row-count mismatch between live rows and the source (RULE-005) also fails the load",
+        "docs/dev/CN-MOD-001.json#Neither writes anything or logs a load",
+        "docs/design/DES-001.json#Every count-only procedure returns aggregates only"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Error handling",
+      "change_summary": "Explained that a failed bronze load logs 'Failed', reports the error and leaves its table unchanged, so it can simply be run again.",
+      "evidence": [
+        "docs/dev/CN-MOD-002.json#Both loads stage the source in the target's column types before the transaction",
+        "docs/dev/CN-MOD-002.json#logged Failed in Layercake.etl_run_log, re-raised, target unchanged",
+        "docs/test/TCS-MOD-002.json#TC-002-010",
+        "docs/test/TCS-MOD-002.json#TC-002-018",
+        "docs/dev/CN-MOD-002.json#test line load fails on a duplicate RECID in the source and leaves the target unchanged",
+        "docs/dev/CN-MOD-001.json#Neither writes anything",
+        "docs/design/MP-001.json#Builds no tables and changes no existing object"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Recovery and reruns",
+      "change_summary": "Added the recovery steps after a failed load and explained that a load can be rerun safely.",
+      "evidence": [
+        "docs/dev/CN-MOD-002.json#logged Failed in Layercake.etl_run_log, re-raised, target unchanged",
+        "docs/test/TCS-MOD-002.json#non-NULL error_message",
+        "PROJECT_STANDARDS.md#Objects owned by other systems (external)",
+        "docs/test/TCS-MOD-002.json#TC-002-005",
+        "docs/test/TCS-MOD-002.json#TC-002-016",
+        "docs/test/TCS-MOD-002.json#TC-002-007",
+        "docs/dev/CN-MOD-001.json#Neither writes anything",
+        "docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain",
+        "docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status"
+      ]
+    },
+    {
+      "path": "docs/handover/04-runbook.md",
+      "section": "Deployment and rollback",
+      "change_summary": "Added migration MIG-0004 with its up and down scripts, its passed rollback test of 2026-10-26, and that MOD-002 needs no permission script.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#journal etl.MigrationHistory",
+        "docs/design/DES-001.json#Deployment: one migration per module",
+        "docs/setup/ENVIRONMENTS.md#Humans deploy",
+        "docs/dev/CN-MOD-001.json#MIG-0003",
+        "docs/dev/CN-MOD-002.json#MIG-0004",
+        "docs/dev/CN-MOD-002.json#src/sql/deploy/MIG-0004_MOD-002_subscription-invoice-bronze.up.sql",
+        "docs/dev/CN-MOD-002.json#src/sql/deploy/MIG-0004_MOD-002_subscription-invoice-bronze.down.sql",
+        "docs/dev/CN-MOD-001.json#down restores the pre-migration schema",
+        "docs/dev/CN-MOD-002.json#down restores the pre-migration schema",
+        "docs/dev/CN-MOD-002.json#re-apply after rollback matches first apply",
+        "docs/dev/CN-MOD-002.json#RPST_Dev",
+        "docs/dev/CN-MOD-001.json#src/sql/grants/MOD-001.sql",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Running them needs only EXECUTE",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#they must be deployed to production",
+        "docs/dev/CN-MOD-002.json#No grants are needed"
+      ]
+    },
+    {
+      "path": "docs/handover/05-test-summary.md",
+      "section": "Test approach",
+      "change_summary": "Added what the MOD-002 test conditions, approved on 2026-10-26, cover.",
+      "evidence": [
+        "docs/test/TCS-MOD-001.json#TCS-MOD-001",
+        "docs/test/TCS-MOD-001.json#test_design_review",
+        "docs/test/TCS-MOD-002.json#TCS-MOD-002",
+        "docs/test/TCS-MOD-002.json#test_design_review",
+        "docs/test/TCS-MOD-002.json#idempotency",
+        "docs/test/TCS-MOD-002.json#reconciliation",
+        "docs/setup/ENVIRONMENTS.md#Rebuilt clean from `main` + the module commit for each test run",
+        "docs/setup/ENVIRONMENTS.md#tSQLt and the `test_*` schemas exist in dev and test only",
+        "docs/specs/SPEC-001.json#Real-data steps, which are done by a human"
+      ]
+    },
+    {
+      "path": "docs/handover/05-test-summary.md",
+      "section": "Results by module",
+      "change_summary": "Added the MOD-002 run (19 of 19 passed, verdict Pass, REQ-002 met, no defects) and the ten further unit tests that passed.",
+      "evidence": [
+        "docs/test/TR-MOD-001-1.json#TR-MOD-001-1",
+        "docs/test/TR-MOD-001-1.json#\"verdict\": \"pass\"",
+        "docs/test/TR-MOD-001-1.json#REQ-014",
+        "docs/dev/CN-MOD-001.json#test_MOD001_dev",
+        "docs/test/TR-MOD-002-1.json#TR-MOD-002-1",
+        "docs/test/TR-MOD-002-1.json#\"verdict\": \"pass\"",
+        "docs/test/TR-MOD-002-1.json#\"status\": \"met\"",
+        "docs/dev/CN-MOD-002.json#test_MOD002_dev",
+        "docs/dev/CN-MOD-002.json#10 unit test(s)"
+      ],
+      "requirement_ids": [
+        "REQ-002",
+        "REQ-014"
+      ]
+    },
+    {
+      "path": "docs/handover/05-test-summary.md",
+      "section": "Traceability",
+      "change_summary": "Added the 19 MOD-002 test conditions, each traced to REQ-002 and its acceptance criterion and marked Passed.",
+      "evidence": [
+        "docs/test/TCS-MOD-002.json#TC-002-001",
+        "docs/test/TCS-MOD-002.json#TC-002-002",
+        "docs/test/TCS-MOD-002.json#TC-002-003",
+        "docs/test/TCS-MOD-002.json#TC-002-004",
+        "docs/test/TCS-MOD-002.json#TC-002-005",
+        "docs/test/TCS-MOD-002.json#TC-002-006",
+        "docs/test/TCS-MOD-002.json#TC-002-007",
+        "docs/test/TCS-MOD-002.json#TC-002-008",
+        "docs/test/TCS-MOD-002.json#TC-002-009",
+        "docs/test/TCS-MOD-002.json#TC-002-010",
+        "docs/test/TCS-MOD-002.json#TC-002-019",
+        "docs/test/TCS-MOD-002.json#TC-002-011",
+        "docs/test/TCS-MOD-002.json#TC-002-012",
+        "docs/test/TCS-MOD-002.json#TC-002-013",
+        "docs/test/TCS-MOD-002.json#TC-002-014",
+        "docs/test/TCS-MOD-002.json#TC-002-015",
+        "docs/test/TCS-MOD-002.json#TC-002-016",
+        "docs/test/TCS-MOD-002.json#TC-002-017",
+        "docs/test/TCS-MOD-002.json#TC-002-018",
+        "docs/test/TR-MOD-002-1.json#TC-002-018",
+        "docs/test/TCS-MOD-001.json#TC-001-001",
+        "docs/test/TCS-MOD-001.json#TC-001-002",
+        "docs/test/TCS-MOD-001.json#TC-001-003",
+        "docs/test/TCS-MOD-001.json#TC-001-004",
+        "docs/test/TCS-MOD-001.json#TC-001-005",
+        "docs/test/TR-MOD-001-1.json#TC-001-005"
+      ],
+      "requirement_ids": [
+        "REQ-002",
+        "REQ-014"
+      ]
+    },
+    {
+      "path": "docs/handover/06-known-limitations.md",
+      "section": "Assumptions awaiting confirmation",
+      "change_summary": "Extended Q-021 to show that the already-built line scope (RULE-077) and the assumed grain of brnz_subs_invoice_line rest on it.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#Q-021",
+        "docs/specs/SPEC-001.json#tax appears as its own line, as Subs.usp_Refresh_SubsInvoices treats it",
+        "docs/specs/SPEC-001.json#before any build of REQ-007, REQ-008 or REQ-011",
+        "docs/specs/SPEC-001.json#RULE-077",
+        "docs/design/DES-001.json#The grain is assumed to be one row per invoice line (Q-021)",
+        "docs/specs/SPEC-001.json#Q-027",
+        "docs/specs/SPEC-001.json#Working default: 'Active'",
+        "docs/specs/SPEC-001.json#both 'Sub Status' and 'Sub User Status' are active",
+        "docs/answers.md#Do not use 'Round'",
+        "docs/design/DES-001.json#Q-027 for payer type"
+      ],
+      "requirement_ids": [
+        "REQ-007",
+        "REQ-008",
+        "REQ-011"
+      ]
+    },
+    {
+      "path": "docs/handover/06-known-limitations.md",
+      "section": "Known limitations",
+      "change_summary": "Added three limitations (invoice data from Campaign Year 2022 only, the deliberate narrower money columns, and settling rows on another account not being landed) and added ADR-001 to the pending decision records.",
+      "evidence": [
+        "docs/specs/SPEC-001.json#Invoice source coverage",
+        "docs/sources/external/Subs/Subs.usp_Refresh_SubsInvoices.sql#Campaign_Year >= 2022",
+        "docs/dev/CN-MOD-002.json#deviations",
+        "docs/dev/CN-MOD-002.json#A source value beyond 26 integer digits fails the load with error 8115 (TC-002-010) instead of being truncated",
+        "docs/answers.md#MOD-002 ordernum and amount types",
+        "docs/answers.md#This is the one deliberate exception",
+        "docs/answers.md#A payment or credit posted on another customer account is not landed, even when it settles the invoice",
+        "docs/test/TCS-MOD-002.json#TC-002-013",
+        "docs/dev/CN-MOD-001.json#Result shape of both procedures is not defined in DES-001",
+        "docs/dev/CN-MOD-001.json#The design does not settle these cases",
+        "docs/dev/CN-MOD-001.json#PostingType_Description = 'Sales tax'",
+        "docs/dev/CN-MOD-001.json#[<analyst_role>]",
+        "docs/design/adr/ADR-001-how-segment-keys-and-amounts-reach-the-event-tables.md#Pending: filled in by a human at the architecture validation gate",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Pending: filled in by a human at the architecture validation gate"
+      ]
+    },
+    {
+      "path": "docs/handover/06-known-limitations.md",
+      "section": "Recommended next steps",
+      "change_summary": "Added deploying MIG-0004, recording the ADR-001 decision, confirming the load schedule, and the Q-021 effect on the line scope.",
+      "evidence": [
+        "docs/dev/CN-MOD-001.json#A human must replace it before running the script",
+        "docs/dev/CN-MOD-001.json#MIG-0003",
+        "docs/dev/CN-MOD-002.json#MIG-0004",
+        "docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#they must be deployed to production before Mike can run them there",
+        "docs/design/MP-001.json#so Mike can run them before the invoice build",
+        "docs/specs/SPEC-001.json#RULE-077",
+        "docs/dev/CN-MOD-001.json#the Tester's question about it is still unanswered",
+        "docs/design/adr/ADR-001-how-segment-keys-and-amounts-reach-the-event-tables.md#which a human schedules after the Phase 1 run"
+      ]
+    },
+    {
+      "path": "docs/handover/07-glossary.md",
+      "section": "Terms",
+      "change_summary": "Added audit columns, bronze, last settlement voucher, live row, load log, marked as deleted, and voucher.",
+      "evidence": [
+        "docs/design/DES-001.json#Standard bronze audit column: when the row was first landed",
+        "docs/design/DES-001.json#Standard bronze audit column: 1 when the row is no longer in the source (soft delete)",
+        "docs/design/DES-001.json#brnz_* tables: 1:1 landings of external sources",
+        "docs/specs/SPEC-001.json#RULE-004",
+        "docs/specs/SPEC-001.json#RULE-077",
+        "docs/specs/SPEC-001.json#RULE-005",
+        "docs/dev/CN-MOD-002.json#with status 'Success' or 'Failed'",
+        "docs/test/TCS-MOD-002.json#TC-002-004",
+        "docs/test/TCS-MOD-002.json#TC-002-008",
+        "docs/specs/SPEC-001.json#Campaign Year",
+        "docs/specs/SPEC-001.json#Live corporate subscription",
+        "docs/specs/SPEC-001.json#Working default: 'Active'",
+        "docs/specs/SPEC-001.json#Q-021",
+        "docs/design/DES-001.json#reporting queries",
+        "docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain",
+        "docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status",
+        "docs/design/DES-001.json#Item code for the line-type mapping",
+        "docs/design/DES-001.json#Extends the Phase 1 Layercake membership solution",
+        "docs/dev/CN-MOD-001.json#MIG-0003",
+        "docs/setup/ENVIRONMENTS.md#Synthetic only",
+        "docs/design/MP-001.json#MOD-001"
+      ]
+    }
+  ],
+  "unverified_statements": [
+    {
+      "text": "The production schedule for the bronze loads: when and how often they run relative to the Phase 1 run.",
+      "reason": "ADR-001 says only that a person schedules the run procedure after the Phase 1 run once MOD-016 delivers it. No artefact gives a time or frequency, so the runbook says the schedule is still to be confirmed."
+    },
+    {
+      "text": "How the two bronze loads are to be run in production before the run procedure (MOD-016) exists, for example by hand or by a temporary job.",
+      "reason": "No artefact says. The pack describes only the designed run through Layercake.usp_run_payment_segments."
+    },
+    {
+      "text": "Possible effect of RULE-077's account match: a payment or credit posted on another account (for example a firm's account paying for a member) that settles a member's invoice will not be in brnz_subs_invoice_line. Later payment-method and payer-type rules that read payment lines (for example DOUBLE_PAYMENT) would then not see it.",
+      "reason": "This is a consequence I reasoned out; no artefact records it. The pack states only the confirmed rule (such rows are not landed). The team should confirm whether the consequence matters before it goes in Known limitations."
+    }
+  ]
+}

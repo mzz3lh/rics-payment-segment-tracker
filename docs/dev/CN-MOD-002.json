@@ -1,0 +1,114 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-002",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-10-26T13:02:57Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-002.json",
+      "tests/tsqlt/test_MOD002.sql"
+    ]
+  },
+  "module_id": "MOD-002",
+  "branch": "agent/developer/MOD-002-subscription-invoice-bronze",
+  "commit": "fa78b640bf7eda34e160877a2be44b0a68f1df6c",
+  "requirement_ids": [
+    "REQ-002"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.brnz_subs_invoice.sql",
+      "object": "Layercake.brnz_subs_invoice",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-002"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.brnz_subs_invoice_line.sql",
+      "object": "Layercake.brnz_subs_invoice_line",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-002"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_brnz_subs_invoice.sql",
+      "object": "Layercake.usp_load_brnz_subs_invoice",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-002"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_brnz_subs_invoice_line.sql",
+      "object": "Layercake.usp_load_brnz_subs_invoice_line",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-002"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD002_dev].[test invoice Fully_Credited N/A and a long Payment_Status land byte for byte]",
+    "[test_MOD002_dev].[test invoice case-only and trailing-space changes are landed and counted as updates]",
+    "[test_MOD002_dev].[test invoice load fails on an overflowing Inv_Credit_Amount_GBP and leaves the target unchanged]",
+    "[test_MOD002_dev].[test invoice restored row clears _deleted_at keeps _loaded_at and counts as one update]",
+    "[test_MOD002_dev].[test line ORDERNUM of 50 characters lands in full and a case-only change at character 50 is an update]",
+    "[test_MOD002_dev].[test line case-only paymmode change is landed as an update]",
+    "[test_MOD002_dev].[test line load fails on a duplicate RECID in the source and leaves the target unchanged]",
+    "[test_MOD002_dev].[test line matching two invoices lands once and logs one insert]",
+    "[test_MOD002_dev].[test line settling the invoice voucher from another account is not landed]",
+    "[test_MOD002_dev].[test line transdate keeps milliseconds and a rerun updates nothing]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0004",
+      "up_script": "src/sql/deploy/MIG-0004_MOD-002_subscription-invoice-bronze.up.sql",
+      "down_script": "src/sql/deploy/MIG-0004_MOD-002_subscription-invoice-bronze.down.sql",
+      "rollback_test": {
+        "commit": "fa78b640bf7eda34e160877a2be44b0a68f1df6c",
+        "run_at": "2026-10-26T13:02:51.616074+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Money columns on brnz_subs_invoice are numeric(32,6) although Subs.tblSubsInvoices.Invoice_Amount_CUR/GBP, Inv_Credit_Amount_CUR/GBP are numeric(38,6): the deliberate exception confirmed in docs/answers.md (MOD-002 ordernum and amount types, 2026-10-26). A source value beyond 26 integer digits fails the load with error 8115 (TC-002-010) instead of being truncated."
+  ],
+  "notes": "The branch already had a draft of all four objects and both test classes, so the Tester's suite passed on the first run_tests. It did not start from failing tests. This version applies the 2026-10-26 answer: brnz_subs_invoice_line.ordernum is now nvarchar(50), as in the amended DES-001 and the source. The load's staging table also uses nvarchar(50), and its byte comparison now casts ordernum to varbinary(100). The earlier nvarchar(20) deviation is gone. The amended TC-002-018 (a test-only CHECK constraint, error 547) passes. Dev unit test changed: the 20-character ORDERNUM test is replaced by one that lands a 50-character ORDERNUM in full and counts a case-only change in its 50th character as an update. Line scope (RULE-077) reads Subs.tblSubsInvoices directly: ACCOUNTNUM = Account_Num AND (VOUCHER = Voucher OR LASTSETTLEVOUCHER = Voucher), no DATAAREAID match. Each line lands once even when it matches several invoices. Both loads stage the source in the target's column types before the transaction. A value that doesn't fit, or a duplicate key, therefore fails the load: logged Failed in Layercake.etl_run_log, re-raised, target unchanged. A row-count mismatch between live rows and the source (RULE-005) also fails the load. Loads log through Layercake.usp_etl_log_start and usp_etl_log_end with status 'Success' or 'Failed'. No grants are needed.\n\nTest-first: the first run had 19 of 19 of the Tester's tests passing; the final run passed 19 of 19 and 10 unit test(s), in 2 run(s)."
+}
