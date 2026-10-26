@@ -8,19 +8,19 @@ The solution reads objects that other systems own and maintain. It never creates
 |---|---|---|
 | Subs.tblSubsInvoices | Subscription invoices, one row per invoice, from Campaign Year 2022 onward, with payment method, currency, amounts, credits, payment status and concession flags | Layercake.usp_load_brnz_subs_invoice (landed in brnz_subs_invoice); Layercake.usp_load_brnz_subs_invoice_line (to decide which transaction rows are in scope) |
 | synapse_fo.CUSTTRANS_RICS | Customer transaction rows, including invoice rows with item codes (productcode) and posting types, credits and payments | Layercake.usp_load_brnz_subs_invoice_line (landed in brnz_subs_invoice_line); Layercake.usp_profile_custtrans_grain |
-| Subs.vwCorpSubscriptions | Corporate subscriptions, with each subscription's 'Sub Status' and each subscription user's 'Sub User Status' | Layercake.usp_profile_corp_subscription_status |
+| Subs.vwCorpSubscriptions | Corporate scheme subscriptions: the contact, scheme and Campaign Year, with each subscription's 'Sub Status' and each subscription user's 'Sub User Status' | Layercake.usp_load_brnz_corporate_subscription (landed in brnz_corporate_subscription); Layercake.usp_profile_corp_subscription_status |
 
-The two profiles read their sources directly and keep nothing. The two bronze loads copy their sources into the bronze tables without changing any value.
+The two profiles read their sources directly and keep nothing. The three bronze loads copy their sources into the bronze tables without changing any value.
 
-The payment method list (MOD-003) is not read from any source: it is a fixed list put in place by its migration, and the payment method dimension is copied from it.
+The payment method list (MOD-003) and the payer type list (MOD-004) are not read from any source: each is a fixed list put in place by its migration, and each dimension is copied from its list.
 
-<!-- evidence: PROJECT_STANDARDS.md#Objects owned by other systems (external); docs/sources/external_catalogue.json#Subs.tblSubsInvoices; docs/sources/external_catalogue.json#synapse_fo.CUSTTRANS_RICS; docs/sources/external_catalogue.json#Subs.vwCorpSubscriptions; docs/specs/SPEC-001.json#Invoice source coverage; docs/sources/external/synapse_fo/synapse_fo.CUSTTRANS_RICS.sql#PostingType_Description; docs/design/MP-001.json#count-only procedures over the external sources; docs/dev/CN-MOD-001.json#Neither writes anything; docs/specs/SPEC-001.json#REQ-002; docs/specs/SPEC-001.json#RULE-004; docs/dev/CN-MOD-002.json#Line scope (RULE-077) reads Subs.tblSubsInvoices directly; docs/design/DES-001.json#Static list seeded by its migration; docs/design/DES-001.json#Mirrors silv_ref_payment_method into dim_payment_method -->
+<!-- evidence: PROJECT_STANDARDS.md#Objects owned by other systems (external); docs/sources/external_catalogue.json#Subs.tblSubsInvoices; docs/sources/external_catalogue.json#synapse_fo.CUSTTRANS_RICS; docs/sources/external_catalogue.json#Subs.vwCorpSubscriptions; docs/specs/SPEC-001.json#Invoice source coverage; docs/sources/external/synapse_fo/synapse_fo.CUSTTRANS_RICS.sql#PostingType_Description; docs/design/MP-001.json#count-only procedures over the external sources; docs/dev/CN-MOD-001.json#Neither writes anything; docs/specs/SPEC-001.json#REQ-002; docs/specs/SPEC-001.json#RULE-004; docs/dev/CN-MOD-002.json#Line scope (RULE-077) reads Subs.tblSubsInvoices directly; docs/design/DES-001.json#1:1 landing of Subs.vwCorpSubscriptions; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Status; docs/design/DES-001.json#Static list seeded by its migration; docs/design/DES-001.json#Reference lists: payment method and payer type are static lists seeded by their migrations; docs/design/DES-001.json#Mirrors silv_ref_payment_method into dim_payment_method; docs/design/DES-001.json#Mirrors silv_ref_payer_type into dim_payer_type -->
 
 ## Source-to-target mappings
 
-Every bronze mapping is one-to-one (RULE-004): the target column holds the source value unchanged, with no defaults, trimming or change of case. Both bronze tables also carry the four audit columns _loaded_at, _updated_at, _is_deleted and _deleted_at, which the load sets (see the Architecture and data model document). The profiles have no target table; their tables show which source columns they use and how they become the counts they return. The payment method mappings show how a source payment mode code becomes a payment method, and how the list reaches the gold dimension.
+Every bronze mapping is one-to-one (RULE-004): the target column holds the source value unchanged, with no defaults, trimming or change of case. All bronze tables also carry the four audit columns _loaded_at, _updated_at, _is_deleted and _deleted_at, which the load sets (see the Architecture and data model document). The profiles have no target table; their tables show which source columns they use and how they become the counts they return. The payment method mappings show how a source payment mode code becomes a payment method, and how each list reaches its gold dimension.
 
-<!-- evidence: docs/specs/SPEC-001.json#RULE-004; docs/specs/SPEC-001.json#_loaded_at, _updated_at, _is_deleted, _deleted_at (and the same on brnz_subs_invoice_line); docs/test/TCS-MOD-002.json#TC-002-003; docs/design/MP-001.json#Builds no tables and changes no existing object; docs/specs/SPEC-001.json#RULE-095; docs/specs/SPEC-001.json#RULE-096; docs/specs/SPEC-001.json#RULE-007; docs/specs/SPEC-001.json#RULE-010 -->
+<!-- evidence: docs/specs/SPEC-001.json#RULE-004; docs/specs/SPEC-001.json#_loaded_at, _updated_at, _is_deleted, _deleted_at (and the same on brnz_subs_invoice_line); docs/answers.md#DES-001 Q-037 bronze audit columns; docs/test/TCS-MOD-002.json#TC-002-003; docs/test/TCS-MOD-004.json#TC-004-012; docs/design/MP-001.json#Builds no tables and changes no existing object; docs/specs/SPEC-001.json#RULE-095; docs/specs/SPEC-001.json#RULE-096; docs/specs/SPEC-001.json#RULE-007; docs/specs/SPEC-001.json#RULE-010 -->
 
 ### Subscription invoices (Subs.tblSubsInvoices to Layercake.brnz_subs_invoice)
 
@@ -74,6 +74,22 @@ Only rows that belong to an invoice in Subs.tblSubsInvoices are landed (RULE-077
 
 <!-- evidence: docs/specs/SPEC-001.json#RULE-077; docs/answers.md#RULE-077 settling rows; docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.RECID; docs/specs/SPEC-001.json#1:1. The item code used for the line-type mapping and the concession value.; docs/specs/SPEC-001.json#1:1 (invoice currency); docs/specs/SPEC-001.json#1:1 (GBP accounting currency); docs/specs/SPEC-001.json#1:1 (payment mode on payment lines); docs/answers.md#brnz_subs_invoice_line.paymmode; docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.ORDERNUM; docs/dev/CN-MOD-002.json#transdate keeps milliseconds; docs/test/TCS-MOD-002.json#TC-002-011; docs/test/TCS-MOD-002.json#TC-002-014 -->
 
+### Corporate subscriptions (Subs.vwCorpSubscriptions to Layercake.brnz_corporate_subscription)
+
+All rows of the source are landed, one row each, identified by contact number, scheme number and Campaign Year together (the source has no row key; see Q-033 in Known limitations).
+
+| Source column | Target column | Note |
+|---|---|---|
+| Contact No | contact_no | Part of the row's identity; must be present |
+| Scheme No | scheme_no | Part of the row's identity; must be present |
+| Scheme Name | scheme_name | A missing or blank name is kept as it is |
+| Sub Campaign Year | sub_campaign_year | Part of the row's identity; must be present |
+| Sub Status | sub_status | The subscription's status, kept exactly as the source has it. Later used, with Sub User Status, to decide whether the subscription is live |
+| Sub User Status | sub_user_status | The subscription user's status, kept exactly as the source has it |
+| Round | (not landed) | Plays no part in the solution |
+
+<!-- evidence: docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Contact No; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Scheme No; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Scheme Name; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Campaign Year; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Status; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub User Status; docs/specs/SPEC-001.json#The live-subscription test uses Layercake.brnz_corporate_subscription; docs/design/DES-001.json#The source has no row key; docs/design/DES-001.json#'Round' is not landed and plays no part; docs/answers.md#MOD-004 NULL matching key; docs/test/TCS-MOD-004.json#TC-004-008; docs/test/TCS-MOD-004.json#TC-004-009; docs/test/TCS-MOD-004.json#TC-004-011; docs/test/TCS-MOD-004.json#TC-004-012 -->
+
 ### Payment mode code to payment method (Layercake.fn_map_payment_method, using Layercake.silv_ref_payment_method)
 
 The function takes one payment mode code, from brnz_subs_invoice.inv_payment_method or brnz_subs_invoice_line.paymmode, and returns a payment method id from silv_ref_payment_method (RULE-007, RULE-008). Letter case and spaces before or after the code are ignored.
@@ -105,6 +121,18 @@ Every row of the list is copied, reserved rows included, by usp_load_dim_payment
 The source payment mode code is not copied to the dimension.
 
 <!-- evidence: docs/specs/SPEC-001.json#RULE-010; docs/specs/SPEC-001.json#Layercake.dim_payment_method.id; docs/specs/SPEC-001.json#Layercake.dim_payment_method.payment_method_name; docs/design/DES-001.json#payment_method_name; docs/test/TCS-MOD-003.json#TC-003-007; docs/test/TCS-MOD-003.json#TC-003-012; docs/answers.md#DES-001 load_id -->
+
+### Payer type dimension (Layercake.silv_ref_payer_type to Layercake.dim_payer_type)
+
+Every row of the list is copied, reserved rows included, by usp_load_dim_payer_type.
+
+| Source column (silv_ref_payer_type) | Target column (dim_payer_type) | Note |
+|---|---|---|
+| id | id | Same id, never changed |
+| payer_type_name | payer_type_name | Same name, exactly as in the list |
+| (the load's run) | load_id | The load log entry of the load that last wrote the row |
+
+<!-- evidence: docs/specs/SPEC-001.json#Layercake.dim_payer_type.id (with payer_type_name); docs/design/DES-001.json#payer_type_name; docs/design/DES-001.json#Gold copy of silv_ref_payer_type.; docs/test/TCS-MOD-004.json#TC-004-002; docs/test/TCS-MOD-004.json#TC-004-007; docs/answers.md#DES-001 load_id -->
 
 ### Grain profile (Layercake.usp_profile_custtrans_grain)
 
