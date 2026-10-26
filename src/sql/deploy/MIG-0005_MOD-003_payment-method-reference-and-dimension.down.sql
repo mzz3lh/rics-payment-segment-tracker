@@ -27,6 +27,11 @@ GO
 -- ===== reversal start (reverse order of the up script) =====
 DROP PROCEDURE IF EXISTS Layercake.usp_load_dim_payment_method;
 DROP FUNCTION IF EXISTS Layercake.fn_map_payment_method;
+-- Layercake.silv_ref_payment_method: seed removed (src/sql/seed/MOD-003/Layercake.silv_ref_payment_method.down.sql)
+GO
+DELETE FROM Layercake.silv_ref_payment_method
+WHERE id IN (0, -1, -2, 1, 2, 3, 4, 5);
+GO
 IF OBJECT_ID(N'Layercake.dim_payment_method', N'U') IS NOT NULL
 BEGIN
     IF EXISTS (SELECT 1 FROM Layercake.dim_payment_method)

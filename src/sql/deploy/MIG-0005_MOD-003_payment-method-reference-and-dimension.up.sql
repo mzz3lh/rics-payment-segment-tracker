@@ -29,8 +29,8 @@ BEGIN
         id                  int          IDENTITY(1, 1) NOT NULL,
         payment_method_name varchar(30)  NOT NULL,
         source_code         varchar(20)  NULL,
-        created_at          datetime2(3) NOT NULL CONSTRAINT DF_Layercake_silv_ref_payment_method_created_at DEFAULT SYSUTCDATETIME(),
-        updated_at          datetime2(3) NOT NULL CONSTRAINT DF_Layercake_silv_ref_payment_method_updated_at DEFAULT SYSUTCDATETIME(),
+        created_at          datetime2(3) NOT NULL CONSTRAINT DF_Layercake_silv_ref_payment_method_created_at DEFAULT SYSDATETIME(),
+        updated_at          datetime2(3) NOT NULL CONSTRAINT DF_Layercake_silv_ref_payment_method_updated_at DEFAULT SYSDATETIME(),
         CONSTRAINT PK_Layercake_silv_ref_payment_method PRIMARY KEY CLUSTERED (id),
         CONSTRAINT UQ_Layercake_silv_ref_payment_method_payment_method_name UNIQUE (payment_method_name)
     );
@@ -39,23 +39,6 @@ BEGIN
     CREATE UNIQUE INDEX IX_silv_ref_payment_method_source_code
         ON Layercake.silv_ref_payment_method (source_code)
         WHERE source_code IS NOT NULL;
-
-    -- Static list (RULE-006, RULE-078): reserved rows at fixed ids 0, -1 and -2. The five methods
-    -- are given their identity values 1 to 5 explicitly so every build numbers them the same way;
-    -- the identity then continues from 6 for any method added later.
-    SET IDENTITY_INSERT Layercake.silv_ref_payment_method ON;
-
-    INSERT INTO Layercake.silv_ref_payment_method (id, payment_method_name, source_code)
-    VALUES (0, 'Unknown', NULL),
-           (-1, 'Unrecognised', NULL),
-           (-2, 'Not applicable', NULL),
-           (1, 'Direct Debit', 'DD'),
-           (2, 'Card', 'Card'),
-           (3, 'Bank transfer', 'Bank'),
-           (4, 'Cheque', 'Cheque'),
-           (5, 'Corporate', 'Corporate');
-
-    SET IDENTITY_INSERT Layercake.silv_ref_payment_method OFF;
 END;
 GO
 -- Layercake.dim_payment_method (src/sql/Layercake/Tables/Layercake.dim_payment_method.sql)
@@ -65,12 +48,30 @@ BEGIN
     (
         id                  int          NOT NULL,
         payment_method_name varchar(30)  NOT NULL,
-        load_id             int          NULL,
+        load_id             bigint       NULL,
         created_at          datetime2(3) NOT NULL,
         updated_at          datetime2(3) NOT NULL,
         CONSTRAINT PK_Layercake_dim_payment_method PRIMARY KEY CLUSTERED (id)
     );
 END;
+GO
+-- Layercake.silv_ref_payment_method: seed (src/sql/seed/MOD-003/Layercake.silv_ref_payment_method.up.sql)
+-- Static list (RULE-006, RULE-078): reserved rows at fixed ids 0, -1 and -2. The five methods
+-- are given their identity values 1 to 5 explicitly so every build numbers them the same way;
+-- the identity then continues from 6 for any method added later.
+SET IDENTITY_INSERT Layercake.silv_ref_payment_method ON;
+
+INSERT INTO Layercake.silv_ref_payment_method (id, payment_method_name, source_code)
+VALUES (0, 'Unknown', NULL),
+       (-1, 'Unrecognised', NULL),
+       (-2, 'Not applicable', NULL),
+       (1, 'Direct Debit', 'DD'),
+       (2, 'Card', 'Card'),
+       (3, 'Bank transfer', 'Bank'),
+       (4, 'Cheque', 'Cheque'),
+       (5, 'Corporate', 'Corporate');
+
+SET IDENTITY_INSERT Layercake.silv_ref_payment_method OFF;
 GO
 -- Layercake.fn_map_payment_method (src/sql/Layercake/Functions/Layercake.fn_map_payment_method.sql)
 /*====================================================================
@@ -111,6 +112,7 @@ GO
     Gold layer - Layercake.silv_ref_payment_method -> Layercake.dim_payment_method
     Mirrors the reference list by id: inserts missing ids, updates names
     that changed, leaves unchanged rows untouched (RULE-010). Logged.
+    Never deletes: facts may still point at an id that left the list.
 ====================================================================*/
 CREATE OR ALTER PROCEDURE Layercake.usp_load_dim_payment_method
     @run_id uniqueidentifier = NULL
@@ -130,15 +132,15 @@ BEGIN
     BEGIN TRY
         EXEC Layercake.usp_etl_log_start @run_id, 'gold', 'dim_payment_method', @log_id OUTPUT;
 
-        SET @now = SYSUTCDATETIME();
+        SET @now = SYSDATETIME();
 
         BEGIN TRANSACTION;
 
-        -- Names compare as bytes: the collation is case-insensitive, and a
-        -- case-only change must still reach the dimension.
+        -- Names compare as bytes: the collation is case-insensitive and '='
+        -- ignores trailing spaces, and such a change must still reach the dimension.
         UPDATE d
         SET payment_method_name = s.payment_method_name,
-            load_id             = CAST(@log_id AS int),
+            load_id             = @log_id,
             updated_at          = @now
         FROM Layercake.dim_payment_method AS d
         INNER JOIN Layercake.silv_ref_payment_method AS s
@@ -149,7 +151,7 @@ BEGIN
         SET @upd = @@ROWCOUNT;
 
         INSERT INTO Layercake.dim_payment_method (id, payment_method_name, load_id, created_at, updated_at)
-        SELECT s.id, s.payment_method_name, CAST(@log_id AS int), @now, @now
+        SELECT s.id, s.payment_method_name, @log_id, @now, @now
         FROM Layercake.silv_ref_payment_method AS s
         WHERE NOT EXISTS (SELECT 1 FROM Layercake.dim_payment_method AS d WHERE d.id = s.id);
         SET @ins = @@ROWCOUNT;
