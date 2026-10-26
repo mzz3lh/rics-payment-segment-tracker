@@ -31,3 +31,7 @@ the agent's working assumption. Example:
 
 ## DES-001 bronze column types (2026-10-26)
 - New bronze tables land source columns 1:1, so no column may be narrower than its source. DES-001 now uses the source width where it was narrower: brnz_subs_invoice.fully_credited nvarchar(3) (the source writes 'N/A' for invoices with no credit), payment_status nvarchar(100); brnz_subs_invoice_line.transdate datetime2(3) (source datetime keeps milliseconds), ordernum nvarchar(50); brnz_corporate_subscription.scheme_name nvarchar(4000), sub_status and sub_user_status nvarchar(350); brnz_concession.product_number nvarchar(4000), apuk_discount decimal(38,2). This amends the approved design; merging the change is the approval.
+
+## MOD-002 ordernum and amount types (2026-10-26)
+- brnz_subs_invoice_line.ordernum is nvarchar(50), as the amended DES-001 says; the design wins over the approved test. TC-002-018 must force the line load's error path some other way than an over-long ORDERNUM, and it is being amended for that.
+- The money columns stay numeric(32,6) even though Subs.tblSubsInvoices has numeric(38,6): numeric(32,6) is the solution's money type (Phase 1 bronze uses it), and 26 integer digits cannot be exceeded by a real invoice amount. This is the one deliberate exception to "no column narrower than its source".
