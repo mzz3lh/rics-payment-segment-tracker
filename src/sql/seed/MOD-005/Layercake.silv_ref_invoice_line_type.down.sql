@@ -1,0 +1,4 @@
+DELETE FROM Layercake.silv_ref_invoice_line_type
+WHERE ric_invoice_type = N'SUB'
+  AND item_code IN (N'RAFEE_ACAND', N'RAFEE_APCC', N'RAFEE_ASSOC', N'RAFEE_FRICS', N'RAFEE_MRICS', N'RAFEE_PMU2',
+                    N'CONPWRQ1', N'CONPWRQ2', N'CONPWRQ3', N'CONRETIRED', N'CONRETIREDFL', N'CONRETIREDSPECIAL');
