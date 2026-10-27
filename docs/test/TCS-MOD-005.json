@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-005",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-10-27T09:34:21Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-10-27T09:57:57Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-005",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-005-001",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-01",
+      "category": "happy_path",
+      "description": "A live invoice line with the new item code NEWFEE adds one mapping row with line type 'unmapped'. A pair already listed is not added again (RULE-029, design usp_load_silv_ref_invoice_line_type).",
+      "preconditions": "brnz_subs_invoice_line, silv_ref_invoice_line_type and etl_run_log faked (the log with identity and defaults). Mapping holds (SUBS_MRICS, SUB, 'subscription', load_id 7). Live lines: (SUBS_MRICS, SUB) and (NEWFEE, INV).",
+      "expected": "Exactly 2 rows, compared as bytes: (SUBS_MRICS, SUB, 'subscription') and (NEWFEE, INV, 'unmapped'). One etl_run_log row: 'Success', 1 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-001 new item code NEWFEE is added once as unmapped and listed pairs are kept]"
+    },
+    {
+      "id": "TC-005-002",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-01",
+      "category": "idempotency",
+      "description": "A second line-type load on unchanged bronze still leaves exactly one NEWFEE row and changes nothing.",
+      "preconditions": "Empty mapping. One live line (NEWFEE, INV). Load run twice.",
+      "expected": "The mapping is identical in every column (load_id, created_at and updated_at included) after the first and second loads. Exactly one NEWFEE row, line_type bytes 'unmapped'. Two etl_run_log rows, both 'Success': (1, 0, 0) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-002 second line type load leaves exactly one NEWFEE row and changes nothing]"
+    },
+    {
+      "id": "TC-005-003",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-01",
+      "category": "duplicates",
+      "description": "A new code on several lines adds one row per (item_code, ric_invoice_type) pair. The same code with a different RIC invoice type is a separate pair (design key: item_code + ric_invoice_type).",
+      "preconditions": "Empty mapping. Live lines: (NEWFEE, INV) on three invoices, (NEWFEE, CRN) on one.",
+      "expected": "Exactly 2 rows: (NEWFEE, INV, 'unmapped') and (NEWFEE, CRN, 'unmapped'). etl_run_log: 'Success', 2 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-003 a code repeated on many lines adds one row per item code and RIC invoice type pair]"
+    },
+    {
+      "id": "TC-005-004",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-01",
+      "category": "duplicates",
+      "description": "Two new codes in one load that differ only in case are one pair under the database collation, so they add one row (docs/answers.md, MOD-005 NULL, blank and near-duplicate codes, Mike 2026-10-27).",
+      "preconditions": "Empty mapping. Live lines (ABCFEE, INV) and (abcfee, inv). The stored spelling is not asserted, because no rule says which spelling is kept.",
+      "expected": "Exactly 1 mapping row. It matches ABCFEE / INV under the collation and has line_type bytes 'unmapped'. etl_run_log: 'Success', 1 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-004 two new codes differing only in case in one load add a single unmapped row]"
+    },
+    {
+      "id": "TC-005-005",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-01",
+      "category": "nulls",
+      "description": "A line whose productcode is NULL, empty or only spaces has no item code and adds no mapping row (Mike 2026-10-27).",
+      "preconditions": "Empty mapping. Live lines with productcode NULL, N'' and N'   ' (ricinvoicetype INV), and one with NULL productcode and NULL ricinvoicetype.",
+      "expected": "The mapping is still empty. etl_run_log: 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-005 lines with a NULL empty or blank productcode add no mapping row]"
+    },
+    {
+      "id": "TC-005-006",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-01",
+      "category": "nulls",
+      "description": "A line with a productcode and a NULL ricinvoicetype is not skipped. It is added with ric_invoice_type N'' and line type 'unmapped', and it matches a listed pair whose ric_invoice_type is N'' (Mike 2026-10-27).",
+      "preconditions": "Mapping holds (SUBS_MRICS, N'', 'subscription', load_id 7). Live lines (NULLTYPE, NULL), (NULLTYPE, N'') and (SUBS_MRICS, NULL).",
+      "expected": "Exactly 2 rows, compared as bytes: (SUBS_MRICS, N'', 'subscription') still on load_id 7, and (NULLTYPE, N'', 'unmapped'). No row has a NULL ric_invoice_type. etl_run_log: 'Success', 1 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-006 a NULL ricinvoicetype is added as the empty RIC invoice type and matches a listed empty type]"
+    },
+    {
+      "id": "TC-005-007",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-01",
+      "category": "negative",
+      "description": "Codes are taken only from live bronze lines. A code seen only on a soft-deleted line adds nothing (design: 'seen in live brnz_subs_invoice_line rows').",
+      "preconditions": "Mapping holds (SUBS_MRICS, SUB, 'subscription', load_id 7). Lines: (SUBS_MRICS, SUB) live, and (GONEFEE, INV) with _is_deleted 1.",
+      "expected": "The mapping is identical to before in every column, with no GONEFEE row. etl_run_log: 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-007 a code seen only on a soft deleted line adds no mapping row]"
+    },
+    {
+      "id": "TC-005-008",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-01",
+      "category": "boundary",
+      "description": "A productcode or ricinvoicetype that differs from a listed pair only in case or trailing spaces is that pair, so no row is added (Mike 2026-10-27).",
+      "preconditions": "Mapping holds (NEWFEE, INV, 'unmapped', load_id 7). Live lines (newfee, inv), ('NEWFEE  ', INV) and (NewFee, 'INV  ').",
+      "expected": "The mapping is identical to before in every column. etl_run_log: 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-008 codes differing from a listed pair only in case or trailing spaces add no row]"
+    },
+    {
+      "id": "TC-005-009",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-01",
+      "category": "boundary",
+      "description": "A code with a different leading space or different characters is a new code and is added as 'unmapped' (Mike 2026-10-27).",
+      "preconditions": "Mapping holds (NEWFEE, INV, 'unmapped'). Live lines (' NEWFEE', INV) and (NEWFEE2, INV).",
+      "expected": "Exactly 3 rows, compared as bytes: (NEWFEE, INV), (' NEWFEE' with its leading space, INV) and (NEWFEE2, INV), all 'unmapped'. etl_run_log: 'Success', 2 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-009 a code with a leading space or other characters is a new unmapped code]"
+    },
+    {
+      "id": "TC-005-010",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-02",
+      "category": "happy_path",
+      "description": "An item code mapped by hand to 'readmission fee' keeps that line type after the next load, which never overwrites an existing row (RULE-029).",
+      "preconditions": "Mapping holds (RAFEE_MRICS, INV, 'readmission fee', load_id 7, created_at and updated_at 2026-02-01 10:00:00). Live line (RAFEE_MRICS, INV).",
+      "expected": "The mapping is identical to before in every column. line_type bytes are 'readmission fee'. etl_run_log: 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-010 a code mapped by hand to readmission fee keeps its line type after the next load]"
+    },
+    {
+      "id": "TC-005-011",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-02",
+      "category": "boundary",
+      "description": "Lines that differ from a hand-mapped pair only in case or trailing spaces take that pair. No 'unmapped' duplicate is added and the mapped row is unchanged (Mike 2026-10-27).",
+      "preconditions": "Mapping holds (RAFEE_MRICS, INV, 'readmission fee', load_id 7, 2026-02-01 10:00:00). Live lines ('rafee_mrics ', inv) and (Rafee_Mrics, 'INV ').",
+      "expected": "The mapping is identical to before in every column (one row, still 'readmission fee'). etl_run_log: 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-011 a line differing from a hand mapped pair only in case or trailing spaces leaves it unchanged]"
+    },
+    {
+      "id": "TC-005-012",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-02",
+      "category": "negative",
+      "description": "While adding a new code, the load changes no existing row: mapped rows, rows still 'unmapped', and rows whose code has no live line are kept as they are (design: existing rows are never changed).",
+      "preconditions": "Mapping holds (RAFEE_MRICS, INV, 'readmission fee'), (OLDCODE, INV, 'other') and (WAITING, INV, 'unmapped'), all on load_id 7 with timestamps 2026-02-01 10:00:00. Live lines: (WAITING, INV) and (NEWFEE, INV). RAFEE_MRICS and OLDCODE have no line.",
+      "expected": "The three existing rows are identical to before in every column. One new row (NEWFEE, INV, 'unmapped'). 4 rows in total. etl_run_log: 'Success', 1 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-012 existing rows are kept unchanged while a new code is added including rows with no live line]"
+    },
+    {
+      "id": "TC-005-013",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-02",
+      "category": "idempotency",
+      "description": "End to end: NEWFEE is added as 'unmapped', a person changes it to 'readmission fee', and the next load keeps the hand mapping.",
+      "preconditions": "Empty mapping. Live line (NEWFEE, INV). Load, then UPDATE line_type to 'readmission fee', then load again.",
+      "expected": "After the second load the mapping is identical to its state after the hand update: one row (NEWFEE, INV, 'readmission fee'), compared as bytes. Two etl_run_log rows, both 'Success': (1, 0, 0) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-013 NEWFEE added as unmapped then mapped by hand stays readmission fee after the next load]"
+    },
+    {
+      "id": "TC-005-014",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-01",
+      "category": "negative",
+      "description": "Error path (design: try/catch with XACT_ABORT, error recorded through usp_etl_log_end, re-raised): a line-type load that the target rejects re-raises the error, logs 'Failed' and leaves the mapping unchanged.",
+      "preconditions": "Runs without the tSQLt transaction. Fakes as for the other tests, plus a test-only CHECK on the faked mapping that rejects item_code 'REJECTME'. Mapping holds (SUBS_MRICS, SUB, 'subscription', load_id 7). Live lines (GOODNEW, INV) and (REJECTME, INV).",
+      "expected": "Error 547 reaches the caller. The mapping is identical to before: no GOODNEW row is left from a partial run. Exactly one etl_run_log row, status 'Failed', with a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-014 failed line type load re-raises logs Failed and leaves the mapping unchanged]"
+    },
+    {
+      "id": "TC-005-015",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "happy_path",
+      "description": "With live subscription invoices in GBP, EUR and HKD, silv_ref_currency holds exactly those 3 codes (RULE-031).",
+      "preconditions": "brnz_subs_invoice, silv_ref_currency (identity) and etl_run_log faked. Empty currency list. Live invoices: GBP, EUR, HKD and a second GBP.",
+      "expected": "Exactly 3 rows, with codes N'GBP', N'EUR', N'HKD' compared as bytes and 3 distinct non-NULL ids (the id values are not asserted). etl_run_log: 'Success', 3 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-015 invoices in GBP EUR and HKD give exactly those three currency codes]"
+    },
+    {
+      "id": "TC-005-016",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "idempotency",
+      "description": "Ids are unchanged after a second currency load on unchanged bronze, and nothing else changes either.",
+      "preconditions": "Empty currency list. Live invoices GBP, EUR and HKD. Load run twice.",
+      "expected": "silv_ref_currency is identical in every column (ids, load_id and created_at included) after both loads, with 3 rows. Two etl_run_log rows, both 'Success': (3, 0, 0) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-016 second currency load keeps every id and changes nothing]"
+    },
+    {
+      "id": "TC-005-017",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "reconciliation",
+      "description": "After the currency load and then the dimension load, dim_currency has the same (id, currency_code) pairs as silv_ref_currency.",
+      "preconditions": "brnz_subs_invoice, silv_ref_currency, dim_currency and etl_run_log faked. Empty silver and dimension. Live invoices GBP, EUR and HKD. usp_load_silv_ref_currency, then usp_load_dim_currency.",
+      "expected": "dim_currency (id, code bytes) equals silv_ref_currency (id, code bytes), and its codes are exactly N'GBP', N'EUR', N'HKD'. Two etl_run_log rows, both 'Success' with 3 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-017 dim_currency loaded after the currency list has the same id and code pairs]"
+    },
+    {
+      "id": "TC-005-018",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "idempotency",
+      "description": "A second dimension load on unchanged silver changes nothing (design: loads write only differences).",
+      "preconditions": "Faked silver holds 1 GBP, 2 EUR and 3 HKD. Empty dimension. Dimension load run twice.",
+      "expected": "dim_currency is identical in every column after both loads and holds (1, GBP), (2, EUR), (3, HKD). Two etl_run_log rows, both 'Success': (3, 0, 0) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-018 second dim_currency load keeps every pair and changes nothing]"
+    },
+    {
+      "id": "TC-005-019",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "reconciliation",
+      "description": "The dimension load adds the silver ids it is missing and leaves a row that already matches untouched.",
+      "preconditions": "Faked silver holds 1 GBP, 2 EUR and 3 HKD. The dimension holds (1, GBP, load_id 7, created_at and updated_at 2026-02-01 10:00:00).",
+      "expected": "The dimension holds (1, GBP), (2, EUR) and (3, HKD). Id 1 still has load_id 7 and created_at and updated_at 2026-02-01 10:00:00. etl_run_log: 'Success', 2 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-019 dim_currency load adds missing ids and leaves an existing row untouched]"
+    },
+    {
+      "id": "TC-005-020",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "nulls",
+      "description": "An invoice whose inv_currency is NULL, empty or only spaces adds no currency row (Mike 2026-10-27).",
+      "preconditions": "Silver holds (1, GBP, load_id 7). Live invoices with inv_currency NULL, N'', N'   ' and GBP.",
+      "expected": "silv_ref_currency is identical to before in every column. etl_run_log: 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-020 invoices with a NULL empty or blank currency add no currency row]"
+    },
+    {
+      "id": "TC-005-021",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "boundary",
+      "description": "A currency code that differs from a listed one only in case adds no row, and the listed code keeps its spelling (Mike 2026-10-27).",
+      "preconditions": "Silver holds (2, EUR, load_id 7). Live invoices 'eur' and 'Eur'. Trailing spaces cannot occur on a 3-letter code in nvarchar(3), so they are not exercised.",
+      "expected": "silv_ref_currency is identical to before, and id 2 still has the bytes of N'EUR'. etl_run_log: 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-021 a currency differing from a listed code only in case adds no row]"
+    },
+    {
+      "id": "TC-005-022",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "negative",
+      "description": "Codes come only from live invoices. A currency seen only on a soft-deleted invoice adds no row (design: 'live brnz_subs_invoice rows').",
+      "preconditions": "Silver holds (1, GBP). Invoices: GBP live, and USD with _is_deleted 1.",
+      "expected": "silv_ref_currency is identical to before, with no USD row. etl_run_log: 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-022 a currency seen only on a soft deleted invoice adds no row]"
+    },
+    {
+      "id": "TC-005-023",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "happy_path",
+      "description": "The currency list is insert-only: a new code gets a new id and listed codes keep their ids and audit values.",
+      "preconditions": "Silver holds (1, GBP) and (2, EUR), both load_id 7 and created_at 2026-02-01 10:00:00. Live invoices GBP, EUR and HKD.",
+      "expected": "Rows 1 GBP and 2 EUR are identical to before in every column. Exactly one HKD row, with a non-NULL id that is neither 1 nor 2. 3 rows in total. etl_run_log: 'Success', 1 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-023 a new currency gets a new id and listed currencies keep theirs]"
+    },
+    {
+      "id": "TC-005-024",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "duplicates",
+      "description": "One new currency written in several cases in the same load adds a single row (collation matching, Mike 2026-10-27).",
+      "preconditions": "Empty silver. Live invoices 'USD', 'usd' and 'Usd'. The stored spelling is not asserted.",
+      "expected": "Exactly 1 row. It matches USD under the collation and has a non-NULL id. etl_run_log: 'Success', 1 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-024 a new currency in several cases in one load adds a single row]"
+    },
+    {
+      "id": "TC-005-025",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "negative",
+      "description": "Error path: a currency load that the target rejects re-raises the error, logs 'Failed' and leaves the currency list unchanged.",
+      "preconditions": "Runs without the tSQLt transaction. A test-only CHECK on the faked silv_ref_currency rejects 'XXX'. Silver holds (2, EUR, load_id 7). Live invoices GBP, XXX and EUR.",
+      "expected": "Error 547 reaches the caller. silv_ref_currency is identical to before: no GBP row is left from a partial run. Exactly one etl_run_log row, status 'Failed', with a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-025 failed currency load re-raises logs Failed and leaves the currency list unchanged]"
+    },
+    {
+      "id": "TC-005-026",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-03",
+      "category": "negative",
+      "description": "Error path: a dimension load that the target rejects re-raises the error, logs 'Failed' and leaves dim_currency unchanged.",
+      "preconditions": "Runs without the tSQLt transaction. A test-only CHECK on the faked dim_currency rejects 'XXX'. Silver holds 1 GBP, 2 EUR and 9 XXX. The dimension holds (1, GBP, load_id 7).",
+      "expected": "Error 547 reaches the caller. dim_currency is identical to before: only (1, GBP), with no id 2 left from a partial run. Exactly one etl_run_log row, status 'Failed', with a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD005].[test TC-005-026 failed dim_currency load re-raises logs Failed and leaves the dimension unchanged]"
+    }
+  ]
+}
