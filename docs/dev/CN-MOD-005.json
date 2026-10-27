@@ -1,0 +1,125 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-005",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-10-27T10:03:17Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-005.json",
+      "tests/tsqlt/test_MOD005.sql"
+    ]
+  },
+  "module_id": "MOD-005",
+  "branch": "agent/developer/MOD-005-invoice-line-type-mapping-and-currency",
+  "commit": "892437702584d6efa52760b7988d8cae28d5ce2b",
+  "requirement_ids": [
+    "REQ-007"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_ref_invoice_line_type.sql",
+      "object": "Layercake.silv_ref_invoice_line_type",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-007"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_ref_invoice_line_type.sql",
+      "object": "Layercake.usp_load_silv_ref_invoice_line_type",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-007"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_ref_currency.sql",
+      "object": "Layercake.silv_ref_currency",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-007"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_ref_currency.sql",
+      "object": "Layercake.usp_load_silv_ref_currency",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-007"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.dim_currency.sql",
+      "object": "Layercake.dim_currency",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-007"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_dim_currency.sql",
+      "object": "Layercake.usp_load_dim_currency",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-007"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD005_dev].[test currency spellings of one new code keep the upper case spelling and the load log id]",
+    "[test_MOD005_dev].[test dim_currency takes a case only change of a silver code as one update]",
+    "[test_MOD005_dev].[test failed dim_currency insert also rolls back the update made before it]",
+    "[test_MOD005_dev].[test line type spellings of one new pair keep the upper case and shortest spelling]",
+    "[test_MOD005_dev].[test new line type rows carry the load log id and equal created and updated times]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0007",
+      "up_script": "src/sql/deploy/MIG-0007_MOD-005_invoice-line-type-mapping-and-currency.up.sql",
+      "down_script": "src/sql/deploy/MIG-0007_MOD-005_invoice-line-type-mapping-and-currency.down.sql",
+      "rollback_test": {
+        "commit": "892437702584d6efa52760b7988d8cae28d5ce2b",
+        "run_at": "2026-10-27T10:03:11.354817+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Q-034 (asked again for this module, answer deferred): DES-001 says silv_ref_invoice_line_type is seeded with the curated mapping 'content per Q-034', but no curated list is available and the dev CUSTTRANS_RICS is empty. Working assumption: the seed holds only the 12 pairs the existing Subs code names exactly, all on ric_invoice_type N'SUB' as Subs.usp_Refresh_SubsInvoices reads them: RAFEE_ACAND, RAFEE_APCC, RAFEE_ASSOC, RAFEE_FRICS, RAFEE_MRICS, RAFEE_PMU2 as 'readmission fee', and CONPWRQ1, CONPWRQ2, CONPWRQ3, CONRETIRED, CONRETIREDFL, CONRETIREDSPECIAL as 'concession', with load_id NULL. Every other code, including the subscription codes, is added as 'unmapped' by the first load and must be mapped by hand before MOD-010's amounts are complete. The load never overwrites a row, so a wrong seed row can only be corrected by hand. If a curated list is supplied, the seed file src/sql/seed/MOD-005/Layercake.silv_ref_invoice_line_type.up.sql (and its .down.sql) needs to change."
+  ],
+  "notes": "MOD-005 builds MIG-0007. Tables: silv_ref_invoice_line_type (PK item_code + ric_invoice_type; named CHECK on the seven line types; created_at and updated_at default SYSDATETIME()), silv_ref_currency (identity id, UNIQUE currency_code) and dim_currency. Loads: usp_load_silv_ref_invoice_line_type and usp_load_silv_ref_currency are insert-only, read only live (_is_deleted = 0) bronze rows and match codes under the database collation. A NULL ricinvoicetype is stored as N''. A NULL, empty or blank productcode or inv_currency adds nothing. When one new code arrives in several spellings in one load, the spelling with the lowest byte value is kept (upper case, then the one without trailing spaces), so every run stores the same spelling. usp_load_dim_currency mirrors silver by id: it inserts missing ids, updates a code only when its bytes differ (so a case-only change reaches gold) and never deletes. All three log to etl_run_log (silver/silv_ref_invoice_line_type, silver/silv_ref_currency, gold/dim_currency) with load_id = log_id. On error they roll back, log 'Failed' and re-raise. dim_currency is empty after the migration until usp_load_silv_ref_currency and then usp_load_dim_currency run (by hand until MOD-016). Starting point: all 26 Tester tests failed because the objects did not exist. Now the 26 Tester tests and 5 dev tests pass, the round-trip passes and the checks pass (the sqlfluff findings are advisory style findings). No grants: the design asks for no access to these objects.\n\nTest-first: the first run had 0 of 26 of the Tester's tests passing; the final run passed 26 of 26 and 5 unit test(s), in 3 run(s)."
+}
