@@ -50,7 +50,13 @@ jobs:
           echo "AGENT_SQL_PASSWORD=$pw" >> "$GITHUB_ENV"
           docker run -d --name mssql -e ACCEPT_EULA=Y -e "MSSQL_SA_PASSWORD=$pw" -e MSSQL_COLLATION=Latin1_General_100_CI_AS -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
           curl -sSL https://github.com/microsoft/go-sqlcmd/releases/latest/download/sqlcmd-linux-amd64.tar.bz2 | sudo tar -xj -C /usr/local/bin sqlcmd
-          for i in $(seq 1 60); do sqlcmd -S localhost -U sa -P "$pw" -C -Q "SELECT 1" >/dev/null 2>&1 && exit 0; sleep 2; done
+          # MSSQL_COLLATION is applied after the server first accepts connections (master is rebuilt for a few
+          # seconds), so wait for the log line that says it is done; setup run inside that window fails with Msg 468.
+          for i in $(seq 1 90); do
+            docker logs mssql 2>&1 | grep -q 'The default collation was successfully changed' \
+              && sqlcmd -S localhost -U sa -P "$pw" -C -Q "SELECT 1" >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
           docker logs mssql; exit 1
       - name: Download tSQLt
         if: vars.TSQLT_URL != ''
