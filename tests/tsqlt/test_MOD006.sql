@@ -38,7 +38,7 @@ BEGIN
     INTO #Actual
     FROM Layercake.brnz_concession;
 
-    CREATE TABLE #Expected (apuk_concessiontypeid uniqueidentifier, apuk_name nvarchar(100), apuk_discount decimal(38,2), product_number nvarchar(4000), statecode int, apuk_perpetualnonperpetual int, _is_deleted bit, deleted_at_is_null int, audit_times_set int);
+    CREATE TABLE #Expected (apuk_concessiontypeid uniqueidentifier, apuk_name nvarchar(100) COLLATE DATABASE_DEFAULT, apuk_discount decimal(38,2), product_number nvarchar(4000) COLLATE DATABASE_DEFAULT, statecode int, apuk_perpetualnonperpetual int, _is_deleted bit, deleted_at_is_null int, audit_times_set int);
     INSERT INTO #Expected (apuk_concessiontypeid, apuk_name, apuk_discount, product_number, statecode, apuk_perpetualnonperpetual, _is_deleted, deleted_at_is_null, audit_times_set)
     VALUES ('A0000000-0000-0000-0000-000000000001', N'Retired', 100.00, N'rcsCONRETIRED', 0, 200000000, 0, 1, 1),
            ('A0000000-0000-0000-0000-000000000002', N'Exceptional Hardship', 50.00, N'rcsCONEXCEPTIONHP', 0, 200000001, 0, 1, 1),
@@ -46,7 +46,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 
     SELECT status, rows_inserted, rows_updated, rows_deleted INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int, rows_deleted int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int, rows_deleted int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated, rows_deleted) VALUES ('Success', 3, 0, 0);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -102,7 +102,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#First', '#Second';
 
     SELECT status, rows_inserted, rows_updated, rows_deleted INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int, rows_deleted int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int, rows_deleted int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated, rows_deleted) VALUES ('Success', 3, 0, 0), ('Success', 0, 0, 0);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -130,14 +130,14 @@ BEGIN
     INTO #Actual
     FROM Layercake.brnz_concession;
 
-    CREATE TABLE #Expected (apuk_concessiontypeid uniqueidentifier, apuk_name nvarchar(100), _is_deleted bit, _loaded_at datetime2(3), updated_at_state varchar(10));
+    CREATE TABLE #Expected (apuk_concessiontypeid uniqueidentifier, apuk_name nvarchar(100) COLLATE DATABASE_DEFAULT, _is_deleted bit, _loaded_at datetime2(3), updated_at_state varchar(10) COLLATE DATABASE_DEFAULT);
     INSERT INTO #Expected (apuk_concessiontypeid, apuk_name, _is_deleted, _loaded_at, updated_at_state)
     VALUES ('A0000000-0000-0000-0000-000000000001', N'Retired', 0, '2020-01-01T00:00:00', 'unchanged'),
            ('A0000000-0000-0000-0000-000000000002', N'Exceptional Hardship Relief', 0, '2020-01-01T00:00:00', 'later');
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 
     SELECT status, rows_inserted, rows_updated, rows_deleted INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int, rows_deleted int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int, rows_deleted int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated, rows_deleted) VALUES ('Success', 0, 1, 0);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -165,7 +165,7 @@ BEGIN
     INTO #Actual
     FROM Layercake.brnz_concession;
 
-    CREATE TABLE #Expected (apuk_concessiontypeid uniqueidentifier, apuk_name nvarchar(100), _is_deleted bit, deleted_at_set int);
+    CREATE TABLE #Expected (apuk_concessiontypeid uniqueidentifier, apuk_name nvarchar(100) COLLATE DATABASE_DEFAULT, _is_deleted bit, deleted_at_set int);
     INSERT INTO #Expected (apuk_concessiontypeid, apuk_name, _is_deleted, deleted_at_set)
     VALUES ('A0000000-0000-0000-0000-000000000001', N'Retired', 0, 0),
            ('A0000000-0000-0000-0000-000000000002', N'Exceptional Hardship', 1, 1),
@@ -176,7 +176,7 @@ BEGIN
     EXEC tSQLt.AssertEquals 2, @live;
 
     SELECT status, rows_inserted, rows_updated, rows_deleted INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int, rows_deleted int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int, rows_deleted int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated, rows_deleted) VALUES ('Success', 1, 0, 1);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -202,7 +202,7 @@ BEGIN
     INTO #Actual
     FROM Layercake.brnz_concession;
 
-    CREATE TABLE #Expected (apuk_concessiontypeid uniqueidentifier, apuk_name nvarchar(100), apuk_discount decimal(38,2), product_number nvarchar(4000), _is_deleted bit, deleted_at_is_null int);
+    CREATE TABLE #Expected (apuk_concessiontypeid uniqueidentifier, apuk_name nvarchar(100) COLLATE DATABASE_DEFAULT, apuk_discount decimal(38,2), product_number nvarchar(4000) COLLATE DATABASE_DEFAULT, _is_deleted bit, deleted_at_is_null int);
     INSERT INTO #Expected (apuk_concessiontypeid, apuk_name, apuk_discount, product_number, _is_deleted, deleted_at_is_null)
     VALUES ('A0000000-0000-0000-0000-000000000002', N'Exceptional Hardship', 50.00, N'rcsCONEXCEPTIONHP', 0, 1);
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
@@ -246,7 +246,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#Before', '#After';
 
     SELECT status, CASE WHEN error_message IS NULL THEN 0 ELSE 1 END AS has_error_message INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), has_error_message int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, has_error_message int);
     INSERT INTO #ExpectedLog (status, has_error_message) VALUES ('Failed', 1);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -286,7 +286,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#Before', '#After';
 
     SELECT status, CASE WHEN error_message IS NULL THEN 0 ELSE 1 END AS has_error_message INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), has_error_message int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, has_error_message int);
     INSERT INTO #ExpectedLog (status, has_error_message) VALUES ('Failed', 1);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -344,7 +344,7 @@ BEGIN
     INTO #Actual
     FROM Layercake.silv_ref_concession_type;
 
-    CREATE TABLE #Expected (seeded_id int, concession_type_bk uniqueidentifier, concession_type_name nvarchar(100), item_code nvarchar(100), is_full_concession bit, is_perpetual bit);
+    CREATE TABLE #Expected (seeded_id int, concession_type_bk uniqueidentifier, concession_type_name nvarchar(100) COLLATE DATABASE_DEFAULT, item_code nvarchar(100) COLLATE DATABASE_DEFAULT, is_full_concession bit, is_perpetual bit);
     INSERT INTO #Expected (seeded_id, concession_type_bk, concession_type_name, item_code, is_full_concession, is_perpetual)
     VALUES (0, NULL, N'Unknown', NULL, 0, 0),
            (-1, NULL, N'Unrecognised', NULL, 0, 0),
@@ -365,7 +365,7 @@ BEGIN
     EXEC tSQLt.AssertEquals 0, @wrong_load_id;
 
     SELECT status, rows_inserted, rows_updated INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated) VALUES ('Success', 3, 0);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -411,13 +411,13 @@ BEGIN
     INTO #ActualEH
     FROM Layercake.silv_ref_concession_type
     WHERE concession_type_bk = 'A0000000-0000-0000-0000-000000000002';
-    CREATE TABLE #ExpectedEH (id int, concession_type_name nvarchar(100), item_code nvarchar(100), is_full_concession bit, is_perpetual bit);
+    CREATE TABLE #ExpectedEH (id int, concession_type_name nvarchar(100) COLLATE DATABASE_DEFAULT, item_code nvarchar(100) COLLATE DATABASE_DEFAULT, is_full_concession bit, is_perpetual bit);
     INSERT INTO #ExpectedEH (id, concession_type_name, item_code, is_full_concession, is_perpetual)
     VALUES (@eh_id, N'Exceptional Hardship Relief', N'CONEXCEPTIONHP', 0, 0);
     EXEC tSQLt.AssertEqualsTable '#ExpectedEH', '#ActualEH';
 
     SELECT status, rows_inserted, rows_updated INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated) VALUES ('Success', 0, 1);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -458,7 +458,7 @@ BEGIN
     INTO #ActualNew
     FROM Layercake.silv_ref_concession_type
     WHERE concession_type_bk = 'A0000000-0000-0000-0000-000000000004';
-    CREATE TABLE #ExpectedNew (concession_type_name nvarchar(100), item_code nvarchar(100), is_full_concession bit, is_perpetual bit, has_new_id int);
+    CREATE TABLE #ExpectedNew (concession_type_name nvarchar(100) COLLATE DATABASE_DEFAULT, item_code nvarchar(100) COLLATE DATABASE_DEFAULT, is_full_concession bit, is_perpetual bit, has_new_id int);
     INSERT INTO #ExpectedNew (concession_type_name, item_code, is_full_concession, is_perpetual, has_new_id)
     VALUES (N'Maternity Leave', N'CONMATERNITY', 0, 0, 1);
     EXEC tSQLt.AssertEqualsTable '#ExpectedNew', '#ActualNew';
@@ -467,7 +467,7 @@ BEGIN
     EXEC tSQLt.AssertEquals 8, @rows;
 
     SELECT status, rows_inserted, rows_updated INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated) VALUES ('Success', 1, 0);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -494,7 +494,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#First', '#Second';
 
     SELECT status, rows_inserted, rows_updated INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated) VALUES ('Success', 3, 0), ('Success', 0, 0);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -574,7 +574,7 @@ BEGIN
     INTO #Actual
     FROM Layercake.silv_ref_concession_type;
 
-    CREATE TABLE #Expected (concession_type_name nvarchar(100), is_perpetual bit);
+    CREATE TABLE #Expected (concession_type_name nvarchar(100) COLLATE DATABASE_DEFAULT, is_perpetual bit);
     INSERT INTO #Expected (concession_type_name, is_perpetual)
     VALUES (N'Unknown', 0), (N'Unrecognised', 0), (N'Not applicable', 0), (N'No concession', 0),
            (N'Retired', 1), (N'Exceptional Hardship', 0), (N'Life Member', 0);
@@ -599,7 +599,7 @@ BEGIN
     INTO #Actual
     FROM Layercake.silv_ref_concession_type;
 
-    CREATE TABLE #Expected (concession_type_bk uniqueidentifier, concession_type_name nvarchar(100));
+    CREATE TABLE #Expected (concession_type_bk uniqueidentifier, concession_type_name nvarchar(100) COLLATE DATABASE_DEFAULT);
     INSERT INTO #Expected (concession_type_bk, concession_type_name)
     VALUES (NULL, N'Unknown'), (NULL, N'Unrecognised'), (NULL, N'Not applicable'), (NULL, N'No concession'),
            ('A0000000-0000-0000-0000-000000000001', N'Retired');
@@ -627,7 +627,7 @@ BEGIN
     FROM Layercake.silv_ref_concession_type
     WHERE concession_type_bk IS NOT NULL;
 
-    CREATE TABLE #Expected (concession_type_bk uniqueidentifier, name_bytes varbinary(200), item_code nvarchar(100), is_full_concession bit, is_perpetual bit, has_id int);
+    CREATE TABLE #Expected (concession_type_bk uniqueidentifier, name_bytes varbinary(200), item_code nvarchar(100) COLLATE DATABASE_DEFAULT, is_full_concession bit, is_perpetual bit, has_id int);
     INSERT INTO #Expected (concession_type_bk, name_bytes, item_code, is_full_concession, is_perpetual, has_id)
     VALUES ('A0000000-0000-0000-0000-000000000021', CAST(N'Unnamed concession type' AS varbinary(200)), N'CONNONAME', 1, 1, 1),
            ('A0000000-0000-0000-0000-000000000022', CAST(N'Unnamed concession type' AS varbinary(200)), N'CONEMPTYNAME', 0, 0, 1),
@@ -664,7 +664,7 @@ BEGIN
     FROM Layercake.silv_ref_concession_type
     WHERE concession_type_bk = 'A0000000-0000-0000-0000-000000000021';
 
-    CREATE TABLE #Expected (id int, concession_type_name nvarchar(100), item_code nvarchar(100), is_full_concession bit, is_perpetual bit);
+    CREATE TABLE #Expected (id int, concession_type_name nvarchar(100) COLLATE DATABASE_DEFAULT, item_code nvarchar(100) COLLATE DATABASE_DEFAULT, is_full_concession bit, is_perpetual bit);
     INSERT INTO #Expected (id, concession_type_name, item_code, is_full_concession, is_perpetual)
     VALUES (@id_before, N'Armed Forces', N'CONNONAME', 1, 1);
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
@@ -673,7 +673,7 @@ BEGIN
     EXEC tSQLt.AssertEquals 5, @rows;
 
     SELECT status, rows_inserted, rows_updated INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated) VALUES ('Success', 0, 1);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -704,13 +704,13 @@ BEGIN
     FROM Layercake.silv_ref_concession_type
     WHERE concession_type_bk = 'A0000000-0000-0000-0000-000000000002';
 
-    CREATE TABLE #Expected (id int, concession_type_name nvarchar(100), item_code nvarchar(100), is_full_concession bit, is_perpetual bit);
+    CREATE TABLE #Expected (id int, concession_type_name nvarchar(100) COLLATE DATABASE_DEFAULT, item_code nvarchar(100) COLLATE DATABASE_DEFAULT, is_full_concession bit, is_perpetual bit);
     INSERT INTO #Expected (id, concession_type_name, item_code, is_full_concession, is_perpetual)
     VALUES (@id_before, N'Exceptional Hardship', N'CONEXCEPTIONFULL', 1, 1);
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 
     SELECT status, rows_inserted, rows_updated INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated) VALUES ('Success', 0, 1);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -757,7 +757,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#Before', '#After';
 
     SELECT status, CASE WHEN error_message IS NULL THEN 0 ELSE 1 END AS has_error_message INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), has_error_message int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, has_error_message int);
     INSERT INTO #ExpectedLog (status, has_error_message) VALUES ('Failed', 1);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -800,7 +800,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 
     SELECT status, rows_inserted, rows_updated INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated) VALUES ('Success', 7, 0);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -831,7 +831,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#First', '#Second';
 
     SELECT status, rows_inserted, rows_updated INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated) VALUES ('Success', 7, 0), ('Success', 0, 0);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -867,7 +867,7 @@ BEGIN
     INTO #Actual
     FROM Layercake.dim_concession_type;
 
-    CREATE TABLE #Expected (id int, concession_type_name nvarchar(100), is_full_concession bit, is_perpetual bit);
+    CREATE TABLE #Expected (id int, concession_type_name nvarchar(100) COLLATE DATABASE_DEFAULT, is_full_concession bit, is_perpetual bit);
     INSERT INTO #Expected (id, concession_type_name, is_full_concession, is_perpetual)
     VALUES (0, N'Unknown', 0, 0), (-1, N'Unrecognised', 0, 0), (-2, N'Not applicable', 0, 0), (1, N'No concession', 0, 0),
            (5, N'Retired', 1, 1), (6, N'Exceptional Hardship Relief', 0, 0), (7, N'Life Member', 1, 0);
@@ -886,7 +886,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#ExpectedUntouched', '#ActualUntouched';
 
     SELECT status, rows_inserted, rows_updated INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), rows_inserted int, rows_updated int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, rows_inserted int, rows_updated int);
     INSERT INTO #ExpectedLog (status, rows_inserted, rows_updated) VALUES ('Success', 1, 2);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -927,7 +927,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#Before', '#After';
 
     SELECT status, CASE WHEN error_message IS NULL THEN 0 ELSE 1 END AS has_error_message INTO #ActualLog FROM Layercake.etl_run_log;
-    CREATE TABLE #ExpectedLog (status varchar(10), has_error_message int);
+    CREATE TABLE #ExpectedLog (status varchar(10) COLLATE DATABASE_DEFAULT, has_error_message int);
     INSERT INTO #ExpectedLog (status, has_error_message) VALUES ('Failed', 1);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
@@ -964,7 +964,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#IdsBefore', '#IdsAfter';
 
     SELECT concession_type_bk, concession_type_name INTO #ActualNames FROM Layercake.silv_ref_concession_type;
-    CREATE TABLE #ExpectedNames (concession_type_bk uniqueidentifier, concession_type_name nvarchar(100));
+    CREATE TABLE #ExpectedNames (concession_type_bk uniqueidentifier, concession_type_name nvarchar(100) COLLATE DATABASE_DEFAULT);
     INSERT INTO #ExpectedNames (concession_type_bk, concession_type_name)
     VALUES (NULL, N'Unknown'), (NULL, N'Unrecognised'), (NULL, N'Not applicable'), (NULL, N'No concession'),
            ('A0000000-0000-0000-0000-000000000001', N'Retired'),
@@ -997,7 +997,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#SilverPairs', '#DimPairs';
 
     SELECT concession_type_name INTO #ActualNames FROM Layercake.dim_concession_type;
-    CREATE TABLE #ExpectedNames (concession_type_name nvarchar(100));
+    CREATE TABLE #ExpectedNames (concession_type_name nvarchar(100) COLLATE DATABASE_DEFAULT);
     INSERT INTO #ExpectedNames (concession_type_name)
     VALUES (N'Unknown'), (N'Unrecognised'), (N'Not applicable'), (N'No concession'), (N'Retired'), (N'Exceptional Hardship'), (N'Life Member');
     EXEC tSQLt.AssertEqualsTable '#ExpectedNames', '#ActualNames';
@@ -1009,7 +1009,7 @@ GO
 CREATE PROCEDURE test_MOD006.[test TC-006-029 reserved ids carry the same three labels in the payment method payer type and concession type lists]
 AS
 BEGIN
-    CREATE TABLE #Actual (list_name varchar(30), id int, label_bytes varbinary(200));
+    CREATE TABLE #Actual (list_name varchar(30) COLLATE DATABASE_DEFAULT, id int, label_bytes varbinary(200));
     INSERT INTO #Actual (list_name, id, label_bytes)
     SELECT 'payment_method', id, CAST(CAST(payment_method_name AS nvarchar(100)) AS varbinary(200))
     FROM Layercake.silv_ref_payment_method WHERE id IN (0, -1, -2);
@@ -1020,7 +1020,7 @@ BEGIN
     SELECT 'concession_type', id, CAST(CAST(concession_type_name AS nvarchar(100)) AS varbinary(200))
     FROM Layercake.silv_ref_concession_type WHERE id IN (0, -1, -2);
 
-    CREATE TABLE #Expected (list_name varchar(30), id int, label_bytes varbinary(200));
+    CREATE TABLE #Expected (list_name varchar(30) COLLATE DATABASE_DEFAULT, id int, label_bytes varbinary(200));
     INSERT INTO #Expected (list_name, id, label_bytes)
     VALUES ('payment_method', 0, CAST(N'Unknown' AS varbinary(200))),
            ('payment_method', -1, CAST(N'Unrecognised' AS varbinary(200))),
