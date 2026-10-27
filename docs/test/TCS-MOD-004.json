@@ -1,0 +1,329 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-004",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-10-26T16:43:21Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-10-26T17:10:05Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-004",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-004-001",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "happy_path",
+      "description": "The seeded Layercake.silv_ref_payer_type holds exactly the three reserved rows at fixed ids plus Individual and Corporate, with byte-exact labels.",
+      "preconditions": "Reads the table as deployed and seeded by the module's migration (static list, no load). Not faked, because the seed is what is under test.",
+      "expected": "Exactly 5 rows: id 0 'Unknown', id -1 'Unrecognised', id -2 'Not applicable', and 'Individual' and 'Corporate' on positive ids. Labels compared as bytes. The two positive ids are exactly 1 and 2 (identity from 1), in either order.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-001 seeded payer type list holds the three reserved rows and Individual and Corporate]"
+    },
+    {
+      "id": "TC-004-002",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "happy_path",
+      "description": "The first usp_load_dim_payer_type run copies every silv_ref_payer_type row, reserved negative ids included, into dim_payer_type with the same id and name, and logs its outcome.",
+      "preconditions": "silv_ref_payer_type, dim_payer_type and etl_run_log faked (the log with identity and defaults). Silver holds 0 Unknown, -1 Unrecognised, -2 Not applicable, 1 Individual, 2 Corporate. Empty dimension.",
+      "expected": "dim_payer_type holds exactly the same 5 (id, name) pairs, names byte-exact. One etl_run_log row: 'Success', rows_inserted 5, rows_updated 0, rows_deleted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-002 first dimension load copies all five ids and names and logs Success]"
+    },
+    {
+      "id": "TC-004-003",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "idempotency",
+      "description": "A second dimension load on unchanged silver changes nothing.",
+      "preconditions": "Same 5 faked silver rows as TC-004-002; empty dimension; load run twice.",
+      "expected": "dim_payer_type identical in every column (load_id, created_at, updated_at included) after the first and second loads, holding 0 Unknown, -1 Unrecognised, -2 Not applicable, 1 Individual, 2 Corporate. etl_run_log holds two 'Success' rows: (5, 0, 0) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-003 second dimension load keeps every id and changes nothing]"
+    },
+    {
+      "id": "TC-004-004",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "reconciliation",
+      "description": "The dimension load mirrors silver as the payment method dimension load does: inserts a missing id, updates a changed name on its existing id, leaves unchanged rows untouched.",
+      "preconditions": "Faked silver holds the 5 rows of TC-004-002. Faked dimension holds 0 Unknown, -1 Unrecognised, 1 Individual and 2 'Corporate scheme' (old name), each with load_id 7 and created_at and updated_at 2026-02-01 10:00:00; id -2 missing.",
+      "expected": "Dimension holds exactly the 5 silver pairs, id 2 now 'Corporate' (no new row). Ids 0, -1 and 1 keep load_id 7 and created_at and updated_at 2026-02-01 10:00:00. One etl_run_log row: 'Success', 1 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-004 dimension load inserts a missing id updates a changed name and leaves unchanged rows untouched]"
+    },
+    {
+      "id": "TC-004-005",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "boundary",
+      "description": "A dimension name that differs from silver only in case is a changed name and is corrected, despite the case-insensitive collation.",
+      "preconditions": "Faked silver: 0 'Unknown', 2 'Corporate'. Faked dimension: 0 'Unknown', 2 'CORPORATE', load_id 7.",
+      "expected": "Dimension id 2 has the exact bytes of 'Corporate'; id 0 still 'Unknown'. One etl_run_log row: 'Success', 0 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-005 dimension load corrects a name that differs only in case]"
+    },
+    {
+      "id": "TC-004-006",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "negative",
+      "description": "Error path (design: try/catch with XACT_ABORT, error recorded through usp_etl_log_end, re-raised): a dimension load the target rejects re-raises, logs 'Failed' and leaves the dimension unchanged.",
+      "preconditions": "Runs without the tSQLt transaction. Silver, dimension and etl_run_log faked; the faked dim_payer_type gets a test-only CHECK rejecting the name 'Rejected type'. Silver: 0 Unknown, 1 Individual, 9 'Rejected type'. Dimension holds 1 'Private' (old name, so an update is pending), load_id 7.",
+      "expected": "Check-constraint error 547 reaches the caller. dim_payer_type identical to before: only id 1 'Private', no id 0 or 9. Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-006 failed dimension load re-raises logs Failed and leaves the target unchanged]"
+    },
+    {
+      "id": "TC-004-007",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "reconciliation",
+      "description": "AC-006-01 end to end: loaded from the deployed seeded list, dim_payer_type has the same (id, name) pairs as silv_ref_payer_type.",
+      "preconditions": "silv_ref_payer_type not faked (the seeded list is read). dim_payer_type and etl_run_log faked; empty dimension.",
+      "expected": "Dimension holds 5 rows: 0 'Unknown', -1 'Unrecognised', -2 'Not applicable', 'Individual' and 'Corporate' on positive ids, and its (id, name bytes) pairs equal silv_ref_payer_type's exactly.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-007 dimension loaded from the seeded list has the same five ids and names as the list]"
+    },
+    {
+      "id": "TC-004-008",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "happy_path",
+      "description": "First run of usp_load_brnz_corporate_subscription lands Subs.vwCorpSubscriptions rows 1:1 into brnz_corporate_subscription, live, with audit times, and logs its counts.",
+      "preconditions": "Empty bronze (faked with defaults), empty etl_run_log. Faked source: (1000001, SCH-001, 'Alpha Surveyors LLP', 2025, Active, Active, Round 1), (1000002, SCH-001, same name, 2025, Active, Inactive, Round 2), (1000003, SCH-002, 'Beta Property Ltd', 2024, Cancelled, Active, Round 1), (1000003, SCH-002, same name, 2025, Active, Active, NULL Round).",
+      "expected": "Exactly 4 rows with contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status and sub_user_status equal to the source, _is_deleted 0, _deleted_at NULL, _loaded_at and _updated_at not NULL (values not asserted). One etl_run_log row: 'Success', 4 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-008 first corporate subscription load lands 4 source rows 1:1 live and logs Success]"
+    },
+    {
+      "id": "TC-004-009",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "negative",
+      "description": "'Round' is not landed (design, answers 2026-10-23): the bronze table has no Round column.",
+      "preconditions": "Reads the deployed table's column metadata.",
+      "expected": "Layercake.brnz_corporate_subscription exists and has no column whose name contains 'round'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-009 brnz_corporate_subscription has no Round column]"
+    },
+    {
+      "id": "TC-004-010",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "negative",
+      "description": "'Round' plays no part: a source row that differs from bronze only in Round is not treated as a change.",
+      "preconditions": "Bronze holds live (1000101, SCH-101, 'Kappa Valuers', 2025, Active, Active) with _loaded_at and _updated_at 2020-01-01. Source holds the same row with Round 'Round 2'.",
+      "expected": "The row is unchanged, _loaded_at and _updated_at still 2020-01-01, _is_deleted 0. etl_run_log: 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-010 a change only in Round does not update the landed row]"
+    },
+    {
+      "id": "TC-004-011",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "nulls",
+      "description": "NULL Scheme Name, Sub Status and Sub User Status land as NULL; bronze applies no default.",
+      "preconditions": "Source (1000011, SCH-011, NULL, 2025, NULL, NULL, NULL) and (1000012, SCH-011, 'Gamma Estates', 2025, Active, NULL). A NULL Contact No, Scheme No or Sub Campaign Year is covered by TC-004-021 to TC-004-023 (Mike, 2026-10-26: the load fails).",
+      "expected": "1000011 has scheme_name, sub_status and sub_user_status NULL; 1000012 has 'Gamma Estates', 'Active', NULL. Both live.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-011 null scheme name and statuses land as null]"
+    },
+    {
+      "id": "TC-004-012",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "boundary",
+      "description": "Bronze is a 1:1 landing with no value transformation: a blank scheme name and untrimmed or differently cased statuses land byte for byte.",
+      "preconditions": "Source (1000021, SCH-021, N'', 2025, N' active ', N'ACTIVE').",
+      "expected": "scheme_name is N'' (not NULL, 0 bytes); sub_status has the exact bytes of N' active '; sub_user_status the exact bytes of N'ACTIVE'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-012 blank and untrimmed mixed case values land byte for byte]"
+    },
+    {
+      "id": "TC-004-013",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "idempotency",
+      "description": "A second load on unchanged source (including NULL columns) changes nothing.",
+      "preconditions": "Source holds 1000031/SCH-031/2025, 1000032/SCH-031/2025 with NULL name and statuses, and 1000033/SCH-032/2024. Load run twice.",
+      "expected": "brnz_corporate_subscription identical in every column (_loaded_at and _updated_at included) after the first and second loads. etl_run_log holds two 'Success' rows: (3, 0, 0) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-013 second corporate subscription load on unchanged source changes nothing]"
+    },
+    {
+      "id": "TC-004-014",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "happy_path",
+      "description": "A source row whose value changed is updated in place with _updated_at refreshed; an unchanged row is untouched.",
+      "preconditions": "Bronze holds live 1000041 and 1000042 (SCH-041, 2025, Active, Active), both _loaded_at and _updated_at 2020-01-01. Source has 1000041 with Sub User Status 'Inactive' and 1000042 unchanged.",
+      "expected": "1000041: sub_user_status 'Inactive', _loaded_at 2020-01-01, _updated_at later than 2020-01-01. 1000042: 'Active', _updated_at still 2020-01-01. Both live. etl_run_log: 'Success', 0 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-014 changed corporate subscription row is updated and only it gets a new _updated_at]"
+    },
+    {
+      "id": "TC-004-015",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "boundary",
+      "description": "A source value that changes only in case is a change and is landed, though the collation is case-insensitive.",
+      "preconditions": "Bronze holds live (1000051, SCH-051, 'Iota Chartered', 2025, 'Active', 'Active') with _updated_at 2020-01-01. Source sends Sub Status 'ACTIVE'.",
+      "expected": "sub_status has the exact bytes of N'ACTIVE' and _updated_at is later than 2020-01-01. etl_run_log: 'Success', 0 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-015 a status change only in case is landed as a change]"
+    },
+    {
+      "id": "TC-004-016",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "negative",
+      "description": "A row no longer in the source is soft-deleted, not physically removed.",
+      "preconditions": "Bronze holds live 1000061 and 1000062 (SCH-061, 2025). Source holds only 1000061 (unchanged).",
+      "expected": "1000061 live with _deleted_at NULL. 1000062 still present with sub_status 'Active', _is_deleted 1 and _deleted_at set. etl_run_log: 'Success', 0 inserted, 0 updated, 1 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-016 corporate subscription row gone from source is soft deleted not removed]"
+    },
+    {
+      "id": "TC-004-017",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "duplicates",
+      "description": "A soft-deleted row re-sent unchanged by the source is restored, not inserted a second time.",
+      "preconditions": "Bronze holds (1000071, SCH-071, 'Mu Holdings', 2025, Active, Active) with _is_deleted 1, _deleted_at 2020-06-01. Source re-sends identical values.",
+      "expected": "Exactly one row for (1000071, SCH-071, 2025) with 'Mu Holdings', 'Active', 'Active', _is_deleted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-017 soft deleted corporate subscription row that reappears unchanged is restored]"
+    },
+    {
+      "id": "TC-004-018",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "duplicates",
+      "description": "Rows are matched on (contact_no, scheme_no, sub_campaign_year): a scheme-name change on an existing key updates it, while the same contact in another year or another scheme is a new row.",
+      "preconditions": "assumes Q-033: (Contact No, Scheme No, Sub Campaign Year) is unique in the source. Bronze holds live (1000081, SCH-081, 'Zeta Old Name', 2024) with _loaded_at 2020-01-01. Source: (1000081, SCH-081, 'Zeta New Name', 2024), (1000081, SCH-081, 'Zeta New Name', 2025), (1000081, SCH-082, 'Eta Associates', 2024).",
+      "expected": "Exactly 3 live rows: SCH-081/2024 'Zeta New Name' (still _loaded_at 2020-01-01, updated in place), SCH-081/2025 'Zeta New Name', SCH-082/2024 'Eta Associates'. etl_run_log: 'Success', 2 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-018 rows are matched on contact scheme and year so a name change updates and a new year or scheme inserts]"
+    },
+    {
+      "id": "TC-004-019",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "reconciliation",
+      "description": "Row-count check (RULE-005): after a load mixing inserts and a soft delete, live bronze rows equal the source row count, and the counts are logged.",
+      "preconditions": "Bronze holds live 1000091 and 1000092 (SCH-091, 2025). Source holds 1000091 (unchanged), 1000093 and 1000094 (new).",
+      "expected": "4 rows: 1000091, 1000093, 1000094 live and 1000092 soft-deleted. Live count 3 equals the source count 3. etl_run_log: 'Success', 2 inserted, 0 updated, 1 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-019 live corporate subscription rows reconcile to the source row count after inserts and a soft delete]"
+    },
+    {
+      "id": "TC-004-020",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "negative",
+      "description": "Error path: the load fails part-way through its writes on a row the target rejects; the error reaches the caller, the run is logged Failed and the target is unchanged.",
+      "preconditions": "Runs without the tSQLt transaction. Bronze holds live (1000111, SCH-111, 2025, Active) and carries a test-only CHECK rejecting scheme_no 'REJECT-112'. Source has 1000111 changed to 'Cancelled' (update pending) and new (1000112, REJECT-112, 2025).",
+      "expected": "Check-constraint error 547 is raised to the caller. brnz_corporate_subscription identical to before (1000111 still 'Active', no 1000112). Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-020 failed corporate subscription load re-raises logs Failed and leaves the target unchanged]"
+    },
+    {
+      "id": "TC-004-021",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "nulls",
+      "description": "A source row with a NULL Contact No fails the whole load with error 515: logged Failed, re-raised, target unchanged, no row skipped (docs/answers.md 'MOD-004 NULL matching key', Mike 2026-10-26).",
+      "preconditions": "Runs without the tSQLt transaction. Source, bronze and etl_run_log faked; NOT NULL is put back on the faked bronze's three key columns (same type and collation), since FakeTable makes every column nullable. Bronze holds live 1000201 and 1000202 (SCH-201, 2025, Active, Active). Source holds 1000201 changed to Sub Status 'Cancelled' (update pending), new 1000203 (insert pending), no 1000202 (soft delete pending), and (NULL, SCH-202, 'Sigma Partners', 2025).",
+      "expected": "Error 515 reaches the caller. brnz_corporate_subscription identical to before in every column (1000201 still 'Active', 1000202 still live, no 1000203 and no row for the NULL-key source row). Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-021 a source row with null Contact No fails the load with 515 and changes nothing]"
+    },
+    {
+      "id": "TC-004-022",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "nulls",
+      "description": "A source row with a NULL Scheme No fails the whole load with error 515: logged Failed, re-raised, target unchanged, no row skipped (docs/answers.md 'MOD-004 NULL matching key', Mike 2026-10-26).",
+      "preconditions": "Runs without the tSQLt transaction. Source, bronze and etl_run_log faked; NOT NULL is put back on the faked bronze's three key columns (same type and collation), since FakeTable makes every column nullable. Bronze holds live 1000201 and 1000202 (SCH-201, 2025, Active, Active). Source holds 1000201 changed to Sub Status 'Cancelled' (update pending), new 1000203 (insert pending), no 1000202 (soft delete pending), and (1000204, NULL, 'Sigma Partners', 2025).",
+      "expected": "Error 515 reaches the caller. brnz_corporate_subscription identical to before in every column (1000201 still 'Active', 1000202 still live, no 1000203 and no row for the NULL-key source row). Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-022 a source row with null Scheme No fails the load with 515 and changes nothing]"
+    },
+    {
+      "id": "TC-004-023",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-01",
+      "category": "nulls",
+      "description": "A source row with a NULL Sub Campaign Year fails the whole load with error 515: logged Failed, re-raised, target unchanged, no row skipped (docs/answers.md 'MOD-004 NULL matching key', Mike 2026-10-26).",
+      "preconditions": "Runs without the tSQLt transaction. Source, bronze and etl_run_log faked; NOT NULL is put back on the faked bronze's three key columns (same type and collation), since FakeTable makes every column nullable. Bronze holds live 1000201 and 1000202 (SCH-201, 2025, Active, Active). Source holds 1000201 changed to Sub Status 'Cancelled' (update pending), new 1000203 (insert pending), no 1000202 (soft delete pending), and (1000205, SCH-202, 'Sigma Partners', NULL).",
+      "expected": "Error 515 reaches the caller. brnz_corporate_subscription identical to before in every column (1000201 still 'Active', 1000202 still live, no 1000203 and no row for the NULL-key source row). Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD004].[test TC-004-023 a source row with null Sub Campaign Year fails the load with 515 and changes nothing]"
+    }
+  ]
+}
