@@ -12,15 +12,15 @@ The solution reads objects that other systems own and maintain. It never creates
 
 The two profiles read their sources directly and keep nothing. The three bronze loads copy their sources into the bronze tables without changing any value.
 
-The payment method list (MOD-003) and the payer type list (MOD-004) are not read from any source: each is a fixed list put in place by its migration, and each dimension is copied from its list.
+The payment method list (MOD-003) and the payer type list (MOD-004) are not read from any source: each is a fixed list put in place by its migration, and each dimension is copied from its list. The line-type mapping and the currency list (MOD-005) are filled from the bronze invoice tables, not read from a source directly.
 
-<!-- evidence: PROJECT_STANDARDS.md#Objects owned by other systems (external); docs/sources/external_catalogue.json#Subs.tblSubsInvoices; docs/sources/external_catalogue.json#synapse_fo.CUSTTRANS_RICS; docs/sources/external_catalogue.json#Subs.vwCorpSubscriptions; docs/specs/SPEC-001.json#Invoice source coverage; docs/sources/external/synapse_fo/synapse_fo.CUSTTRANS_RICS.sql#PostingType_Description; docs/design/MP-001.json#count-only procedures over the external sources; docs/dev/CN-MOD-001.json#Neither writes anything; docs/specs/SPEC-001.json#REQ-002; docs/specs/SPEC-001.json#RULE-004; docs/dev/CN-MOD-002.json#Line scope (RULE-077) reads Subs.tblSubsInvoices directly; docs/design/DES-001.json#1:1 landing of Subs.vwCorpSubscriptions; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Status; docs/design/DES-001.json#Static list seeded by its migration; docs/design/DES-001.json#Reference lists: payment method and payer type are static lists seeded by their migrations; docs/design/DES-001.json#Mirrors silv_ref_payment_method into dim_payment_method; docs/design/DES-001.json#Mirrors silv_ref_payer_type into dim_payer_type -->
+<!-- evidence: PROJECT_STANDARDS.md#Objects owned by other systems (external); docs/sources/external_catalogue.json#Subs.tblSubsInvoices; docs/sources/external_catalogue.json#synapse_fo.CUSTTRANS_RICS; docs/sources/external_catalogue.json#Subs.vwCorpSubscriptions; docs/specs/SPEC-001.json#Invoice source coverage; docs/sources/external/synapse_fo/synapse_fo.CUSTTRANS_RICS.sql#PostingType_Description; docs/design/MP-001.json#count-only procedures over the external sources; docs/dev/CN-MOD-001.json#Neither writes anything; docs/specs/SPEC-001.json#REQ-002; docs/specs/SPEC-001.json#RULE-004; docs/dev/CN-MOD-002.json#Line scope (RULE-077) reads Subs.tblSubsInvoices directly; docs/design/DES-001.json#1:1 landing of Subs.vwCorpSubscriptions; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Status; docs/design/DES-001.json#Static list seeded by its migration; docs/design/DES-001.json#Reference lists: payment method and payer type are static lists seeded by their migrations; docs/design/DES-001.json#Mirrors silv_ref_payment_method into dim_payment_method; docs/design/DES-001.json#Mirrors silv_ref_payer_type into dim_payer_type; docs/design/DES-001.json#seen in live brnz_subs_invoice_line rows; docs/design/DES-001.json#(brnz_subs_invoice.inv_currency) -->
 
 ## Source-to-target mappings
 
-Every bronze mapping is one-to-one (RULE-004): the target column holds the source value unchanged, with no defaults, trimming or change of case. All bronze tables also carry the four audit columns _loaded_at, _updated_at, _is_deleted and _deleted_at, which the load sets (see the Architecture and data model document). The profiles have no target table; their tables show which source columns they use and how they become the counts they return. The payment method mappings show how a source payment mode code becomes a payment method, and how each list reaches its gold dimension.
+Every bronze mapping is one-to-one (RULE-004): the target column holds the source value unchanged, with no defaults, trimming or change of case. All bronze tables also carry the four audit columns _loaded_at, _updated_at, _is_deleted and _deleted_at, which the load sets (see the Architecture and data model document). The profiles have no target table; their tables show which source columns they use and how they become the counts they return. The payment method mappings show how a source payment mode code becomes a payment method, and how each list reaches its gold dimension. The line-type and currency mappings show how codes on the bronze invoice data reach their lists, and the currency list its dimension.
 
-<!-- evidence: docs/specs/SPEC-001.json#RULE-004; docs/specs/SPEC-001.json#_loaded_at, _updated_at, _is_deleted, _deleted_at (and the same on brnz_subs_invoice_line); docs/answers.md#DES-001 Q-037 bronze audit columns; docs/test/TCS-MOD-002.json#TC-002-003; docs/test/TCS-MOD-004.json#TC-004-012; docs/design/MP-001.json#Builds no tables and changes no existing object; docs/specs/SPEC-001.json#RULE-095; docs/specs/SPEC-001.json#RULE-096; docs/specs/SPEC-001.json#RULE-007; docs/specs/SPEC-001.json#RULE-010 -->
+<!-- evidence: docs/specs/SPEC-001.json#RULE-004; docs/specs/SPEC-001.json#_loaded_at, _updated_at, _is_deleted, _deleted_at (and the same on brnz_subs_invoice_line); docs/answers.md#DES-001 Q-037 bronze audit columns; docs/test/TCS-MOD-002.json#TC-002-003; docs/test/TCS-MOD-004.json#TC-004-012; docs/design/MP-001.json#Builds no tables and changes no existing object; docs/specs/SPEC-001.json#RULE-095; docs/specs/SPEC-001.json#RULE-096; docs/specs/SPEC-001.json#RULE-007; docs/specs/SPEC-001.json#RULE-010; docs/specs/SPEC-001.json#RULE-029; docs/specs/SPEC-001.json#RULE-031 -->
 
 ### Subscription invoices (Subs.tblSubsInvoices to Layercake.brnz_subs_invoice)
 
@@ -35,7 +35,7 @@ All rows of the source are landed, one row each, identified by rec_id.
 | Voucher | voucher | Used to find the invoice's lines and settling rows |
 | Trans_Date | trans_date | |
 | Inv_Payment_Method | inv_payment_method | Payment mode on the invoice; a missing value stays missing. Later mapped to a payment method by fn_map_payment_method |
-| Inv_Currency | inv_currency | |
+| Inv_Currency | inv_currency | Feeds the currency list (silv_ref_currency) |
 | Exchange_Rate | exchange_rate | |
 | Full_Invoice_Amount_CUR | full_invoice_amount_cur | Later used to tell a credit note from a zero-value invoice numbered 'CRE' (RULE-014) |
 | Invoice_Amount_CUR | invoice_amount_cur | |
@@ -47,7 +47,7 @@ All rows of the source are landed, one row each, identified by rec_id.
 | Has_Concession | has_concession | |
 | 100%_Concession | full_concession_flag | |
 
-<!-- evidence: docs/specs/SPEC-001.json#Subs.tblSubsInvoices.Rec_ID; docs/specs/SPEC-001.json#1:1. Equals the RICS contact number.; docs/specs/SPEC-001.json#1:1 (F&O PAYMMODE on the invoice); docs/answers.md#brnz_subs_invoice.inv_payment_method; docs/specs/SPEC-001.json#Used to tell a credit note from a zero-value invoice numbered 'CRE' (RULE-014); docs/specs/SPEC-001.json#Subs.tblSubsInvoices.100%_Concession; docs/design/DES-001.json#Source column 100%_Concession; docs/answers.md#the source writes 'N/A' for invoices with no credit; docs/test/TCS-MOD-002.json#TC-002-001; docs/test/TCS-MOD-002.json#TC-002-002 -->
+<!-- evidence: docs/specs/SPEC-001.json#Subs.tblSubsInvoices.Rec_ID; docs/specs/SPEC-001.json#1:1. Equals the RICS contact number.; docs/specs/SPEC-001.json#1:1 (F&O PAYMMODE on the invoice); docs/answers.md#brnz_subs_invoice.inv_payment_method; docs/specs/SPEC-001.json#Used to tell a credit note from a zero-value invoice numbered 'CRE' (RULE-014); docs/specs/SPEC-001.json#Subs.tblSubsInvoices.100%_Concession; docs/design/DES-001.json#Source column 100%_Concession; docs/answers.md#the source writes 'N/A' for invoices with no credit; docs/test/TCS-MOD-002.json#TC-002-001; docs/test/TCS-MOD-002.json#TC-002-002; docs/specs/SPEC-001.json#Layercake.brnz_subs_invoice.inv_currency -->
 
 ### Invoice lines (synapse_fo.CUSTTRANS_RICS to Layercake.brnz_subs_invoice_line)
 
@@ -62,8 +62,8 @@ Only rows that belong to an invoice in Subs.tblSubsInvoices are landed (RULE-077
 | LASTSETTLEVOUCHER | lastsettlevoucher | Matches the invoice's voucher for credits and payments settling it |
 | TRANSDATE | transdate | Kept to the millisecond |
 | TRANSTYPE | transtype | |
-| RICINVOICETYPE | ricinvoicetype | Lines of every invoice type are landed |
-| productcode | productcode | Item code, later used for the line-type mapping and the concession value |
+| RICINVOICETYPE | ricinvoicetype | Lines of every invoice type are landed. With productcode, feeds the line-type mapping |
+| productcode | productcode | Item code, used for the line-type mapping (silv_ref_invoice_line_type) and later for the concession value |
 | AMOUNTCUR | amountcur | Amount in the invoice currency |
 | AMOUNTMST | amountmst | Amount in GBP, the accounting currency |
 | SETTLEAMOUNTCUR | settleamountcur | |
@@ -72,7 +72,7 @@ Only rows that belong to an invoice in Subs.tblSubsInvoices are landed (RULE-077
 | PAYMREFERENCE | paymreference | |
 | ORDERNUM | ordernum | |
 
-<!-- evidence: docs/specs/SPEC-001.json#RULE-077; docs/answers.md#RULE-077 settling rows; docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.RECID; docs/specs/SPEC-001.json#1:1. The item code used for the line-type mapping and the concession value.; docs/specs/SPEC-001.json#1:1 (invoice currency); docs/specs/SPEC-001.json#1:1 (GBP accounting currency); docs/specs/SPEC-001.json#1:1 (payment mode on payment lines); docs/answers.md#brnz_subs_invoice_line.paymmode; docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.ORDERNUM; docs/dev/CN-MOD-002.json#transdate keeps milliseconds; docs/test/TCS-MOD-002.json#TC-002-011; docs/test/TCS-MOD-002.json#TC-002-014 -->
+<!-- evidence: docs/specs/SPEC-001.json#RULE-077; docs/answers.md#RULE-077 settling rows; docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.RECID; docs/specs/SPEC-001.json#1:1. The item code used for the line-type mapping and the concession value.; docs/specs/SPEC-001.json#1:1 (invoice currency); docs/specs/SPEC-001.json#1:1 (GBP accounting currency); docs/specs/SPEC-001.json#1:1 (payment mode on payment lines); docs/answers.md#brnz_subs_invoice_line.paymmode; docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.ORDERNUM; docs/dev/CN-MOD-002.json#transdate keeps milliseconds; docs/test/TCS-MOD-002.json#TC-002-011; docs/test/TCS-MOD-002.json#TC-002-014; docs/design/DES-001.json#Adds each (productcode, ricinvoicetype) seen in live brnz_subs_invoice_line rows -->
 
 ### Corporate subscriptions (Subs.vwCorpSubscriptions to Layercake.brnz_corporate_subscription)
 
@@ -132,11 +132,42 @@ Every row of the list is copied, reserved rows included, by usp_load_dim_payer_t
 | payer_type_name | payer_type_name | Same name, exactly as in the list |
 | (the load's run) | load_id | The load log entry of the load that last wrote the row |
 
-<!-- evidence: docs/specs/SPEC-001.json#Layercake.dim_payer_type.id (with payer_type_name); docs/design/DES-001.json#payer_type_name; docs/design/DES-001.json#Gold copy of silv_ref_payer_type.; docs/test/TCS-MOD-004.json#TC-004-002; docs/test/TCS-MOD-004.json#TC-004-007; docs/answers.md#DES-001 load_id -->
+<!-- evidence: docs/design/DES-001.json#Layercake.dim_payer_type; docs/design/DES-001.json#Mirrors silv_ref_payer_type into dim_payer_type; docs/test/TCS-MOD-004.json#TC-004-002; docs/test/TCS-MOD-004.json#TC-004-007; docs/answers.md#DES-001 load_id -->
+
+### Invoice item codes to line types (Layercake.brnz_subs_invoice_line to Layercake.silv_ref_invoice_line_type)
+
+usp_load_silv_ref_invoice_line_type adds each item code and RIC invoice type pair found on live invoice lines that the mapping does not yet hold (RULE-029). Existing rows are never changed.
+
+| Source column (brnz_subs_invoice_line) | Target column (silv_ref_invoice_line_type) | Note |
+|---|---|---|
+| productcode | item_code | A missing, empty or blank code adds no row. Matched ignoring letter case and trailing spaces |
+| ricinvoicetype | ric_invoice_type | A missing type is stored as empty, not skipped. Matched ignoring letter case and trailing spaces |
+| (none) | line_type | 'unmapped' for every new pair; a person sets the real line type by hand |
+| (the load's run) | load_id | The load log entry of the load that added the row; empty for the starting rows |
+
+The starting rows (the 12 pairs assumed pending Q-034) are not taken from the invoice lines; see the Architecture and data model document.
+
+<!-- evidence: docs/design/DES-001.json#Adds each (productcode, ricinvoicetype) seen in live brnz_subs_invoice_line rows that is not yet mapped, with line type 'unmapped'. Existing rows are never changed. Logged.; docs/specs/SPEC-001.json#RULE-029; docs/specs/SPEC-001.json#Layercake.silv_ref_invoice_line_type.item_code; docs/specs/SPEC-001.json#Layercake.silv_ref_invoice_line_type.ric_invoice_type; docs/specs/SPEC-001.json#Layercake.silv_ref_invoice_line_type.line_type; docs/answers.md#MOD-005 NULL, blank and near-duplicate codes; docs/dev/CN-MOD-005.json#A NULL ricinvoicetype is stored as N''; docs/dev/CN-MOD-005.json#with load_id NULL; docs/dev/CN-MOD-005.json#Q-034; docs/test/TCS-MOD-005.json#TC-005-005; docs/test/TCS-MOD-005.json#TC-005-006; docs/test/TCS-MOD-005.json#TC-005-013 -->
+
+### Invoice currency to currency list and dimension (Layercake.brnz_subs_invoice to Layercake.silv_ref_currency to Layercake.dim_currency)
+
+usp_load_silv_ref_currency adds each currency code found on live invoices that the list does not yet hold, with a new id (RULE-031). usp_load_dim_currency then copies the list to the dimension by id.
+
+| Source | Target | Note |
+|---|---|---|
+| brnz_subs_invoice.inv_currency | silv_ref_currency.currency_code | A missing, empty or blank currency adds no row. Matched ignoring letter case and trailing spaces |
+| (new for each code) | silv_ref_currency.id | Given when the code is added; never changed |
+| silv_ref_currency.id | dim_currency.id | Same id |
+| silv_ref_currency.currency_code | dim_currency.currency_code | Same code, exactly as in the list |
+| (the load's run) | load_id on both tables | The load log entry of the load that last wrote the row |
+
+<!-- evidence: docs/specs/SPEC-001.json#RULE-031; docs/specs/SPEC-001.json#Layercake.silv_ref_currency.currency_code; docs/specs/SPEC-001.json#Layercake.dim_currency.id (with currency_code); docs/design/DES-001.json#Insert-only, identity ids that never change.; docs/design/DES-001.json#Mirrors silv_ref_currency into dim_currency. Logged.; docs/answers.md#usp_load_silv_ref_currency works the same way; docs/dev/CN-MOD-005.json#usp_load_dim_currency mirrors silver by id; docs/test/TCS-MOD-005.json#TC-005-015; docs/test/TCS-MOD-005.json#TC-005-017; docs/test/TCS-MOD-005.json#TC-005-020; docs/answers.md#DES-001 load_id -->
 
 ### Grain profile (Layercake.usp_profile_custtrans_grain)
 
-| Source column (synapse_fo.CUSTTRANS_RICS) | Use in the profile |
+Reads synapse_fo.CUSTTRANS_RICS and returns counts only (RULE-095). No row is stored.
+
+| Source column | How it is used |
 |---|---|
 | TRANSTYPE | Rows with type 8 or 24, or with no type, are left out |
 | INVOICE | Rows whose invoice number contains 'CRE' or 'FTCN', or that have no invoice number, are left out. With ACCOUNTNUM, it identifies an invoice |
@@ -145,17 +176,15 @@ Every row of the list is copied, reserved rows included, by usp_load_dim_payer_t
 | PostingType_Description | An invoice with a row of 'Sales tax' counts as has_sales_tax_row '1' |
 | (number of rows) | Counted as rows_per_invoice per invoice |
 
-Output: for each measure and value, the number of invoices (invoice_count).
-
-<!-- evidence: docs/specs/SPEC-001.json#RULE-095; docs/design/DES-001.json#Layercake.usp_profile_custtrans_grain; docs/dev/CN-MOD-001.json#PostingType_Description = 'Sales tax'; docs/dev/CN-MOD-001.json#invoice_count; docs/test/TCS-MOD-001.json#TC-001-001 -->
+<!-- evidence: docs/specs/SPEC-001.json#RULE-095; docs/dev/CN-MOD-001.json#rows_per_invoice; docs/dev/CN-MOD-001.json#PostingType_Description = 'Sales tax'; docs/dev/CN-MOD-001.json#A NULL productcode adds nothing to distinct_productcodes; docs/dev/CN-MOD-001.json#test grain profile leaves out rows with no TRANSTYPE or no INVOICE; docs/test/TCS-MOD-001.json#TC-001-001; docs/test/TCS-MOD-001.json#TC-001-002; docs/test/TCS-MOD-001.json#TC-001-003 -->
 
 ### Corporate status profile (Layercake.usp_profile_corp_subscription_status)
 
-| Source column (Subs.vwCorpSubscriptions) | Use in the profile |
+Reads Subs.vwCorpSubscriptions and returns counts only (RULE-096). No row is stored.
+
+| Source column | How it is used |
 |---|---|
 | Sub Status | Rows counted per value, reported with status_column 'Sub Status' |
 | Sub User Status | Rows counted per value, reported with status_column 'Sub User Status' |
 
-Output: for each status column and value (status_value), the number of source rows (row_count). A missing status is reported as its own value.
-
-<!-- evidence: docs/specs/SPEC-001.json#RULE-096; docs/design/DES-001.json#Layercake.usp_profile_corp_subscription_status; docs/dev/CN-MOD-001.json#row_count; docs/test/TCS-MOD-001.json#TC-001-004 -->
+<!-- evidence: docs/specs/SPEC-001.json#RULE-096; docs/dev/CN-MOD-001.json#status_column varchar(50); docs/test/TCS-MOD-001.json#TC-001-004; docs/test/TCS-MOD-001.json#TC-001-005 -->
