@@ -1051,7 +1051,7 @@
       "name": "Layercake.silv_member_year_attributes",
       "kind": "table",
       "load_pattern": "full",
-      "description": "One row per contact per Campaign Year, from the Campaign Year of the contact's first membership event to the current Campaign Year (RULE-011). The contact list and first-event year come from the Phase 1 event derivation inputs (silv_member_base; Q-030). Holds the year's payment method, payer type and concession, each with a carried flag.",
+      "description": "One row per contact per Campaign Year, from the Campaign Year of the contact's first membership event to the current Campaign Year (RULE-011). The contact list is every contact_no in silv_membership_events, and the first-event year is that contact's lowest campaign_year there (Q-030). Holds the year's payment method, payer type and concession, each with a carried flag.",
       "requirement_ids": [
         "REQ-004",
         "REQ-006",
@@ -1060,10 +1060,10 @@
       "columns": [
         {
           "name": "contact_no",
-          "data_type": "nvarchar(20)",
+          "data_type": "nvarchar(200)",
           "nullable": false,
           "key": "pk",
-          "description": "Same type as the Phase 1 contact number (Q-030)"
+          "description": "Same type as the Phase 1 contact number, silv_membership_events.contact_no (Q-030)"
         },
         {
           "name": "campaign_year",
@@ -1448,7 +1448,7 @@
         },
         {
           "name": "contact_no",
-          "data_type": "nvarchar(20)",
+          "data_type": "nvarchar(200)",
           "nullable": false,
           "key": "none"
         },
