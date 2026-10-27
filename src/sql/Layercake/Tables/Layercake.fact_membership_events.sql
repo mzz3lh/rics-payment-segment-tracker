@@ -11,6 +11,9 @@
     fact fact_daily_member_count_detail covers everything it reported -
     the daily headline is SUM(detail), region rolls up from dim_country,
     grade from dim_membership_grade.
+    RPST (MOD-007): segment keys, carried flags and amount measures added
+    by change script, copied from silver by
+    usp_load_fact_membership_events_segments.
 ====================================================================*/
 
 create table Layercake.fact_membership_events
@@ -30,5 +33,22 @@ create table Layercake.fact_membership_events
     gender_id            int not null,          -- -> dim_gender
     membership_status_id int not null,          -- -> dim_membership_status
     campaign_year        int not null,          -- -> dim_campaign_year (kept: pre-spine events)
-    campaign_quarter     char(2) not null
+    campaign_quarter     char(2) not null,
+    payment_method_id       int not null constraint DF_Layercake_fact_membership_events_payment_method_id default 0,            -- -> dim_payment_method
+    payment_method_carried  bit not null constraint DF_Layercake_fact_membership_events_payment_method_carried default 0,
+    payer_type_id           int not null constraint DF_Layercake_fact_membership_events_payer_type_id default 0,                -- -> dim_payer_type
+    payer_type_carried      bit not null constraint DF_Layercake_fact_membership_events_payer_type_carried default 0,
+    concession_type_id      int not null constraint DF_Layercake_fact_membership_events_concession_type_id default 0,           -- -> dim_concession_type
+    concession_type_carried bit not null constraint DF_Layercake_fact_membership_events_concession_type_carried default 0,
+    subs_amount             decimal(19, 4) null,    -- additive measures: Join / Renewal / Readmission only
+    fee_amount              decimal(19, 4) null,
+    invoiced_subtotal       decimal(19, 4) null,
+    credited_amount         decimal(19, 4) null,
+    currency_id             int null,               -- -> dim_currency
+    subs_amount_gbp         decimal(19, 4) null,
+    fee_amount_gbp          decimal(19, 4) null,
+    invoiced_subtotal_gbp   decimal(19, 4) null,
+    credited_amount_gbp     decimal(19, 4) null,
+    net_amount_gbp          decimal(19, 4) null,
+    amount_status           varchar(30) null
 );
