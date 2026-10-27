@@ -1,0 +1,407 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-006",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-10-27T11:40:26Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-10-27T12:03:09Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-006",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-006-001",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "happy_path",
+      "description": "First run of usp_load_brnz_concession lands the three synthetic CE.vwConcessionType rows 1:1 into brnz_concession, live, with audit times, and logs its counts.",
+      "preconditions": "CE.vwConcessionType, brnz_concession (with defaults) and etl_run_log (identity, defaults) faked; bronze empty. Source: A..01 'Retired' 100.00 'rcsCONRETIRED' statecode 0 perpetual 200000000; A..02 'Exceptional Hardship' 50.00 'rcsCONEXCEPTIONHP' 0 200000001; A..03 'Life Member' 100.00 'rcsCONLIFEMEMBER' 0 NULL.",
+      "expected": "Exactly 3 rows with apuk_concessiontypeid, apuk_name, apuk_discount, product_number (still 'rcsCONRETIRED' etc., unchanged in bronze), statecode and apuk_perpetualnonperpetual equal to the source; _is_deleted 0, _deleted_at NULL, _loaded_at and _updated_at not NULL. One etl_run_log row: 'Success', 3 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-001 first concession bronze load lands three source types 1:1 live and logs Success]"
+    },
+    {
+      "id": "TC-006-002",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "nulls",
+      "description": "Bronze is a 1:1 landing (RULE-045): NULL source values land NULL and an untrimmed, mixed-case name and product number land byte for byte.",
+      "preconditions": "Source A..31 with apuk_name, apuk_discount, Product_Number, statecode and apuk_perpetualnonperpetual all NULL; A..32 with apuk_name N' hardship ', 25.50, N'rcsCONhardship', statecode 1, 200000001. Empty bronze.",
+      "expected": "A..31 has all five columns NULL and is live. A..32 has the exact bytes of N' hardship ' and N'rcsCONhardship', discount 25.50, statecode 1, 200000001, live.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-002 null and untrimmed source values land byte for byte in bronze]"
+    },
+    {
+      "id": "TC-006-003",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "idempotency",
+      "description": "A second bronze load on unchanged source (including a row of NULLs) changes nothing.",
+      "preconditions": "Source A..01 Retired, A..02 Exceptional Hardship and A..31 (all optional columns NULL). Load run twice.",
+      "expected": "brnz_concession identical in every column (_loaded_at and _updated_at included) after the first and second loads. etl_run_log holds two 'Success' rows: (3 inserted, 0 updated, 0 deleted) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-003 second concession bronze load on unchanged source changes nothing]"
+    },
+    {
+      "id": "TC-006-004",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-02",
+      "category": "happy_path",
+      "description": "A source type renamed in CE.vwConcessionType is updated in place in bronze with _updated_at refreshed; an unchanged row is untouched.",
+      "preconditions": "Bronze holds live A..01 Retired and A..02 Exceptional Hardship with _loaded_at and _updated_at 2020-01-01. Source has A..01 unchanged and A..02 named 'Exceptional Hardship Relief'.",
+      "expected": "A..02 apuk_name 'Exceptional Hardship Relief', _loaded_at 2020-01-01, _updated_at later than 2020-01-01. A..01 'Retired', _updated_at still 2020-01-01. Both live. etl_run_log: 'Success', 0 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-004 renamed source type is updated in bronze and only it gets a new _updated_at]"
+    },
+    {
+      "id": "TC-006-005",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "reconciliation",
+      "description": "A type no longer in the source is soft-deleted, not removed; after a load mixing an insert and a soft delete, live bronze rows equal the source row count (row-count check).",
+      "preconditions": "Bronze holds live A..01 Retired and A..02 Exceptional Hardship. Source holds A..01 (unchanged) and new A..03 Life Member.",
+      "expected": "A..01 live, A..03 live, A..02 still present with name 'Exceptional Hardship', _is_deleted 1 and _deleted_at set. Live count 2 equals the source count 2. etl_run_log: 'Success', 1 inserted, 0 updated, 1 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-005 type gone from source is soft deleted and live bronze rows reconcile to the source count]"
+    },
+    {
+      "id": "TC-006-006",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "duplicates",
+      "description": "A soft-deleted bronze type re-sent unchanged by the source is restored, not inserted a second time.",
+      "preconditions": "Bronze holds A..02 Exceptional Hardship with _is_deleted 1 and _deleted_at 2020-06-01. Source re-sends identical values.",
+      "expected": "Exactly one row for A..02: 'Exceptional Hardship', 50.00, 'rcsCONEXCEPTIONHP', _is_deleted 0, _deleted_at NULL. The run is logged 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-006 soft deleted type that reappears unchanged is restored not inserted again]"
+    },
+    {
+      "id": "TC-006-007",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "nulls",
+      "description": "A CE.vwConcessionType row with a NULL apuk_concessiontypeid fails the whole bronze load: an error reaches the caller, the run is logged Failed and the target is unchanged; no row is skipped (docs/answers.md 'MOD-006 NULL key, duplicate key and missing name', Mike 2026-10-27).",
+      "preconditions": "Runs without the tSQLt transaction. Source, bronze and etl_run_log faked; NOT NULL put back on the faked bronze key column (FakeTable makes it nullable). Bronze holds live A..01 Retired and A..02 Exceptional Hardship. Source: A..01 renamed 'Retired Member' (update pending), new A..03 (insert pending), no A..02 (soft delete pending), and a row (Id A..99) with NULL apuk_concessiontypeid named 'Orphan Type'. Error number not asserted: the answer fixes the outcome, not the number.",
+      "expected": "An error reaches the caller. brnz_concession identical to before in every column (A..01 still 'Retired', A..02 still live, no A..03, no row for the NULL key). Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-007 a source row with null apuk_concessiontypeid fails the bronze load and changes nothing]"
+    },
+    {
+      "id": "TC-006-008",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "duplicates",
+      "description": "Two CE.vwConcessionType rows with the same apuk_concessiontypeid fail the whole bronze load: error re-raised, logged Failed, target unchanged; neither row is skipped (docs/answers.md, Mike 2026-10-27).",
+      "preconditions": "Runs without the tSQLt transaction. Faked bronze gets NOT NULL and a test-only primary key on apuk_concessiontypeid, as the design keys the table. Bronze holds live A..01 Retired. Source: A..01 renamed 'Retired Member' (update pending) and two rows for A..02 named 'Exceptional Hardship' and 'Exceptional Hardship Relief'. Error number not asserted.",
+      "expected": "An error reaches the caller. brnz_concession identical to before (only A..01 'Retired', no A..02 row). Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-008 two source rows with the same apuk_concessiontypeid fail the bronze load and change nothing]"
+    },
+    {
+      "id": "TC-006-009",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "negative",
+      "description": "apuk_dualmembership is not landed (design; Q-025 answered: it plays no part in this release).",
+      "preconditions": "Reads the deployed table's column metadata.",
+      "expected": "Layercake.brnz_concession exists and has no column whose name contains 'dualmembership'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-009 brnz_concession has no apuk_dualmembership column]"
+    },
+    {
+      "id": "TC-006-010",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "happy_path",
+      "description": "The migration seeds silv_ref_concession_type with the three reserved rows at fixed ids and one 'No concession' row (RULE-046), none with a business key, both flags 0.",
+      "preconditions": "Reads the deployed seeded table, not faked, filtered to rows with concession_type_bk NULL. The No concession id is fixed by the design but not stated in it, so it is not asserted.",
+      "expected": "Exactly 4 rows with NULL concession_type_bk: id 0 'Unknown', id -1 'Unrecognised', id -2 'Not applicable', and 'No concession' on an id other than these; names compared as bytes; is_full_concession 0 and is_perpetual 0 on all four.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-010 seeded concession type list holds the three reserved rows and No concession]"
+    },
+    {
+      "id": "TC-006-011",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "happy_path",
+      "description": "AC-010-01: with 3 synthetic types (Retired 100, Exceptional Hardship 50, Life Member 100) the concession type list holds 7 rows; Retired and Life Member are full concessions, Exceptional Hardship is not.",
+      "preconditions": "brnz_concession and etl_run_log faked; silv_ref_concession_type faked (identity, defaults) and seeded with 0 Unknown, -1 Unrecognised, -2 Not applicable, 1 No concession (load_id NULL). Bronze live: A..01 Retired 100.00 'rcsCONRETIRED' 200000000; A..02 Exceptional Hardship 50.00 'rcsCONEXCEPTIONHP' 200000001; A..03 Life Member 100.00 'rcsCONLIFEMEMBER' NULL.",
+      "expected": "7 rows: the 4 seeded rows unchanged on their ids; A..01 'Retired' item_code 'CONRETIRED' full 1 perpetual 1; A..02 'Exceptional Hardship' 'CONEXCEPTIONHP' 0 0; A..03 'Life Member' 'CONLIFEMEMBER' 1 0. The 3 new rows have 3 distinct non-NULL ids, none of 0, -1, -2, 1, and load_id equal to the run's etl_run_log.log_id. One etl_run_log row: 'Success', 3 inserted, 0 updated.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-011 three source types give seven rows with item codes and full concession flags]"
+    },
+    {
+      "id": "TC-006-012",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-02",
+      "category": "happy_path",
+      "description": "AC-010-02 at the silver load: renaming Exceptional Hardship in bronze and reloading updates its name on its existing id and leaves every other row untouched (RULE-046).",
+      "preconditions": "Seeded fake silver as TC-006-011; the three bronze types loaded once (state captured, log cleared). Bronze A..02 apuk_name then set to 'Exceptional Hardship Relief'.",
+      "expected": "A..02 keeps its id, name 'Exceptional Hardship Relief', item_code 'CONEXCEPTIONHP', flags 0 0. The other 6 rows identical in every column (load_id, created_at, updated_at included). 7 rows. etl_run_log: 'Success', 0 inserted, 1 updated.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-012 renamed type is updated in place on its existing id and other rows are untouched]"
+    },
+    {
+      "id": "TC-006-013",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-03",
+      "category": "happy_path",
+      "description": "AC-010-03: adding a fourth source type and reloading adds one row with a new id; the ids of the existing 7 rows are unchanged.",
+      "preconditions": "Seeded fake silver; the three bronze types loaded once (state captured, log cleared). Bronze then gains A..04 'Maternity Leave' 75.00 'rcsCONMATERNITY' 200000001.",
+      "expected": "8 rows. The existing 7 rows identical in every column, ids included. One new row for A..04: 'Maternity Leave', 'CONMATERNITY', full 0, perpetual 0, on a non-NULL id not used by any existing row. etl_run_log: 'Success', 1 inserted, 0 updated.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-013 a fourth source type adds one row with a new id and the seven existing ids are unchanged]"
+    },
+    {
+      "id": "TC-006-014",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-03",
+      "category": "idempotency",
+      "description": "A second silver load on unchanged bronze changes nothing, including for a type with no name whose stored name ('Unnamed concession type') differs from bronze's NULL.",
+      "preconditions": "Seeded fake silver. Bronze live: A..01 Retired, A..02 Exceptional Hardship, A..21 with NULL apuk_name, 30.00, NULL product_number. Load run twice.",
+      "expected": "silv_ref_concession_type identical in every column after the first and second loads. etl_run_log holds two 'Success' rows: (3 inserted, 0 updated) and (0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-014 second concession type load on unchanged bronze changes nothing]"
+    },
+    {
+      "id": "TC-006-015",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-04",
+      "category": "happy_path",
+      "description": "AC-010-04 (RULE-048): item_code is product_number with any 'rcs' prefix removed; a code without the prefix is kept as it is.",
+      "preconditions": "Seeded fake silver. Bronze live: A..01 product_number 'rcsCONRETIRED'; A..05 'Staff Member' product_number 'CONSTAFFMEMBER'.",
+      "expected": "A..01 item_code has the exact bytes of N'CONRETIRED'; A..05 the exact bytes of N'CONSTAFFMEMBER'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-015 item code is the product number with the rcs prefix removed]"
+    },
+    {
+      "id": "TC-006-016",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "boundary",
+      "description": "is_full_concession is 1 only where apuk_discount = 100 (RULE-047 mapping): edges just below 100, zero and NULL give 0.",
+      "preconditions": "Seeded fake silver. Bronze live: A..11 discount 100.00, A..12 99.99, A..13 NULL, A..14 0.00.",
+      "expected": "is_full_concession: A..11 1, A..12 0, A..13 0, A..14 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-016 is_full_concession is 1 only for a discount of exactly 100]"
+    },
+    {
+      "id": "TC-006-017",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-06",
+      "category": "happy_path",
+      "description": "AC-010-06 (RULE-094): Retired (200000000), Exceptional Hardship (200000001) and Life Member (NULL) get is_perpetual 1, 0 and 0; the seeded rows are not perpetual.",
+      "preconditions": "Seeded fake silver. Bronze live: A..01 Retired 200000000, A..02 Exceptional Hardship 200000001, A..03 Life Member NULL.",
+      "expected": "is_perpetual: Retired 1, Exceptional Hardship 0, Life Member 0; Unknown, Unrecognised, Not applicable and No concession 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-017 is_perpetual is 1 for 200000000 and 0 for 200000001 and null]"
+    },
+    {
+      "id": "TC-006-018",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-03",
+      "category": "negative",
+      "description": "The silver load inserts only from live brnz_concession rows: a soft-deleted bronze type is not added.",
+      "preconditions": "Seeded fake silver. Bronze: A..01 Retired live; A..06 'Withdrawn Type' with _is_deleted 1.",
+      "expected": "5 rows: the 4 seeded rows and A..01 'Retired'; no row for A..06.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-018 a soft deleted bronze type is not added to the concession type list]"
+    },
+    {
+      "id": "TC-006-019",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-01",
+      "category": "nulls",
+      "description": "A live type whose apuk_name is NULL, empty or only spaces is not skipped and does not fail the load: it is added as 'Unnamed concession type' with its id, item code and flags (docs/answers.md, Mike 2026-10-27).",
+      "preconditions": "Seeded fake silver. Bronze live: A..21 NULL name, 100.00, 'rcsCONNONAME', 200000000; A..22 N'' name, 50.00, 'rcsCONEMPTYNAME', 200000001; A..23 N'   ' name, 20.00, 'CONBLANKNAME', NULL.",
+      "expected": "Each of the three has a non-NULL id and concession_type_name with the exact bytes of N'Unnamed concession type'. A..21 'CONNONAME' full 1 perpetual 1; A..22 'CONEMPTYNAME' 0 0; A..23 'CONBLANKNAME' 0 0. The run is logged 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-019 a type with a null empty or blank name is added as Unnamed concession type]"
+    },
+    {
+      "id": "TC-006-020",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-02",
+      "category": "nulls",
+      "description": "When the source later gives an unnamed type a name, the next load updates the name in place on the same id (RULE-046; docs/answers.md, Mike 2026-10-27).",
+      "preconditions": "Seeded fake silver. Bronze live A..21 with NULL name, 100.00, 'rcsCONNONAME', 200000000, loaded once (stored as 'Unnamed concession type'; log cleared). Bronze apuk_name then set to 'Armed Forces'.",
+      "expected": "A..21 keeps its id, name 'Armed Forces', item_code 'CONNONAME', flags 1 1. 5 rows in total. etl_run_log: 'Success', 0 inserted, 1 updated.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-020 an unnamed type that later gets a name is renamed in place on its id]"
+    },
+    {
+      "id": "TC-006-021",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-02",
+      "category": "happy_path",
+      "description": "The silver load also updates item code and flags in place when they change (design: updates name, item code and flags where they changed).",
+      "preconditions": "Seeded fake silver. Bronze live A..02 Exceptional Hardship 50.00 'rcsCONEXCEPTIONHP' 200000001, loaded once (log cleared). Bronze then changed to 100.00, 'rcsCONEXCEPTIONFULL', 200000000.",
+      "expected": "A..02 keeps its id and name 'Exceptional Hardship', item_code 'CONEXCEPTIONFULL', is_full_concession 1, is_perpetual 1. etl_run_log: 'Success', 0 inserted, 1 updated.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-021 a changed discount product number and perpetual value update item code and flags in place]"
+    },
+    {
+      "id": "TC-006-022",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-02",
+      "category": "negative",
+      "description": "Error path (design: try/catch with XACT_ABORT, error recorded through usp_etl_log_end, re-raised): a silver load the target rejects re-raises, logs Failed and leaves the list unchanged, including an update already pending.",
+      "preconditions": "Runs without the tSQLt transaction. Seeded fake silver with A..01 Retired and A..02 Exceptional Hardship loaded once (log cleared); then a test-only CHECK on the fake rejecting the name 'Rejected type'. Bronze A..02 renamed 'Exceptional Hardship Relief' (update pending) and new A..09 'Rejected type'.",
+      "expected": "Check-constraint error 547 reaches the caller. silv_ref_concession_type identical to before (A..02 still 'Exceptional Hardship', no A..09). Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-022 failed concession type load re-raises logs Failed and leaves the list unchanged]"
+    },
+    {
+      "id": "TC-006-023",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-05",
+      "category": "happy_path",
+      "description": "First usp_load_dim_concession_type run copies every silver row, reserved negative ids included, with the same id, name, is_full_concession and is_perpetual, and logs its outcome.",
+      "preconditions": "silv_ref_concession_type, dim_concession_type and etl_run_log faked. Silver: 0 Unknown, -1 Unrecognised, -2 Not applicable, 1 No concession (flags 0 0), 5 Retired (1 1), 6 Exceptional Hardship (0 0), 7 Life Member (1 0). Empty dimension.",
+      "expected": "Dimension holds exactly those 7 (id, name bytes, is_full_concession, is_perpetual) rows, each with a non-NULL load_id. One etl_run_log row: 'Success', 7 inserted, 0 updated.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-023 first dimension load copies every concession type id name and flags and logs Success]"
+    },
+    {
+      "id": "TC-006-024",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-05",
+      "category": "idempotency",
+      "description": "A second dimension load on unchanged silver changes nothing.",
+      "preconditions": "Same 7 silver rows as TC-006-023; empty dimension; load run twice.",
+      "expected": "dim_concession_type identical in every column (load_id, created_at, updated_at included) after the first and second loads. etl_run_log holds two 'Success' rows: (7 inserted, 0 updated) and (0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-024 second dimension load on unchanged silver changes nothing]"
+    },
+    {
+      "id": "TC-006-025",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-05",
+      "category": "reconciliation",
+      "description": "The dimension load mirrors silver by id: inserts a missing id, corrects a changed name and a changed flag on their existing ids, leaves unchanged rows untouched.",
+      "preconditions": "Silver: the 7 rows of TC-006-023 with id 6 now 'Exceptional Hardship Relief'. Dimension: 0, -1, 1, 5 as in silver, 6 'Exceptional Hardship', 7 Life Member with is_perpetual 1; all load_id 7, created_at and updated_at 2026-02-01 10:00:00; id -2 missing.",
+      "expected": "Dimension holds exactly the 7 silver (id, name, flags) rows: -2 'Not applicable' added, 6 'Exceptional Hardship Relief', 7 is_perpetual 0. Ids 0, -1, 1 and 5 keep load_id 7 and created_at and updated_at 2026-02-01 10:00:00. etl_run_log: 'Success', 1 inserted, 2 updated.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-025 dimension load inserts a missing id corrects a changed name and flag and leaves unchanged rows untouched]"
+    },
+    {
+      "id": "TC-006-026",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-05",
+      "category": "negative",
+      "description": "Error path: a dimension load the target rejects re-raises, logs Failed and leaves the dimension unchanged, including an update already pending.",
+      "preconditions": "Runs without the tSQLt transaction. Faked dim_concession_type gets a test-only CHECK rejecting the name 'Rejected type'. Silver: 0 Unknown, 6 Exceptional Hardship, 9 'Rejected type'. Dimension holds 6 'Hardship (old name)', load_id 7.",
+      "expected": "Check-constraint error 547 reaches the caller. dim_concession_type identical to before: only id 6 'Hardship (old name)', no id 0 or 9. Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-026 failed dimension load re-raises logs Failed and leaves the dimension unchanged]"
+    },
+    {
+      "id": "TC-006-027",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-02",
+      "category": "happy_path",
+      "description": "AC-010-02 end to end: renaming Exceptional Hardship in CE.vwConcessionType and reloading bronze then silver updates its name and keeps its id; no id changes.",
+      "preconditions": "Source, bronze, etl_run_log faked; seeded fake silver. Source holds the 3 synthetic types. Bronze and silver loads run; source A..02 renamed 'Exceptional Hardship Relief'; both loads run again.",
+      "expected": "The (id, concession_type_bk) pairs of all 7 rows are the same before and after. Names: Unknown, Unrecognised, Not applicable, No concession, Retired, 'Exceptional Hardship Relief' (A..02), Life Member.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-027 renaming a type in the source and reloading bronze and silver updates its name and keeps every id]"
+    },
+    {
+      "id": "TC-006-028",
+      "requirement_ids": [
+        "REQ-010"
+      ],
+      "acceptance_criterion_id": "AC-010-05",
+      "category": "reconciliation",
+      "description": "AC-010-05 end to end: after the bronze, silver and dimension loads, dim_concession_type has the same row count and (id, name) pairs as silv_ref_concession_type.",
+      "preconditions": "Source, bronze, dimension and etl_run_log faked; seeded fake silver. Source holds the 3 synthetic types. The three loads run in order.",
+      "expected": "Dimension (id, name bytes) pairs equal silver's exactly: 7 rows, names Unknown, Unrecognised, Not applicable, No concession, Retired, Exceptional Hardship, Life Member.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-028 dimension loaded through bronze and silver has the same row count and id name pairs as silver]"
+    },
+    {
+      "id": "TC-006-029",
+      "requirement_ids": [
+        "REQ-003"
+      ],
+      "acceptance_criterion_id": "AC-003-06",
+      "category": "reconciliation",
+      "description": "AC-003-06: ids 0, -1 and -2 carry the labels 'Unknown', 'Unrecognised' and 'Not applicable' in silv_ref_payment_method, silv_ref_payer_type and silv_ref_concession_type alike.",
+      "preconditions": "Reads the three deployed seeded lists, not faked, because the seeds are what is under test. Labels compared as UTF-16 bytes.",
+      "expected": "9 rows across the three tables: in each, id 0 'Unknown', id -1 'Unrecognised', id -2 'Not applicable', byte-exact. 0 label differences between lists for the same id.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD006].[test TC-006-029 reserved ids carry the same three labels in the payment method payer type and concession type lists]"
+    }
+  ]
+}

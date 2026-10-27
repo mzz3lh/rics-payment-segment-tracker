@@ -1,0 +1,126 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-006",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-10-27T13:43:41Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-006.json",
+      "tests/tsqlt/test_MOD006.sql"
+    ]
+  },
+  "module_id": "MOD-006",
+  "branch": "agent/developer/MOD-006-concession-reference-and-dimension",
+  "commit": "963b6a03899d9f777aff90b92d0c145c9aecfcd7",
+  "requirement_ids": [
+    "REQ-010",
+    "REQ-003"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.brnz_concession.sql",
+      "object": "Layercake.brnz_concession",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-010"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_brnz_concession.sql",
+      "object": "Layercake.usp_load_brnz_concession",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-010"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_ref_concession_type.sql",
+      "object": "Layercake.silv_ref_concession_type",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-010",
+        "REQ-003"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_ref_concession_type.sql",
+      "object": "Layercake.usp_load_silv_ref_concession_type",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-010"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.dim_concession_type.sql",
+      "object": "Layercake.dim_concession_type",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-010"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_dim_concession_type.sql",
+      "object": "Layercake.usp_load_dim_concession_type",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-010"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD006_dev].[test dimension keeps an id no longer in silver and counts a flag only change as one update]",
+    "[test_MOD006_dev].[test duplicate source key fails the concession bronze load with 2627 and changes nothing]",
+    "[test_MOD006_dev].[test null source key fails the concession bronze load with 515 and changes nothing]",
+    "[test_MOD006_dev].[test over long item code fails the concession type load and changes nothing]",
+    "[test_MOD006_dev].[test rcs prefix is removed in any case and only at the start]",
+    "[test_MOD006_dev].[test soft deleted type and seeded rows are kept and a case only rename is stamped with the log id]",
+    "[test_MOD006_dev].[test trailing space change and restore are each one update in bronze]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0008",
+      "up_script": "src/sql/deploy/MIG-0008_MOD-006_concession-reference-and-dimension.up.sql",
+      "down_script": "src/sql/deploy/MIG-0008_MOD-006_concession-reference-and-dimension.down.sql",
+      "rollback_test": {
+        "commit": "963b6a03899d9f777aff90b92d0c145c9aecfcd7",
+        "run_at": "2026-10-27T13:43:36.092326+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "notes": "MOD-006 builds brnz_concession and usp_load_brnz_concession, silv_ref_concession_type (the migration seeds 0 Unknown, -1 Unrecognised, -2 Not applicable and 1 No concession; source types get identity ids from 2) and usp_load_silv_ref_concession_type, and dim_concession_type and usp_load_dim_concession_type. Bronze stages the source in a temp table with the key NOT NULL and as primary key, so a NULL key (515) or a duplicate key (2627) fails the load before bronze changes, per answers 2026-10-27. Bronze and silver compare strings as bytes, so a change in case only or trailing spaces only is landed and counted as one update. Silver choices: a NULL, empty or blank name becomes 'Unnamed concession type'. A leading 'rcs' is stripped whatever its case, and only at the start. Seeded rows and types no longer live in bronze are never changed. An item code longer than nvarchar(100) fails the load rather than being cut. The dimension never deletes an id. Data risk for MOD-007 and MOD-008: two live source types could share one item code. This module does not stop that, so matching invoice lines to item_code would be ambiguous. No grants are needed. The gold dimension is empty after the migration until usp_load_dim_concession_type runs (answers 2026-10-26). Tests: 29 Tester and 7 developer tests pass. Round-trip and checks pass; the sqlfluff findings are advisory only.\n\nTest-first: the first run had 29 of 29 of the Tester's tests passing; the final run passed 29 of 29 and 7 unit test(s), in 1 run(s)."
+}
