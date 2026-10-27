@@ -48,3 +48,9 @@ the agent's working assumption. Example:
 
 ## MOD-004 NULL matching key (Mike, 2026-10-26)
 - brnz_corporate_subscription keeps contact_no, scheme_no and sub_campaign_year NOT NULL. A Subs.vwCorpSubscriptions row where any of 'Contact No', 'Scheme No' or 'Sub Campaign Year' is NULL fails usp_load_brnz_corporate_subscription (error 515): the load logs Failed, re-raises and leaves the target unchanged. No row is skipped.
+
+## MOD-005 NULL, blank and near-duplicate codes (Mike, 2026-10-27)
+- usp_load_silv_ref_invoice_line_type takes codes from live brnz_subs_invoice_line rows. A row whose productcode is NULL, empty or only spaces has no item code and adds no mapping row.
+- A row with a productcode but a NULL ricinvoicetype is not skipped. Its code is added with ric_invoice_type N'' (empty string) and line type 'unmapped', so the invoice is flagged 'Unmapped lines' (RULE-088) rather than its amount being lost unseen, and the pair can be mapped by hand like any other. Any later load that joins lines to the mapping treats a NULL ricinvoicetype as N''.
+- Codes are matched as the database collation compares them (case-insensitive, trailing spaces ignored). A productcode or ricinvoicetype that differs from a listed pair only in case or trailing spaces is that pair: no new row, and it takes that pair's line type. A code with different leading spaces or characters is a new code and is added as 'unmapped'.
+- usp_load_silv_ref_currency works the same way: an inv_currency that is NULL, empty or only spaces adds no row, and a code that differs from a listed one only in case or trailing spaces adds no row.
