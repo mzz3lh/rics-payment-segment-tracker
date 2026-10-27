@@ -11,6 +11,9 @@
 --  a deterministic natural key built per event type (see 02). event_id is
 --  stable across runs; source_enr_id stays as informational lineage for
 --  Join events only.
+--  RPST (MOD-007): segment keys, carried flags and amounts added by change
+--  script. Keys and flags default to 0 so Phase 1 inserts keep working;
+--  values are written by usp_load_silv_membership_events_segments.
 ----------------------------------------------------
 create table Layercake.silv_membership_events
 (
@@ -29,7 +32,24 @@ create table Layercake.silv_membership_events
     gender_id            int not null,
     membership_status_id int not null,
     campaign_year        int not null,
-    campaign_quarter     char(2) not null
+    campaign_quarter     char(2) not null,
+    payment_method_id       int not null constraint DF_Layercake_silv_membership_events_payment_method_id default 0,             -- -> silv_ref_payment_method
+    payment_method_carried  bit not null constraint DF_Layercake_silv_membership_events_payment_method_carried default 0,
+    payer_type_id           int not null constraint DF_Layercake_silv_membership_events_payer_type_id default 0,                 -- -> silv_ref_payer_type
+    payer_type_carried      bit not null constraint DF_Layercake_silv_membership_events_payer_type_carried default 0,
+    concession_type_id      int not null constraint DF_Layercake_silv_membership_events_concession_type_id default 0,            -- -> silv_ref_concession_type
+    concession_type_carried bit not null constraint DF_Layercake_silv_membership_events_concession_type_carried default 0,
+    subs_amount             decimal(19, 4) null,        -- amounts: Join / Renewal / Readmission only
+    fee_amount              decimal(19, 4) null,
+    invoiced_subtotal       decimal(19, 4) null,
+    credited_amount         decimal(19, 4) null,
+    currency_id             int null,                   -- -> silv_ref_currency
+    subs_amount_gbp         decimal(19, 4) null,
+    fee_amount_gbp          decimal(19, 4) null,
+    invoiced_subtotal_gbp   decimal(19, 4) null,
+    credited_amount_gbp     decimal(19, 4) null,
+    net_amount_gbp          decimal(19, 4) null,
+    amount_status           varchar(30) null
 );
 
 -- primary incremental diff key

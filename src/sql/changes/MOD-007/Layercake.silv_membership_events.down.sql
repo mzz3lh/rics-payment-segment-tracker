@@ -1,0 +1,25 @@
+ALTER TABLE Layercake.silv_membership_events DROP CONSTRAINT
+    DF_Layercake_silv_membership_events_payment_method_id,
+    DF_Layercake_silv_membership_events_payment_method_carried,
+    DF_Layercake_silv_membership_events_payer_type_id,
+    DF_Layercake_silv_membership_events_payer_type_carried,
+    DF_Layercake_silv_membership_events_concession_type_id,
+    DF_Layercake_silv_membership_events_concession_type_carried;
+ALTER TABLE Layercake.silv_membership_events DROP COLUMN
+    payment_method_id,
+    payment_method_carried,
+    payer_type_id,
+    payer_type_carried,
+    concession_type_id,
+    concession_type_carried,
+    subs_amount,
+    fee_amount,
+    invoiced_subtotal,
+    credited_amount,
+    currency_id,
+    subs_amount_gbp,
+    fee_amount_gbp,
+    invoiced_subtotal_gbp,
+    credited_amount_gbp,
+    net_amount_gbp,
+    amount_status;

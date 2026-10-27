@@ -15,13 +15,21 @@ The two profiles read their sources directly and keep nothing. The four bronze l
 
 The payment method list (MOD-003) and the payer type list (MOD-004) are not read from any source: each is a fixed list put in place by its migration, and each dimension is copied from its list. The line-type mapping and the currency list (MOD-005) are filled from the bronze invoice tables, and the concession type list (MOD-006) from the concession bronze table, not read from a source directly. The concession type list's four starting rows (the three reserved values and 'No concession') are put in place by its migration.
 
-<!-- evidence: PROJECT_STANDARDS.md#Objects owned by other systems (external); docs/sources/external_catalogue.json#Subs.tblSubsInvoices; docs/sources/external_catalogue.json#synapse_fo.CUSTTRANS_RICS; docs/sources/external_catalogue.json#Subs.vwCorpSubscriptions; docs/sources/external_catalogue.json#CE.vwConcessionType; docs/specs/SPEC-001.json#Invoice source coverage; docs/sources/external/synapse_fo/synapse_fo.CUSTTRANS_RICS.sql#PostingType_Description; docs/design/MP-001.json#count-only procedures over the external sources; docs/dev/CN-MOD-001.json#Neither writes anything; docs/specs/SPEC-001.json#REQ-002; docs/specs/SPEC-001.json#RULE-004; docs/dev/CN-MOD-002.json#Line scope (RULE-077) reads Subs.tblSubsInvoices directly; docs/design/DES-001.json#1:1 landing of Subs.vwCorpSubscriptions; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Status; docs/design/DES-001.json#1:1 landing of CE.vwConcessionType (working default source, Q-008); docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_discount; docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_perpetualnonperpetual; docs/design/DES-001.json#Static list seeded by its migration; docs/design/DES-001.json#Reference lists: payment method and payer type are static lists seeded by their migrations; docs/design/DES-001.json#Mirrors silv_ref_payment_method into dim_payment_method; docs/design/DES-001.json#Mirrors silv_ref_payer_type into dim_payer_type; docs/design/DES-001.json#seen in live brnz_subs_invoice_line rows; docs/design/DES-001.json#(brnz_subs_invoice.inv_currency); docs/design/DES-001.json#Inserts new concession types from live brnz_concession rows; docs/dev/CN-MOD-006.json#the migration seeds 0 Unknown, -1 Unrecognised, -2 Not applicable and 1 No concession -->
+The member-year attributes (MOD-007) read no source directly. They are worked out from the bronze tables and lists above, and from three Phase 1 Layercake tables, which they read and never change:
+
+| Phase 1 table | What the attributes take from it |
+|---|---|
+| Layercake.silv_membership_events | The contacts, and each contact's first-event year (the earliest Campaign Year of their events) |
+| Layercake.silv_payment_events | The Phase 1 paid positions: a row for a contact and Campaign Year means the contact has a paid position that year |
+| Layercake.ref_campaign_year_config | The Campaign Years, and the start and end dates that decide the current Campaign Year |
+
+<!-- evidence: PROJECT_STANDARDS.md#Objects owned by other systems (external); docs/sources/external_catalogue.json#Subs.tblSubsInvoices; docs/sources/external_catalogue.json#synapse_fo.CUSTTRANS_RICS; docs/sources/external_catalogue.json#Subs.vwCorpSubscriptions; docs/sources/external_catalogue.json#CE.vwConcessionType; docs/specs/SPEC-001.json#Invoice source coverage; docs/sources/external/synapse_fo/synapse_fo.CUSTTRANS_RICS.sql#PostingType_Description; docs/design/MP-001.json#count-only procedures over the external sources; docs/dev/CN-MOD-001.json#Neither writes anything; docs/specs/SPEC-001.json#REQ-002; docs/specs/SPEC-001.json#RULE-004; docs/dev/CN-MOD-002.json#Line scope (RULE-077) reads Subs.tblSubsInvoices directly; docs/design/DES-001.json#1:1 landing of Subs.vwCorpSubscriptions; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Status; docs/design/DES-001.json#1:1 landing of CE.vwConcessionType (working default source, Q-008); docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_discount; docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_perpetualnonperpetual; docs/design/DES-001.json#Static list seeded by its migration; docs/design/DES-001.json#Reference lists: payment method and payer type are static lists seeded by their migrations; docs/design/DES-001.json#Mirrors silv_ref_payment_method into dim_payment_method; docs/design/DES-001.json#Mirrors silv_ref_payer_type into dim_payer_type; docs/design/DES-001.json#seen in live brnz_subs_invoice_line rows; docs/design/DES-001.json#(brnz_subs_invoice.inv_currency); docs/design/DES-001.json#Inserts new concession types from live brnz_concession rows; docs/dev/CN-MOD-006.json#the migration seeds 0 Unknown, -1 Unrecognised, -2 Not applicable and 1 No concession; docs/answers.md#Contact list and first-event year (RULE-011, Q-030); docs/answers.md#Phase 1 paid position (RULE-021, RULE-017); docs/answers.md#Current Campaign Year; docs/test/TCS-MOD-007.json#TC-007-050 -->
 
 ## Source-to-target mappings
 
-Every bronze mapping is one-to-one (RULE-004): the target column holds the source value unchanged, with no defaults, trimming or change of case. All bronze tables also carry the four audit columns _loaded_at, _updated_at, _is_deleted and _deleted_at, which the load sets (see the Architecture and data model document). The profiles have no target table; their tables show which source columns they use and how they become the counts they return. The payment method mappings show how a source payment mode code becomes a payment method, and how each list reaches its gold dimension. The line-type and currency mappings show how codes on the bronze invoice data reach their lists, and the currency list its dimension. The concession mappings show how the concession reference reaches the bronze table, the concession type list and its dimension.
+Every bronze mapping is one-to-one (RULE-004): the target column holds the source value unchanged, with no defaults, trimming or change of case. All bronze tables also carry the four audit columns _loaded_at, _updated_at, _is_deleted and _deleted_at, which the load sets (see the Architecture and data model document). The profiles have no target table; their tables show which source columns they use and how they become the counts they return. The payment method mappings show how a source payment mode code becomes a payment method, and how each list reaches its gold dimension. The line-type and currency mappings show how codes on the bronze invoice data reach their lists, and the currency list its dimension. The concession mappings show how the concession reference reaches the bronze table, the concession type list and its dimension. The member-year mappings show which invoices count and how each segment of a contact-year is worked out; the rules themselves are set out in full in the Architecture and data model document.
 
-<!-- evidence: docs/specs/SPEC-001.json#RULE-004; docs/specs/SPEC-001.json#_loaded_at, _updated_at, _is_deleted, _deleted_at (and the same on brnz_subs_invoice_line); docs/answers.md#DES-001 Q-037 bronze audit columns; docs/test/TCS-MOD-002.json#TC-002-003; docs/test/TCS-MOD-004.json#TC-004-012; docs/test/TCS-MOD-006.json#TC-006-002; docs/design/MP-001.json#Builds no tables and changes no existing object; docs/specs/SPEC-001.json#RULE-095; docs/specs/SPEC-001.json#RULE-096; docs/specs/SPEC-001.json#RULE-007; docs/specs/SPEC-001.json#RULE-010; docs/specs/SPEC-001.json#RULE-029; docs/specs/SPEC-001.json#RULE-031; docs/specs/SPEC-001.json#RULE-045; docs/specs/SPEC-001.json#RULE-046 -->
+<!-- evidence: docs/specs/SPEC-001.json#RULE-004; docs/specs/SPEC-001.json#_loaded_at, _updated_at, _is_deleted, _deleted_at (and the same on brnz_subs_invoice_line); docs/answers.md#DES-001 Q-037 bronze audit columns; docs/test/TCS-MOD-002.json#TC-002-003; docs/test/TCS-MOD-004.json#TC-004-012; docs/test/TCS-MOD-006.json#TC-006-002; docs/design/MP-001.json#Builds no tables and changes no existing object; docs/specs/SPEC-001.json#RULE-095; docs/specs/SPEC-001.json#RULE-096; docs/specs/SPEC-001.json#RULE-007; docs/specs/SPEC-001.json#RULE-010; docs/specs/SPEC-001.json#RULE-029; docs/specs/SPEC-001.json#RULE-031; docs/specs/SPEC-001.json#RULE-045; docs/specs/SPEC-001.json#RULE-046; docs/specs/SPEC-001.json#RULE-014; docs/design/DES-001.json#Layercake.silv_member_year_attributes -->
 
 ### Subscription invoices (Subs.tblSubsInvoices to Layercake.brnz_subs_invoice)
 
@@ -38,7 +46,7 @@ All rows of the source are landed, one row each, identified by rec_id.
 | Inv_Payment_Method | inv_payment_method | Payment mode on the invoice; a missing value stays missing. Later mapped to a payment method by fn_map_payment_method |
 | Inv_Currency | inv_currency | Feeds the currency list (silv_ref_currency) |
 | Exchange_Rate | exchange_rate | |
-| Full_Invoice_Amount_CUR | full_invoice_amount_cur | Later used to tell a credit note from a zero-value invoice numbered 'CRE' (RULE-014) |
+| Full_Invoice_Amount_CUR | full_invoice_amount_cur | Used to tell a credit note from a zero-value invoice numbered 'CRE' (RULE-014) |
 | Invoice_Amount_CUR | invoice_amount_cur | |
 | Invoice_Amount_GBP | invoice_amount_gbp | |
 | Inv_Credit_Amount_CUR | inv_credit_amount_cur | |
@@ -64,16 +72,16 @@ Only rows that belong to an invoice in Subs.tblSubsInvoices are landed (RULE-077
 | TRANSDATE | transdate | Kept to the millisecond |
 | TRANSTYPE | transtype | |
 | RICINVOICETYPE | ricinvoicetype | Lines of every invoice type are landed. With productcode, feeds the line-type mapping |
-| productcode | productcode | Item code, used for the line-type mapping (silv_ref_invoice_line_type) and later for the concession value |
+| productcode | productcode | Item code, used for the line-type mapping (silv_ref_invoice_line_type) and for the concession value |
 | AMOUNTCUR | amountcur | Amount in the invoice currency |
 | AMOUNTMST | amountmst | Amount in GBP, the accounting currency |
-| SETTLEAMOUNTCUR | settleamountcur | |
+| SETTLEAMOUNTCUR | settleamountcur | Used to weigh payment methods in the payment-line fallback |
 | CURRENCYCODE | currencycode | |
-| PAYMMODE | paymmode | Payment mode on payment lines. Later mapped to a payment method by fn_map_payment_method |
+| PAYMMODE | paymmode | Payment mode on payment lines. Mapped to a payment method by fn_map_payment_method |
 | PAYMREFERENCE | paymreference | |
 | ORDERNUM | ordernum | |
 
-<!-- evidence: docs/specs/SPEC-001.json#RULE-077; docs/answers.md#RULE-077 settling rows; docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.RECID; docs/specs/SPEC-001.json#1:1. The item code used for the line-type mapping and the concession value.; docs/specs/SPEC-001.json#1:1 (invoice currency); docs/specs/SPEC-001.json#1:1 (GBP accounting currency); docs/specs/SPEC-001.json#1:1 (payment mode on payment lines); docs/answers.md#brnz_subs_invoice_line.paymmode; docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.ORDERNUM; docs/dev/CN-MOD-002.json#transdate keeps milliseconds; docs/test/TCS-MOD-002.json#TC-002-011; docs/test/TCS-MOD-002.json#TC-002-014; docs/design/DES-001.json#Adds each (productcode, ricinvoicetype) seen in live brnz_subs_invoice_line rows -->
+<!-- evidence: docs/specs/SPEC-001.json#RULE-077; docs/answers.md#RULE-077 settling rows; docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.RECID; docs/specs/SPEC-001.json#1:1. The item code used for the line-type mapping and the concession value.; docs/specs/SPEC-001.json#1:1 (invoice currency); docs/specs/SPEC-001.json#1:1 (GBP accounting currency); docs/specs/SPEC-001.json#1:1 (payment mode on payment lines); docs/answers.md#brnz_subs_invoice_line.paymmode; docs/answers.md#ABS(settleamountcur) is summed per mapped method; docs/specs/SPEC-001.json#synapse_fo.CUSTTRANS_RICS.ORDERNUM; docs/dev/CN-MOD-002.json#transdate keeps milliseconds; docs/test/TCS-MOD-002.json#TC-002-011; docs/test/TCS-MOD-002.json#TC-002-014; docs/design/DES-001.json#Adds each (productcode, ricinvoicetype) seen in live brnz_subs_invoice_line rows -->
 
 ### Corporate subscriptions (Subs.vwCorpSubscriptions to Layercake.brnz_corporate_subscription)
 
@@ -82,14 +90,14 @@ All rows of the source are landed, one row each, identified by contact number, s
 | Source column | Target column | Note |
 |---|---|---|
 | Contact No | contact_no | Part of the row's identity; must be present |
-| Scheme No | scheme_no | Part of the row's identity; must be present |
+| Scheme No | scheme_no | Part of the row's identity; must be present. Becomes corporate_account_ref for Corporate years |
 | Scheme Name | scheme_name | A missing or blank name is kept as it is |
 | Sub Campaign Year | sub_campaign_year | Part of the row's identity; must be present |
-| Sub Status | sub_status | The subscription's status, kept exactly as the source has it. Later used, with Sub User Status, to decide whether the subscription is live |
+| Sub Status | sub_status | The subscription's status, kept exactly as the source has it. With Sub User Status, decides whether the subscription is live |
 | Sub User Status | sub_user_status | The subscription user's status, kept exactly as the source has it |
 | Round | (not landed) | Plays no part in the solution |
 
-<!-- evidence: docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Contact No; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Scheme No; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Scheme Name; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Campaign Year; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Status; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub User Status; docs/specs/SPEC-001.json#The live-subscription test uses Layercake.brnz_corporate_subscription; docs/design/DES-001.json#The source has no row key; docs/design/DES-001.json#'Round' is not landed and plays no part; docs/answers.md#MOD-004 NULL matching key; docs/test/TCS-MOD-004.json#TC-004-008; docs/test/TCS-MOD-004.json#TC-004-009; docs/test/TCS-MOD-004.json#TC-004-011; docs/test/TCS-MOD-004.json#TC-004-012 -->
+<!-- evidence: docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Contact No; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Scheme No; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Scheme Name; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Campaign Year; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub Status; docs/specs/SPEC-001.json#Subs.vwCorpSubscriptions.Sub User Status; docs/specs/SPEC-001.json#The live-subscription test uses Layercake.brnz_corporate_subscription; docs/specs/SPEC-001.json#Layercake.silv_member_year_attributes.corporate_account_ref; docs/design/DES-001.json#The source has no row key; docs/design/DES-001.json#'Round' is not landed and plays no part; docs/answers.md#MOD-004 NULL matching key; docs/test/TCS-MOD-004.json#TC-004-008; docs/test/TCS-MOD-004.json#TC-004-009; docs/test/TCS-MOD-004.json#TC-004-011; docs/test/TCS-MOD-004.json#TC-004-012 -->
 
 ### Concession types (CE.vwConcessionType to Layercake.brnz_concession)
 
@@ -99,13 +107,13 @@ All rows of the source are landed, one row each, identified by the concession ty
 |---|---|---|
 | apuk_concessiontypeid | apuk_concessiontypeid | The concession type's id; the row's identity; must be present |
 | apuk_name | apuk_name | The type's name; a missing or untrimmed name is kept as it is |
-| apuk_discount | apuk_discount | The discount; later decides whether the type is a full concession |
+| apuk_discount | apuk_discount | The discount; decides whether the type is a full concession, and which concession wins when an invoice carries several |
 | Product_Number | product_number | Kept exactly as the source has it; later gives the type's item code |
 | statecode | statecode | |
 | apuk_perpetualnonperpetual | apuk_perpetualnonperpetual | Perpetual (200000000) or Non-Perpetual (200000001); later decides whether the type is perpetual |
 | apuk_dualmembership | (not landed) | Plays no part in this release |
 
-<!-- evidence: docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_concessiontypeid; docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_name; docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_discount; docs/specs/SPEC-001.json#CE.vwConcessionType.Product_Number; docs/specs/SPEC-001.json#CE.vwConcessionType.statecode; docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_perpetualnonperpetual; docs/specs/SPEC-001.json#RULE-045; docs/design/DES-001.json#apuk_dualmembership is not landed (Q-025); docs/answers.md#apuk_dualmembership (v2 Q-025); docs/answers.md#MOD-006 NULL key, duplicate key and missing name; docs/test/TCS-MOD-006.json#TC-006-001; docs/test/TCS-MOD-006.json#TC-006-002; docs/test/TCS-MOD-006.json#TC-006-009 -->
+<!-- evidence: docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_concessiontypeid; docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_name; docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_discount; docs/specs/SPEC-001.json#CE.vwConcessionType.Product_Number; docs/specs/SPEC-001.json#CE.vwConcessionType.statecode; docs/specs/SPEC-001.json#CE.vwConcessionType.apuk_perpetualnonperpetual; docs/specs/SPEC-001.json#RULE-045; docs/design/DES-001.json#apuk_discount through the business key; docs/design/DES-001.json#apuk_dualmembership is not landed (Q-025); docs/answers.md#apuk_dualmembership (v2 Q-025); docs/answers.md#MOD-006 NULL key, duplicate key and missing name; docs/test/TCS-MOD-006.json#TC-006-001; docs/test/TCS-MOD-006.json#TC-006-002; docs/test/TCS-MOD-006.json#TC-006-009 -->
 
 ### Concession type list (Layercake.brnz_concession to Layercake.silv_ref_concession_type)
 
@@ -207,6 +215,50 @@ usp_load_silv_ref_currency adds each currency found on the live invoices that is
 | (the load's run) | load_id on both tables | The load log entry of the load that last wrote the row |
 
 <!-- evidence: docs/specs/SPEC-001.json#RULE-031; docs/design/DES-001.json#(brnz_subs_invoice.inv_currency); docs/design/DES-001.json#currency_code; docs/answers.md#usp_load_silv_ref_currency works the same way; docs/test/TCS-MOD-005.json#TC-005-020; docs/test/TCS-MOD-005.json#TC-005-021; docs/test/TCS-MOD-005.json#TC-005-023; docs/design/DES-001.json#Mirrors silv_ref_currency into dim_currency. Logged.; docs/answers.md#DES-001 load_id -->
+
+### Eligible invoices (Layercake.brnz_subs_invoice and Layercake.brnz_subs_invoice_line to Layercake.vw_silv_eligible_invoice)
+
+The view reads the live invoices and their own live lines, and lists the eligible invoices of each contact-year (RULE-014, RULE-079). It holds no data of its own.
+
+| Source | View column | Note |
+|---|---|---|
+| brnz_subs_invoice.account_num | contact_no | The account number is the contact number. Invoices with no account number are left out |
+| brnz_subs_invoice.campaign_year | campaign_year | Invoices with no Campaign Year are left out |
+| brnz_subs_invoice.rec_id, invoice, voucher, trans_date, inv_payment_method, inv_currency | the same names | Copied as they are |
+| brnz_subs_invoice.invoice and full_invoice_amount_cur | (filter) | Credit notes ('FTCN', or 'CRE' unless the full amount is exactly 0) are left out |
+| brnz_subs_invoice.fully_credited | is_fully_credited | 1 only for 'Y'. Fully credited invoices are left out unless the contact-year has no other eligible invoice (assumed, Q-012) |
+| brnz_subs_invoice_line.productcode and ricinvoicetype, through silv_ref_invoice_line_type | (filter) | The invoice's own lines (same account and voucher) are typed through the line-type mapping. Fee-only invoices are left out |
+| brnz_subs_invoice.full_concession_flag | is_full_concession | Whether the invoice carries a full concession |
+| brnz_subs_invoice.trans_date and rec_id | invoice_seq | Position in date order within the contact-year; a missing date comes first, equal dates by rec_id |
+| (derived) | is_segment_invoice | 1 for the latest eligible invoice of the contact-year, ties to the higher rec_id (assumed, Q-012 and Q-036) |
+
+<!-- evidence: docs/design/DES-001.json#Layercake.vw_silv_eligible_invoice; docs/specs/SPEC-001.json#RULE-014; docs/specs/SPEC-001.json#RULE-079; docs/answers.md#Eligible invoice (RULE-014, vw_silv_eligible_invoice); docs/answers.md#contact_no = account_num; docs/dev/CN-MOD-007.json#invoice_seq (ascending trans_date with NULL first, ties by rec_id); docs/dev/CN-MOD-007.json#is_full_concession; docs/test/TCS-MOD-007.json#TC-007-023; docs/test/TCS-MOD-007.json#TC-007-022 -->
+
+### Member-year attributes (to Layercake.silv_member_year_attributes)
+
+usp_load_silv_member_year_attributes works out one row per contact and Campaign Year, from the contact's first-event year to the current Campaign Year, and writes only the differences. The full rules are in the Architecture and data model document.
+
+| Source | Target column | Note |
+|---|---|---|
+| silv_membership_events.contact_no | contact_no | Every contact with a membership event |
+| ref_campaign_year_config.campaign_year | campaign_year | Every Campaign Year from the contact's earliest event year (in silv_membership_events) to the Campaign Year covering the as-of date |
+| vw_silv_eligible_invoice.rec_id (the segment invoice) | segment_invoice_rec_id | Empty where the year has no eligible invoice |
+| Segment invoice's inv_payment_method, else its payment lines' paymmode and settleamountcur in brnz_subs_invoice_line, through fn_map_payment_method | payment_method_id | RULE-012 to RULE-016. Before 2022: Not applicable (-2). Never empty |
+| (derived) | payment_method_carried | 1 when carried forward from an earlier year with an eligible invoice |
+| Segment invoice's payment method and payment lines, brnz_corporate_subscription (live rows with both statuses 'Active'), silv_payment_events | payer_type_id | RULE-021 to RULE-026, RULE-082, RULE-083: Corporate, Individual or Unknown. Before 2022: Not applicable (-2). Never empty |
+| (derived) | payer_type_carried | 1 when carried forward |
+| brnz_corporate_subscription.scheme_no | corporate_account_ref | Corporate years only; the lowest scheme number where there are several (assumed, Q-019 and Q-036) |
+| Segment invoice's own lines with an item code starting 'CON' (brnz_subs_invoice_line.productcode), through silv_ref_concession_type.item_code, with brnz_concession.apuk_discount to choose between several | concession_type_id | RULE-049 to RULE-052. No concession line: No concession. A code not in the list: Unrecognised. Before 2022: Not applicable (-2). Never empty |
+| silv_ref_concession_type.is_perpetual | concession_type_carried | 1 when carried forward, which happens only for a perpetual concession |
+| (the load's run) | load_id | The load log entry of the load that last wrote the row |
+
+<!-- evidence: docs/design/DES-001.json#Layercake.silv_member_year_attributes; docs/specs/SPEC-001.json#Layercake.silv_member_year_attributes.contact_no; docs/answers.md#Contact list and first-event year (RULE-011, Q-030); docs/answers.md#Current Campaign Year; docs/specs/SPEC-001.json#Layercake.silv_member_year_attributes.payment_method_id; docs/answers.md#Payment-line fallback (RULE-013); docs/specs/SPEC-001.json#Layercake.silv_member_year_attributes.payer_type_id; docs/design/DES-001.json#Attributes, payer type; docs/specs/SPEC-001.json#Layercake.silv_member_year_attributes.corporate_account_ref; docs/specs/SPEC-001.json#Layercake.silv_member_year_attributes.concession_type_id; docs/design/DES-001.json#Attributes, concession; docs/specs/SPEC-001.json#RULE-080; docs/specs/SPEC-001.json#RULE-051; docs/answers.md#DES-001 load_id -->
+
+### New event-table columns (Layercake.silv_membership_events and Layercake.fact_membership_events)
+
+MOD-007 adds the seventeen new columns to both event tables but fills none of them; every event holds the defaults (0 for the segment keys and flags, empty amounts). In the design, a later load (MOD-012) copies the keys and carried flags from the contact's member-year attributes row and the amounts from the event amount table (MOD-010) onto silv_membership_events, and copies them on to fact_membership_events by event_id. Those mappings will be added here when they are delivered.
+
+<!-- evidence: docs/design/MP-001.json#without writing values or changing any Phase 1 column, row, event_nk or event_id; docs/design/DES-001.json#Values are written by usp_load_silv_membership_events_segments; docs/design/DES-001.json#Writes the new columns on silv_membership_events (ADR-001); docs/design/DES-001.json#Gold copies silver by event_id; docs/test/TCS-MOD-007.json#TC-007-053; docs/test/TCS-MOD-007.json#TC-007-054 -->
 
 ### Grain profile (Layercake.usp_profile_custtrans_grain)
 

@@ -1,0 +1,18 @@
+ALTER TABLE Layercake.silv_membership_events ADD
+    payment_method_id       int          NOT NULL CONSTRAINT DF_Layercake_silv_membership_events_payment_method_id DEFAULT 0,
+    payment_method_carried  bit          NOT NULL CONSTRAINT DF_Layercake_silv_membership_events_payment_method_carried DEFAULT 0,
+    payer_type_id           int          NOT NULL CONSTRAINT DF_Layercake_silv_membership_events_payer_type_id DEFAULT 0,
+    payer_type_carried      bit          NOT NULL CONSTRAINT DF_Layercake_silv_membership_events_payer_type_carried DEFAULT 0,
+    concession_type_id      int          NOT NULL CONSTRAINT DF_Layercake_silv_membership_events_concession_type_id DEFAULT 0,
+    concession_type_carried bit          NOT NULL CONSTRAINT DF_Layercake_silv_membership_events_concession_type_carried DEFAULT 0,
+    subs_amount             decimal(19, 4) NULL,
+    fee_amount              decimal(19, 4) NULL,
+    invoiced_subtotal       decimal(19, 4) NULL,
+    credited_amount         decimal(19, 4) NULL,
+    currency_id             int          NULL,
+    subs_amount_gbp         decimal(19, 4) NULL,
+    fee_amount_gbp          decimal(19, 4) NULL,
+    invoiced_subtotal_gbp   decimal(19, 4) NULL,
+    credited_amount_gbp     decimal(19, 4) NULL,
+    net_amount_gbp          decimal(19, 4) NULL,
+    amount_status           varchar(30)  NULL;
