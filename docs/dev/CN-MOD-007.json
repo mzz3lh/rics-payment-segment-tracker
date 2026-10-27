@@ -1,0 +1,144 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-007",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-10-27T15:35:51Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-007.json",
+      "tests/tsqlt/test_MOD007.sql"
+    ]
+  },
+  "module_id": "MOD-007",
+  "branch": "agent/developer/MOD-007-member-year-attributes-and-new-event-tab",
+  "commit": "d82d3d649f4e747cbf2d0b0a1a50b7d4a1e52c4f",
+  "requirement_ids": [
+    "REQ-001",
+    "REQ-004",
+    "REQ-005",
+    "REQ-006",
+    "REQ-008",
+    "REQ-011"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Views/Layercake.vw_silv_eligible_invoice.sql",
+      "object": "Layercake.vw_silv_eligible_invoice",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-004",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_member_year_attributes.sql",
+      "object": "Layercake.silv_member_year_attributes",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-004",
+        "REQ-006",
+        "REQ-011"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_member_year_attributes.sql",
+      "object": "Layercake.usp_load_silv_member_year_attributes",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-004",
+        "REQ-006",
+        "REQ-011"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_membership_events.sql",
+      "object": "Layercake.silv_membership_events",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.fact_membership_events.sql",
+      "object": "Layercake.fact_membership_events",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD007_dev].[test Unknown method of an invoiced year is carried with flag 1]",
+    "[test_MOD007_dev].[test as-of date outside every campaign year raises 50001 logs Failed and changes nothing]",
+    "[test_MOD007_dev].[test case-only scheme number change updates the row and logs one update]",
+    "[test_MOD007_dev].[test double payment without live subscription or paid position is Individual]",
+    "[test_MOD007_dev].[test eligible invoice view orders a null trans_date first]",
+    "[test_MOD007_dev].[test invoice year before the first event year is carried into the first year]",
+    "[test_MOD007_dev].[test payment line method whose lines have no transdate loses the earliest-payment tie]",
+    "[test_MOD007_dev].[test pre-2022 invoice sets nothing and is never carried]",
+    "[test_MOD007_dev].[test recognised concession beats unrecognised and equal discounts go to lowest line recid]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0009",
+      "up_script": "src/sql/deploy/MIG-0009_MOD-007_member-year-attributes-and-new-event-tab.up.sql",
+      "down_script": "src/sql/deploy/MIG-0009_MOD-007_member-year-attributes-and-new-event-tab.down.sql",
+      "rollback_test": {
+        "commit": "d82d3d649f4e747cbf2d0b0a1a50b7d4a1e52c4f",
+        "run_at": "2026-10-27T15:35:45.157157+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Question raised with ask_human, answer deferred: when the latest earlier year that has an eligible invoice got payment method 0 Unknown or payer type 0 Unknown, a later year with no invoice carries that 0 with carried flag 1. This follows the literal wording of RULE-016 and RULE-022. The alternative would be 0 with flag 0. Unit test: 'Unknown method of an invoiced year is carried with flag 1'.",
+    "Same deferred question: an eligible invoice from 2022 onward in a year before the contact's first-event year can be carried into later years. Carry-forward looks at all of the contact's segment invoices from 2022, not only the years that have attributes rows.",
+    "Same deferred question: a double payment (Corporate plus another method) where the contact has no live subscription is Individual even without a Phase 1 paid position. This follows RULE-026 ('otherwise Individual'). 'Another method' is any qualifying payment line whose mapped method is not Corporate, including -1 Unrecognised.",
+    "Two tie-breaks the design leaves open. Payment lines: a method whose lines all have a NULL transdate sorts after any dated method on the earliest-payment tie. Concession: a code that is in silv_ref_concession_type beats one that is not; among known codes the highest apuk_discount wins, then the lowest line recid. -1 Unrecognised results only when no CON line on the segment invoice is known.",
+    "No foreign keys were added to the existing silv_membership_events and fact_membership_events. Neither Phase 1 table has foreign keys. A key on fact to the gold dimensions would also break Phase 1 fact inserts while dim_payment_method is empty: it is populated by its load, not seeded. silv_member_year_attributes does have foreign keys to the three silver reference lists, which are seeded. The new columns on the Phase 1 table files are lower case to match the existing code; the old naming findings on those files are left as they were.",
+    "The fixed values sit in one place at the top of the load: the seeded reference ids (Corporate method 5, Individual 1, Corporate payer 2, No concession 1), the first invoice year 2022 (Q-011) and the active status 'Active' (Q-027)."
+  ],
+  "notes": "MOD-007 builds:\n- Layercake.vw_silv_eligible_invoice. Columns: contact_no, campaign_year, rec_id, invoice, voucher, trans_date, inv_payment_method, inv_currency, is_fully_credited, is_full_concession, invoice_seq (ascending trans_date with NULL first, ties by rec_id) and is_segment_invoice.\n- Layercake.silv_member_year_attributes, keyed on (contact_no, campaign_year).\n- Layercake.usp_load_silv_member_year_attributes @run_id, @as_of_date. It recomputes every row and writes only differences (delete, update, insert in one transaction). The scheme number is compared as bytes, so a change in case alone is still written. An as-of date with no row in ref_campaign_year_config raises error 50001, which names the date, after logging Failed.\n- Change scripts adding the 17 columns to silv_membership_events and fact_membership_events. Keys and flags have named defaults of 0; the down script drops the defaults and the columns.\n\nTest-first: before any object file existed, run_tests could not deploy, so all 55 of the Tester's tests failed. After the objects were written, the first deploy passed all 55. Final run: 55 Tester tests and 9 developer tests pass. The round-trip passes. The checks pass; sqlfluff findings are advisory only, mostly layout and capitalisation.\n\nData risk carried over from MOD-006: if two concession types share one item code, the load picks one per the concession tie-break rather than failing.\n\nNo grants are needed: the module adds no gold object.\n\nTest-first: the first run had 55 of 55 of the Tester's tests passing; the final run passed 55 of 55 and 9 unit test(s), in 2 run(s)."
+}
