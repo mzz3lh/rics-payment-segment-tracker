@@ -1,0 +1,745 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-007",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-10-27T14:55:31Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-10-27T15:28:42Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-007",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-007-001",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-01",
+      "category": "happy_path",
+      "description": "A contact whose first event is in Campaign Year 2023, loaded with the as-of date in 2026, gets one row for each year from 2023 to 2026, even with two events in 2025.",
+      "preconditions": "Standard set-up for every attributes test: SetUp fakes etl_run_log (identity, defaults), silv_member_year_attributes (defaults), ref_campaign_year_config (2019 to 2027, each 1 Jan to 31 Dec), brnz_subs_invoice, brnz_subs_invoice_line, silv_ref_invoice_line_type (SUBS_MRICS/SUB subscription, CONRETIRED/SUB and CONEXCEPTIONHP/SUB concession, ENROLFEE/APP and ENROLFEE/'' enrolment or application fee, VATUK/TAX tax), silv_ref_payment_method (0, -1, -2, 1 Direct Debit DD, 2 Card, 3 Bank transfer Bank, 4 Cheque, 5 Corporate), silv_ref_payer_type (0, -1, -2, 1 Individual, 2 Corporate), silv_ref_concession_type (0, -1, -2, 1 No concession, 5 Retired CONRETIRED full and perpetual, 6 Exceptional Hardship CONEXCEPTIONHP neither), brnz_concession (Retired discount 100, Exceptional Hardship discount 50), brnz_corporate_subscription and silv_payment_events; each test fakes silv_membership_events. Here: events for 7000101 in 2023, 2024 and two in 2025. @as_of_date 2026-06-15.",
+      "expected": "Exactly 4 rows: (7000101, 2023), (7000101, 2024), (7000101, 2025), (7000101, 2026).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-001 one row per contact year from first event to current year]"
+    },
+    {
+      "id": "TC-007-002",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-01",
+      "category": "boundary",
+      "description": "An as-of date on the last day of Campaign Year 2025 makes 2025 the current year (inclusive). A contact whose first event is after the current year gets no rows.",
+      "preconditions": "Standard set-up (TC-007-001). Events: 7000101 in 2023 and 2024; 7000103 in 2025; 7000102 in 2026. @as_of_date 2025-12-31.",
+      "expected": "Exactly 4 rows: (7000101, 2023), (7000101, 2024), (7000101, 2025), (7000103, 2025). No row for 7000102.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-002 as-of date on campaign year end and first event after current year]"
+    },
+    {
+      "id": "TC-007-003",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-01",
+      "category": "boundary",
+      "description": "An as-of date on the first day of Campaign Year 2026 makes 2026 the current year.",
+      "preconditions": "Standard set-up (TC-007-001). One event for 7000104 in 2025. @as_of_date 2026-01-01.",
+      "expected": "Exactly 2 rows: (7000104, 2025) and (7000104, 2026).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-003 as-of date on campaign year start makes that year current]"
+    },
+    {
+      "id": "TC-007-004",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-01",
+      "category": "negative",
+      "description": "An as-of date that no ref_campaign_year_config row covers fails the load: the error reaches the caller, the target is unchanged and the run is logged Failed.",
+      "preconditions": "Runs without the tSQLt transaction. Standard set-up (TC-007-001); config covers 2019 to 2027. Events for 7000101 (2025) and 7000107 (2024). Target holds (7000101, 2025, payment 2, payer 1, concession 1, segment 99001, load_id 7, created/updated 2020-01-01). @as_of_date 2030-01-15. Error number not asserted: the answer fixes the outcome, not the number.",
+      "expected": "An error reaches the caller. silv_member_year_attributes is identical to before in every column. etl_run_log holds exactly one row, status 'Failed', with a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-004 as-of date outside every campaign year fails and changes nothing]"
+    },
+    {
+      "id": "TC-007-005",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-01",
+      "category": "negative",
+      "description": "The contact list comes from silv_membership_events only: a contact with an invoice and a paid position but no event gets no rows.",
+      "preconditions": "Standard set-up (TC-007-001). 7000105 has a 2025 DD invoice and a 2025 paid position but no event; 7000106 has a 2025 event. @as_of_date 2025-06-15.",
+      "expected": "Exactly 1 row: (7000106, 2025).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-005 contact with invoices but no events gets no rows]"
+    },
+    {
+      "id": "TC-007-006",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-02",
+      "category": "happy_path",
+      "description": "C1 has eligible invoices with DD in 2023 and Card in 2024 and none in 2025 or 2026: each year takes its own invoice, and later years carry Card forward.",
+      "preconditions": "assumes Q-006: payment method carries forward from the latest earlier year with an eligible invoice. Standard set-up (TC-007-001). 7000201 first event 2023; invoices 20001 (2023, DD, 2022-10-15) and 20002 (2024, Card, 2023-10-15). @as_of_date 2026-06-15.",
+      "expected": "(2023, payment 1 Direct Debit, carried 0, segment 20001), (2024, 2 Card, 0, 20002), (2025, 2 Card, 1, NULL), (2026, 2 Card, 1, NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-006 payment method per year and carried forward to years with no invoice]"
+    },
+    {
+      "id": "TC-007-007",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-03",
+      "category": "nulls",
+      "description": "C2, first event 2024, has no invoices in any year: every row is Unknown and not carried.",
+      "preconditions": "assumes Q-006: with no earlier invoiced year there is nothing to carry. Standard set-up (TC-007-001). 7000301 event in 2024, no invoices. @as_of_date 2026-06-15.",
+      "expected": "(2024, 0, 0, NULL), (2025, 0, 0, NULL), (2026, 0, 0, NULL) as (year, payment_method_id, payment_method_carried, segment_invoice_rec_id).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-007 contact with no invoices is Unknown and not carried every year]"
+    },
+    {
+      "id": "TC-007-008",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-04",
+      "category": "nulls",
+      "description": "C3's 2024 invoice has a NULL payment mode and no payment lines: Unknown, not carried, and the invoice is still the segment invoice.",
+      "preconditions": "Standard set-up (TC-007-001). 7000401 event 2024; invoice 40001 (2024, inv_payment_method NULL). No lines. @as_of_date 2024-06-15.",
+      "expected": "One row (7000401, 2024, payment 0, carried 0, segment 40001).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-008 invoice with null payment mode and no payment lines is Unknown]"
+    },
+    {
+      "id": "TC-007-009",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-04",
+      "category": "nulls",
+      "description": "An empty or spaces-only invoice payment mode is blank, so the payment-line fallback applies; a payment line whose paymmode is only spaces does not qualify, so the year is Unknown.",
+      "preconditions": "Standard set-up (TC-007-001). 7000402: invoice 40002 (2024, inv_payment_method '') with one payment line (lastsettlevoucher V40002, paymmode '   ', 450.00). 7000403: invoice 40003 (2024, '   '), no lines. @as_of_date 2024-06-15.",
+      "expected": "(7000402, 2024, 0, 0, segment 40002) and (7000403, 2024, 0, 0, segment 40003).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-009 blank invoice mode and blank payment line modes give Unknown]"
+    },
+    {
+      "id": "TC-007-010",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-05",
+      "category": "happy_path",
+      "description": "C4 has INV-A (2024-10-15, Card, fully credited) and INV-B (2024-11-20, DD, not credited) for 2025: INV-B is the segment invoice.",
+      "preconditions": "assumes Q-012: a fully credited invoice is eligible only when the year has no other eligible invoice. Standard set-up (TC-007-001). 7000501: 50001 INV-A fully_credited 'Y'; 50002 INV-B 'N'. @as_of_date 2025-06-15.",
+      "expected": "(7000501, 2025, payment 1 Direct Debit, carried 0, segment 50002).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-010 fully credited invoice is passed over for the not credited one]"
+    },
+    {
+      "id": "TC-007-011",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-05",
+      "category": "negative",
+      "description": "A fully credited invoice is passed over even when it is the latest: an earlier not-credited DD invoice sets the year.",
+      "preconditions": "assumes Q-012. Standard set-up (TC-007-001). 7000502: 50011 (2024-10-15, DD, 'N'); 50012 (2024-11-20, Card, 'Y'). @as_of_date 2025-06-15.",
+      "expected": "(7000502, 2025, payment 1 Direct Debit, carried 0, segment 50011).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-011 later fully credited invoice does not become the segment invoice]"
+    },
+    {
+      "id": "TC-007-012",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-06",
+      "category": "happy_path",
+      "description": "C5's invoice has no payment mode; its payment lines settle 200.00 by Card on 2024-11-01 and 300.00 by DD on 2024-12-01, so DD wins. C6's lines settle 250.00 Card on 2024-11-01 and 250.00 DD on 2024-12-01, so the earliest payment (Card) wins.",
+      "preconditions": "Standard set-up (TC-007-001). 7000601 invoice 60001 (voucher V60001, NULL mode); 7000602 invoice 60002 (V60002, NULL mode). Payment lines carry lastsettlevoucher = the invoice voucher and their own payment vouchers. @as_of_date 2025-06-15.",
+      "expected": "(7000601, 2025, payment 1 Direct Debit, carried 0) and (7000602, 2025, payment 2 Card, carried 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-012 payment line fallback takes the largest settled method and earliest on a tie]"
+    },
+    {
+      "id": "TC-007-013",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-06",
+      "category": "boundary",
+      "description": "Payment-line amounts are summed per method as absolute values with NULL as 0, over live lines on the invoice's own account only; the invoice's own lines are not payment lines.",
+      "preconditions": "Standard set-up (TC-007-001). 7000603 invoice 60003 (V60003, NULL mode). Lines settling V60003: Card -150.00 and -150.00; DD -250.00 and NULL; an own line (voucher V60003, lastsettlevoucher V60003) Cheque 900.00; a line on account 7999999 Bank 1000.00; a soft-deleted line Bank 1000.00. @as_of_date 2025-06-15.",
+      "expected": "(7000603, 2025, payment 2 Card, carried 0): Card 300.00 beats DD 250.00; the Cheque own line, the other account's line and the soft-deleted line take no part.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-013 payment lines summed as absolute values over live settling lines only]"
+    },
+    {
+      "id": "TC-007-014",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-06",
+      "category": "boundary",
+      "description": "Equal sums and equal earliest payment dates are settled by the lowest recid.",
+      "preconditions": "Standard set-up (TC-007-001). 7000604 invoice 60004 (NULL mode). Payment lines 600042 Card 250.00 and 600041 DD 250.00, both 2024-11-01 10:00. @as_of_date 2025-06-15.",
+      "expected": "(7000604, 2025, payment 1 Direct Debit).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-014 equal sums on the same date go to the lowest recid]"
+    },
+    {
+      "id": "TC-007-015",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-06",
+      "category": "negative",
+      "description": "A non-blank invoice mode the mapping does not know gives Unrecognised with no fallback to payment lines; an unrecognised payment-line mode that settles the most also gives Unrecognised.",
+      "preconditions": "Standard set-up (TC-007-001). 7000605 invoice 60005 mode 'XYZ' with a DD payment line of 300.00. 7000606 invoice 60006 NULL mode with payment lines XYZ 300.00 (2024-11-01) and Card 100.00 (2024-10-01). @as_of_date 2025-06-15.",
+      "expected": "(7000605, 2025, payment -1, carried 0) and (7000606, 2025, payment -1, carried 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-015 unrecognised mode on invoice or winning payment line gives Unrecognised]"
+    },
+    {
+      "id": "TC-007-016",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-07",
+      "category": "duplicates",
+      "description": "With two events and three invoices (one a credit note) in one contact-year, and a contact spanning pre-2022 years, no two rows share (contact_no, campaign_year) and every payment_method_id is non-NULL and in silv_ref_payment_method.",
+      "preconditions": "Standard set-up (TC-007-001). 7000701: events 2023, two in 2024; invoices 2023 DD, 2024 DD and Card, 2024 'CRE-0704' -50.00, 2025 'XYZ'. 7000702: events 2021 and 2025, no invoices. @as_of_date 2026-06-15.",
+      "expected": "0 duplicate keys, 0 NULL or orphan payment_method_id, and exactly 10 rows (7000701 2023 to 2026, 7000702 2021 to 2026).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-016 no duplicate contact years and no null or orphan payment method]"
+    },
+    {
+      "id": "TC-007-017",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-07",
+      "category": "idempotency",
+      "description": "A second load on unchanged data changes no row and logs 0 inserted, 0 updated, 0 deleted.",
+      "preconditions": "Standard set-up (TC-007-001). 7000201 first event 2023; invoices 20001 (2023 DD) and 20002 (2024 Card); paid positions 2023 and 2024. Load twice with @as_of_date 2026-06-15.",
+      "expected": "silv_member_year_attributes identical in every column (load_id, created_at, updated_at included) after both loads. etl_run_log holds two rows ('silver', 'silv_member_year_attributes', 'Success'): (4, 0, 0) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-017 rerun on unchanged data changes nothing and logs 0 0 0]"
+    },
+    {
+      "id": "TC-007-018",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-07",
+      "category": "happy_path",
+      "description": "The first load logs one etl_run_log row under the given run id with layer 'silver', step 'silv_member_year_attributes', status 'Success' and its counts, and stamps every row's load_id with that log_id.",
+      "preconditions": "Standard set-up (TC-007-001). 7000201 as in TC-007-006. @run_id B0000000-0000-0000-0000-000000000018, @as_of_date 2026-06-15.",
+      "expected": "One etl_run_log row (run_id B0000000-...-018, 'silver', 'silv_member_year_attributes', 'Success', 4, 0, 0). Every attributes row has load_id equal to that row's log_id and non-NULL created_at and updated_at.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-018 first load logs Success with counts and stamps load_id]"
+    },
+    {
+      "id": "TC-007-019",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-07",
+      "category": "idempotency",
+      "description": "A row whose derived values changed is updated in place (created_at kept, updated_at and load_id refreshed); a row whose values are unchanged is left untouched.",
+      "preconditions": "Standard set-up (TC-007-001). Data as TC-007-017. Target holds (7000201, 2023, 1, 0, 1, 0, NULL, 1, 0, 20001) and a stale (7000201, 2024, payment 3, 0, 1, 0, NULL, 1, 0, 20002), both load_id 7, created_at and updated_at 2020-01-01. @as_of_date 2026-06-15.",
+      "expected": "2023: payment 1, load_id 7, created_at 2020-01-01, updated_at still 2020-01-01. 2024: payment 2, load_id = the run's log_id, created_at 2020-01-01, updated_at later than 2020-01-01. etl_run_log: 'Success', 2 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-019 changed row updated in place and unchanged row untouched]"
+    },
+    {
+      "id": "TC-007-020",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-07",
+      "category": "negative",
+      "description": "Rows no longer derived are deleted: a contact with no events and a year before the contact's first event.",
+      "preconditions": "Standard set-up (TC-007-001). 7000201 first event 2023 with invoices as TC-007-006. Target holds (7009999, 2025) and (7000201, 2022). @as_of_date 2026-06-15.",
+      "expected": "Exactly (7000201, 2023), (2024), (2025), (2026). etl_run_log: 'Success', 4 inserted, 0 updated, 2 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-020 rows no longer derived are deleted]"
+    },
+    {
+      "id": "TC-007-021",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-08",
+      "category": "happy_path",
+      "description": "C8 has two eligible 2025 invoices, INV-C (2024-10-20, DD) and INV-D (2025-03-01, Card): the latest, INV-D, sets the year.",
+      "preconditions": "assumes Q-012: the latest eligible invoice by trans_date is the segment invoice. Standard set-up (TC-007-001). 7000801: 80001 INV-C, 80002 INV-D. @as_of_date 2025-06-15.",
+      "expected": "(7000801, 2025, payment 2 Card, carried 0, segment 80002).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-021 latest eligible invoice by trans_date sets the payment method]"
+    },
+    {
+      "id": "TC-007-022",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-08",
+      "category": "boundary",
+      "description": "On equal trans_date the higher rec_id is the segment invoice; a NULL trans_date sorts before every date.",
+      "preconditions": "assumes Q-012. Design Q-036 and the 2026-10-27 answer set the tie rules. Standard set-up (TC-007-001). 7000802: 80011 Card and 80012 DD both 2024-11-01. 7000803: 80021 Card 2024-10-01 and 80022 DD with NULL trans_date. @as_of_date 2025-06-15.",
+      "expected": "(7000802, 2025, payment 1 Direct Debit, segment 80012) and (7000803, 2025, payment 2 Card, segment 80021).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-022 equal trans_date goes to higher rec_id and null trans_date sorts first]"
+    },
+    {
+      "id": "TC-007-023",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-08",
+      "category": "negative",
+      "description": "vw_silv_eligible_invoice returns only eligible invoices and flags the latest per contact-year with is_segment_invoice; credit notes, soft-deleted invoices and invoices with a NULL account_num or campaign_year are left out.",
+      "preconditions": "assumes Q-012. Standard set-up (TC-007-001). Invoices: 7000804 2025: 80031 DD 2024-10-20, 80032 Card 2025-03-01, 80033 'CRE-0033' -100.00, 80034 soft-deleted; 7000805 2025: 80041 fully credited only; 80051 with NULL account_num; 80052 with NULL campaign_year. View read for rec_id 80031 to 80059.",
+      "expected": "Exactly (80031, is_segment_invoice 0), (80032, 1), (80041, 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-023 eligible invoice view lists eligible invoices and flags the segment invoice]"
+    },
+    {
+      "id": "TC-007-024",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-09",
+      "category": "happy_path",
+      "description": "C9 has a Card subscription invoice (2024-10-10) and a later Corporate invoice (2024-12-01) whose own lines are an enrolment fee and tax only: the fee-only invoice is not eligible.",
+      "preconditions": "Standard set-up (TC-007-001). 7000901: 90001 with own line SUBS_MRICS/SUB 450.00; 90002 with own lines ENROLFEE/APP 50.00 and VATUK/TAX 10.00. @as_of_date 2025-06-15.",
+      "expected": "(7000901, 2025, payment 2 Card, segment 90001).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-024 later enrolment-fee-only invoice is not the segment invoice]"
+    },
+    {
+      "id": "TC-007-025",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-09",
+      "category": "boundary",
+      "description": "Fee-only means at least one enrolment or application fee own line and every other live own line tax. A fee plus subscription line, no own lines, a fee plus an unmapped line, or only tax lines are not fee-only. A soft-deleted line is ignored, and a NULL ricinvoicetype is matched as ''.",
+      "preconditions": "Standard set-up (TC-007-001). Each contact has an earlier DD invoice (2024-10-10, no lines) and a later Card invoice (2024-12-01) with own lines: 7000902 ENROLFEE/APP + SUBS_MRICS/SUB; 7000903 none; 7000904 ENROLFEE/APP + NEWCODE/SUB (no mapping row); 7000905 ENROLFEE/APP + a soft-deleted SUBS_MRICS line; 7000906 ENROLFEE with NULL ricinvoicetype; 7000907 VATUK/TAX only. @as_of_date 2025-06-15.",
+      "expected": "7000902 Card (segment 90012), 7000903 Card (90022), 7000904 Card (90032), 7000905 Direct Debit (90041), 7000906 Direct Debit (90051), 7000907 Card (90062).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-025 fee-only test uses live own lines and treats unmapped and null types as stated]"
+    },
+    {
+      "id": "TC-007-026",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-09",
+      "category": "negative",
+      "description": "A year whose only invoice is fee-only has no eligible invoice, so it carries forward the previous year's method.",
+      "preconditions": "assumes Q-006. Standard set-up (TC-007-001). 7000908 first event 2024; 90071 (2024, DD); 90072 (2025, Corporate) with only an ENROLFEE/APP line. @as_of_date 2025-06-15.",
+      "expected": "(2024, payment 1, carried 0, segment 90071) and (2025, payment 1, carried 1, segment NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-026 year with only a fee-only invoice carries forward]"
+    },
+    {
+      "id": "TC-007-027",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-10",
+      "category": "happy_path",
+      "description": "C10 has a DD invoice (2024-10-10) and a later 'CRE-0001' Cheque document with full_invoice_amount_cur -450.00: the credit note is never the segment invoice.",
+      "preconditions": "Standard set-up (TC-007-001). 7001001: 100001 DD; 100002 'CRE-0001' -450.00. @as_of_date 2025-06-15.",
+      "expected": "(7001001, 2025, payment 1 Direct Debit, segment 100001).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-027 later CRE credit note is never the segment invoice]"
+    },
+    {
+      "id": "TC-007-028",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-10",
+      "category": "boundary",
+      "description": "Credit-note test on the later Cheque document: 'CRE' with amount 0.00 is an invoice; 'CRE' with NULL amount is a credit note; 'FTCN' is a credit note even at 0.00; a NULL invoice number is not a credit note; 'CRE' anywhere in the number counts.",
+      "preconditions": "Standard set-up (TC-007-001). Each contact has a DD invoice (2024-10-10) and a later Cheque document (2024-12-01): 7001002 'CRE-0003' 0.00; 7001003 'CRE-0004' NULL; 7001004 'FTCN-0005' 0.00; 7001005 NULL number 450.00; 7001006 'XCRE9' 120.00. @as_of_date 2025-06-15.",
+      "expected": "7001002 Cheque 4 (segment 100022); 7001003 Direct Debit 1 (100031); 7001004 Direct Debit 1 (100041); 7001005 Cheque 4 (100052); 7001006 Direct Debit 1 (100061).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-028 credit note test on CRE zero and null amounts FTCN and null invoice number]"
+    },
+    {
+      "id": "TC-007-029",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-11",
+      "category": "happy_path",
+      "description": "C11's only 2025 invoice is Card and fully credited: it stands in as eligible and sets the year, not carried.",
+      "preconditions": "assumes Q-012: fully credited invoices are eligible when the year has no other. Standard set-up (TC-007-001). 7001101: 110001 Card 'Y'. @as_of_date 2025-06-15.",
+      "expected": "(7001101, 2025, payment 2 Card, carried 0, segment 110001).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-029 only invoice fully credited still sets the year not carried]"
+    },
+    {
+      "id": "TC-007-030",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-11",
+      "category": "boundary",
+      "description": "Only 'Y' is fully credited ('N/A' and NULL are not). In the fully credited fallback the latest fully credited invoice wins, and a later credit note is still excluded.",
+      "preconditions": "assumes Q-012. Standard set-up (TC-007-001). 7001102: 110011 DD 2024-10-01 'N/A'; 110012 Card 2024-11-01 NULL. 7001103: 110021 Card 2024-10-01 'Y'; 110022 DD 2024-11-01 'Y'; 110023 'CRE-0023' Cheque -100.00 2024-12-01 'N'. @as_of_date 2025-06-15.",
+      "expected": "(7001102, 2025, payment 2 Card, segment 110012) and (7001103, 2025, payment 1 Direct Debit, segment 110022).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-030 fully_credited other than Y is not credited and fallback skips credit notes]"
+    },
+    {
+      "id": "TC-007-031",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-12",
+      "category": "happy_path",
+      "description": "C12 has a first event in 2020 and a 2022 DD invoice: 2020 and 2021 are Not applicable for all three segments with every flag 0, and 2022 is set from its invoice.",
+      "preconditions": "assumes Q-011: years before 2022 get -2 for every segment. Standard set-up (TC-007-001). 7001201 events 2020 and 2022; invoice 120001 (2022, DD, no lines); paid position 2022. @as_of_date 2022-06-15.",
+      "expected": "(2020: -2, 0, -2, 0, NULL, -2, 0, NULL), (2021: same), (2022: payment 1, 0, payer 1 Individual, 0, NULL, concession 1 No concession, 0, segment 120001) as (payment, carried, payer, carried, corporate_account_ref, concession, carried, segment_invoice_rec_id).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-031 years before 2022 are Not applicable for every segment]"
+    },
+    {
+      "id": "TC-007-032",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-12",
+      "category": "boundary",
+      "description": "Not applicable from a pre-2022 year is never carried: 2022 with no invoice is Unknown, not carried, for all segments.",
+      "preconditions": "assumes Q-011 and Q-006. Standard set-up (TC-007-001). 7001202 first event 2021, no invoices. @as_of_date 2022-06-15.",
+      "expected": "(2021: -2, 0, -2, 0, NULL, -2, 0, NULL) and (2022: 0, 0, 0, 0, NULL, 0, 0, NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-032 Not applicable is never carried into 2022]"
+    },
+    {
+      "id": "TC-007-033",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-02",
+      "category": "happy_path",
+      "description": "P1's 2025 segment invoice is Corporate, and brnz_corporate_subscription has a live 2025 row (SCH-001, Active, Active): Corporate with scheme number.",
+      "preconditions": "assumes Q-002, Q-019 and Q-027 (active value 'Active'). Standard set-up (TC-007-001). 7002001: invoice 200001 'Corporate'; subscription (SCH-001, 2025, Active, Active, live); paid position 2025. @as_of_date 2025-06-15.",
+      "expected": "(7002001, 2025, payment 5 Corporate, payer 2 Corporate, payer_type_carried 0, corporate_account_ref 'SCH-001').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-033 Corporate invoice with live corporate subscription is Corporate with scheme]"
+    },
+    {
+      "id": "TC-007-034",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-02",
+      "category": "boundary",
+      "description": "P1 has no 2026 invoice: payer type Corporate and its scheme number carry into 2026, flagged.",
+      "preconditions": "assumes Q-006 and Q-019 (the scheme is carried with a carried Corporate payer type). Standard set-up (TC-007-001). Data as TC-007-033 plus a 2026 Lapse event. @as_of_date 2026-06-15.",
+      "expected": "(2025: payment 5, 0, payer 2, 0, 'SCH-001') and (2026: payment 5, 1, payer 2, 1, 'SCH-001').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-034 Corporate payer type and scheme carried to a year with no invoice]"
+    },
+    {
+      "id": "TC-007-035",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-02",
+      "category": "negative",
+      "description": "A Corporate segment invoice with a paid position but no live subscription that year is Individual with no scheme. Not live: a subscription for another year, a soft-deleted row, Sub User Status 'Inactive', Sub Status 'Inactive', or Sub Status NULL.",
+      "preconditions": "assumes Q-002 and Q-027. Standard set-up (TC-007-001). 2025 Corporate invoices and 2025 paid positions for 7002002 (subscription for 2024), 7002003 (2025 row soft-deleted), 7002004 (Active/Inactive), 7002005 (Inactive/Active) and 7002006 (NULL/Active). @as_of_date 2025-06-15.",
+      "expected": "All five: (2025, payer 1 Individual, carried 0, corporate_account_ref NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-035 Corporate invoice without a live subscription that year is Individual]"
+    },
+    {
+      "id": "TC-007-036",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-02",
+      "category": "duplicates",
+      "description": "Two live corporate subscriptions in the same year give one row with the lowest scheme number.",
+      "preconditions": "assumes Q-019; design Q-036 (lowest scheme_no). Standard set-up (TC-007-001). 7002007: Corporate invoice 2025; live subscriptions SCH-020 and SCH-010 for 2025; paid position 2025. @as_of_date 2025-06-15.",
+      "expected": "Exactly one row (7002007, 2025, payer 2 Corporate, 'SCH-010').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-036 several live subscriptions give the lowest scheme number and one row]"
+    },
+    {
+      "id": "TC-007-037",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-02",
+      "category": "boundary",
+      "description": "Double payment: a Card segment invoice settled 225.00 by Card and 225.00 by Corporate is Corporate where a live subscription exists, otherwise Individual.",
+      "preconditions": "assumes Q-002 and Q-027. Standard set-up (TC-007-001). 7002008 and 7002009: 2025 invoices with mode 'Card', payment lines Card 225.00 (2024-11-01) and Corporate 225.00 (2024-12-01), paid position 2025. Only 7002008 has a live subscription (SCH-006, 2025). @as_of_date 2025-06-15.",
+      "expected": "(7002008, 2025, payment 2 Card, payer 2 Corporate, 0, 'SCH-006') and (7002009, 2025, payment 2 Card, payer 1 Individual, 0, NULL). One row per contact-year.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-037 double payment is Corporate with live subscription else Individual]"
+    },
+    {
+      "id": "TC-007-038",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-03",
+      "category": "happy_path",
+      "description": "P2's segment invoice is Card and P2 has a paid position: Individual, no scheme. Another Card contact with a live corporate subscription is still Individual.",
+      "preconditions": "assumes Q-002. Standard set-up (TC-007-001). 7002101 Card invoice 2025, paid position (Fully Paid). 7002102 Card invoice 2025, paid position (Partially Paid), live subscription SCH-002 2025. @as_of_date 2025-06-15.",
+      "expected": "(7002101, 2025, payer 1, 0, NULL) and (7002102, 2025, payer 1, 0, NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-038 Card invoice with paid position is Individual even with a live subscription]"
+    },
+    {
+      "id": "TC-007-039",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-03",
+      "category": "negative",
+      "description": "Individual needs a paid position in that same year. A Card invoice with no paid position, or a paid position only in another year, is Unknown. A Corporate invoice with a live subscription is Corporate without a paid position.",
+      "preconditions": "assumes Q-002. Standard set-up (TC-007-001). 7002103 Card 2025, no paid position. 7002104 Corporate 2025, live SCH-004 2025, no paid position. 7002105 Card 2025, paid position in 2024 only. @as_of_date 2025-06-15.",
+      "expected": "(7002103, 2025, payer 0, 0, NULL), (7002104, 2025, payer 2, 0, 'SCH-004'), (7002105, 2025, payer 0, 0, NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-039 no paid position that year gives Unknown unless Corporate]"
+    },
+    {
+      "id": "TC-007-040",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-05",
+      "category": "nulls",
+      "description": "P4 has a first event in 2025 and no invoice or paid position in any year: payer type Unknown, not carried.",
+      "preconditions": "assumes Q-006. Standard set-up (TC-007-001). 7002201 event 2025 only. @as_of_date 2026-06-15.",
+      "expected": "(2025, payer 0, carried 0, NULL) and (2026, payer 0, carried 0, NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-040 no invoice and no paid position gives payer type Unknown not carried]"
+    },
+    {
+      "id": "TC-007-041",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-06",
+      "category": "happy_path",
+      "description": "P5 has a later enrolment-fee-only Corporate invoice, a Card subscription invoice, a live corporate subscription and a paid position: payment method Card and payer type Individual, both from the subscription invoice.",
+      "preconditions": "Standard set-up (TC-007-001). 7002301: 230001 Card 2024-10-10 with SUBS_MRICS line; 230002 Corporate 2024-12-01 with only ENROLFEE/APP; live SCH-005 2025; paid position 2025. @as_of_date 2025-06-15.",
+      "expected": "(7002301, 2025, payment 2 Card, payer 1 Individual, corporate_account_ref NULL, segment 230001).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-041 Corporate fee-only invoice sets neither payment method nor payer type]"
+    },
+    {
+      "id": "TC-007-042",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-14",
+      "category": "idempotency",
+      "description": "Round is not landed in brnz_corporate_subscription, so a Round change reaches this load as an unchanged bronze row. Reloading leaves P1 Corporate with SCH-001 and changes nothing.",
+      "preconditions": "assumes Q-002, Q-019 and Q-027. Standard set-up (TC-007-001). Data as TC-007-033. Load twice with @as_of_date 2025-06-15.",
+      "expected": "silv_member_year_attributes identical in every column after both loads; P1 2025 payer 2 Corporate, 'SCH-001'. Exactly one etl_run_log row is 'Success' with 0 inserted, 0 updated, 0 deleted (the second load).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-042 reload with unchanged corporate subscription keeps Corporate and SCH-001]"
+    },
+    {
+      "id": "TC-007-043",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-02",
+      "category": "happy_path",
+      "description": "K2's 2025 segment invoice has no concession line: No concession.",
+      "preconditions": "Standard set-up (TC-007-001). 7003001: invoice 300001 with own line SUBS_MRICS 450.00 only. @as_of_date 2025-06-15.",
+      "expected": "(7003001, 2025, concession 1 No concession, carried 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-043 segment invoice with no concession line is No concession]"
+    },
+    {
+      "id": "TC-007-044",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-02",
+      "category": "negative",
+      "description": "Concession comes only from the live own lines of the segment invoice. A CON line on an earlier invoice, a soft-deleted CON line and a CON line under another account do not count. A CON code missing from the reference gives Unrecognised.",
+      "preconditions": "assumes Q-021: concession lines are invoice lines whose item code starts 'CON'. Standard set-up (TC-007-001). 7003002: earlier invoice with CONRETIRED, later segment invoice with SUBS_MRICS only. 7003003: CONUNKNOWN line. 7003004: CONRETIRED line soft-deleted. 7003005: CONRETIRED line with the invoice's voucher but accountnum 7003999. @as_of_date 2025-06-15.",
+      "expected": "7003002 concession 1; 7003003 concession -1; 7003004 concession 1; 7003005 concession 1; all carried 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-044 concession comes only from live own lines of the segment invoice]"
+    },
+    {
+      "id": "TC-007-045",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-03",
+      "category": "happy_path",
+      "description": "K1's 2025 invoice has a CONRETIRED line (Retired, perpetual) and there is no 2026 invoice: Retired carries into 2026, flagged.",
+      "preconditions": "assumes Q-006: only perpetual concessions carry. Standard set-up (TC-007-001). 7003101: 300101 with SUBS_MRICS 450.00 and CONRETIRED -450.00. @as_of_date 2026-06-15.",
+      "expected": "(2025, concession 5 Retired, carried 0) and (2026, 5, carried 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-045 perpetual Retired concession carried to a year with no invoice]"
+    },
+    {
+      "id": "TC-007-046",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-04",
+      "category": "happy_path",
+      "description": "K3's invoice has concession lines for Retired (discount 100) and Exceptional Hardship (discount 50) with equal amounts: the highest discount, Retired, wins.",
+      "preconditions": "assumes Q-021. Standard set-up (TC-007-001). 7003201: 300201 lines CONRETIRED -225.00 (recid 3002011), CONEXCEPTIONHP -225.00 (3002012), SUBS_MRICS 450.00. @as_of_date 2025-06-15.",
+      "expected": "(7003201, 2025, concession 5 Retired, carried 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-046 highest discount concession line wins]"
+    },
+    {
+      "id": "TC-007-047",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-09",
+      "category": "happy_path",
+      "description": "K7 has Exceptional Hardship (not perpetual) in 2025 and no 2026 invoice: 2026 is Unknown, not carried.",
+      "preconditions": "assumes Q-006. Standard set-up (TC-007-001). 7003301: 300301 with SUBS_MRICS 450.00 and CONEXCEPTIONHP -225.00. @as_of_date 2026-06-15.",
+      "expected": "(2025, concession 6, carried 0) and (2026, concession 0, carried 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-047 non-perpetual concession is not carried]"
+    },
+    {
+      "id": "TC-007-048",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-09",
+      "category": "boundary",
+      "description": "Carry-forward looks only at the latest earlier invoiced year: Retired in 2023 and Exceptional Hardship in 2024 give Unknown in 2025, not Retired.",
+      "preconditions": "assumes Q-006. Standard set-up (TC-007-001). 7003302 first event 2023; 2023 invoice with CONRETIRED; 2024 invoice with CONEXCEPTIONHP; none in 2025. @as_of_date 2025-06-15.",
+      "expected": "(2023, 5, 0), (2024, 6, 0), (2025, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-048 concession carry looks only at the latest earlier invoiced year]"
+    },
+    {
+      "id": "TC-007-049",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-10",
+      "category": "happy_path",
+      "description": "K8 is No concession in 2025 and has no 2026 invoice: 2026 is Unknown, not carried.",
+      "preconditions": "assumes Q-006. Standard set-up (TC-007-001). 7003401: 2025 invoice with SUBS_MRICS only. @as_of_date 2026-06-15.",
+      "expected": "(2025, concession 1, carried 0) and (2026, concession 0, carried 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-049 No concession is not carried]"
+    },
+    {
+      "id": "TC-007-050",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-03",
+      "category": "reconciliation",
+      "description": "The attributes load reads silv_membership_events and never changes it: same rows, event_nk, event_id and every column.",
+      "preconditions": "Standard set-up (TC-007-001). silv_membership_events holds three fully populated Phase 1 events (event_id 11, 12, 13); one 2025 invoice for 7004001. @as_of_date 2025-06-15.",
+      "expected": "silv_membership_events identical in every column before and after the load.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-050 attributes load leaves silv_membership_events unchanged]"
+    },
+    {
+      "id": "TC-007-051",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-03",
+      "category": "reconciliation",
+      "description": "After the change script, silv_membership_events keeps its 16 Phase 1 columns with their types and nullability, and gains exactly the 17 designed columns.",
+      "preconditions": "Reads the deployed table's metadata (not faked).",
+      "expected": "Exactly 33 columns: the 16 Phase 1 columns as before (event_nk nvarchar(220), contact_no nvarchar(200), campaign_quarter char(2), source_enr_id nullable, the rest not null); payment_method_id, payer_type_id, concession_type_id int not null; the three *_carried bit not null; subs_amount, fee_amount, invoiced_subtotal, credited_amount and the five GBP/net amounts decimal(19,4) null; currency_id int null; amount_status varchar(30) null.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-051 silv_membership_events keeps Phase 1 columns and gains the seventeen columns]"
+    },
+    {
+      "id": "TC-007-052",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-03",
+      "category": "reconciliation",
+      "description": "After the change script, fact_membership_events keeps its 15 Phase 1 columns and gains the same 17 columns with the same types and nullability.",
+      "preconditions": "Reads the deployed table's metadata (not faked).",
+      "expected": "Exactly 32 columns: the 15 Phase 1 columns as before (all not null; contact_no nvarchar(200), campaign_quarter char(2), date_id int) plus the 17 new columns as in TC-007-051.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-052 fact_membership_events keeps Phase 1 columns and gains the seventeen columns]"
+    },
+    {
+      "id": "TC-007-053",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-03",
+      "category": "nulls",
+      "description": "A row inserted the way the Phase 1 event load does (Phase 1 columns only) still inserts, with keys and flags defaulting to 0 and amounts, currency and amount_status NULL. So Phase 1 loads keep working unchanged.",
+      "preconditions": "silv_membership_events faked with @Defaults = 1 so the change script's defaults apply. One insert of event 21 naming only the 16 Phase 1 columns. The new columns are read through dynamic SQL, because they do not exist before the build.",
+      "expected": "Event 21: payment_method_id, payment_method_carried, payer_type_id, payer_type_carried, concession_type_id, concession_type_carried all 0; the ten amount columns, currency_id and amount_status NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-053 Phase 1 shaped insert into silv_membership_events gets 0 keys and null amounts]"
+    },
+    {
+      "id": "TC-007-054",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-03",
+      "category": "nulls",
+      "description": "A row inserted the way the Phase 1 fact load does still inserts into fact_membership_events, with keys and flags 0 and amounts NULL.",
+      "preconditions": "fact_membership_events faked with @Defaults = 1. One insert of event 21 naming only the 15 Phase 1 columns. New columns read through dynamic SQL.",
+      "expected": "Event 21: the six keys and flags 0; the ten amount columns, currency_id and amount_status NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-054 Phase 1 shaped insert into fact_membership_events gets 0 keys and null amounts]"
+    },
+    {
+      "id": "TC-007-055",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-07",
+      "category": "negative",
+      "description": "When a write fails part-way, the load rolls back, logs Failed with the error message and re-raises. The pending update and inserts leave nothing behind.",
+      "preconditions": "Runs without the tSQLt transaction. Standard set-up (TC-007-001). Data as TC-007-019 plus an event for contact 'REJECT-01' (2025). Target holds the stale (7000201, 2024, payment 3) row, so an update is pending. A test-only CHECK on the faked target rejects contact_no 'REJECT-01'. @as_of_date 2026-06-15.",
+      "expected": "Error 547 reaches the caller. silv_member_year_attributes identical to before (only the stale 2024 row, still payment 3). etl_run_log holds exactly one row, status 'Failed', non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD007].[test TC-007-055 failed write rolls back logs Failed and re-raises]"
+    }
+  ]
+}
