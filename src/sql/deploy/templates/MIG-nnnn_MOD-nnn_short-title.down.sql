@@ -9,14 +9,14 @@
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 GO
-IF etl.fn_MigrationIsApplied('MIG-nnnn') = 0
+IF Layercake.fn_migration_is_applied('MIG-nnnn') = 0
 BEGIN
     PRINT 'MIG-nnnn not applied; nothing to roll back.';
     SET NOEXEC ON;
 END
 GO
 -- Rollbacks run in reverse order: refuse while any later migration is still applied.
-IF EXISTS (SELECT 1 FROM etl.vw_MigrationState WHERE MigrationId > 'MIG-nnnn' AND CurrentState = 'up')
+IF EXISTS (SELECT 1 FROM Layercake.vw_migration_state WHERE migration_id > 'MIG-nnnn' AND current_state = 'up')
     THROW 50011, 'Roll back later migrations before MIG-nnnn.', 1;
 GO
 BEGIN TRANSACTION;
@@ -24,9 +24,9 @@ GO
 -- ===== reversal start (reverse order of the up script) =====
 -- ===== reversal end =====
 GO
-EXEC etl.usp_RecordMigration @MigrationId = 'MIG-nnnn', @ModuleId = 'MOD-nnn',
-     @Description = N'Rollback of MIG-nnnn', @Direction = 'down',
-     @ScriptName = N'MIG-nnnn_MOD-nnn_short-title.down.sql', @CommitHash = '$(CommitHash)';
+EXEC Layercake.usp_record_migration @migration_id = 'MIG-nnnn', @module_id = 'MOD-nnn',
+     @description = N'Rollback of MIG-nnnn', @direction = 'down',
+     @script_name = N'MIG-nnnn_MOD-nnn_short-title.down.sql', @commit_hash = '$(CommitHash)';
 COMMIT;
 GO
 SET NOEXEC OFF;

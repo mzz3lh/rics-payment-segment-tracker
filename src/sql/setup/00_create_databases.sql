@@ -8,3 +8,8 @@ SET NOCOUNT ON;
 IF DB_ID(N'RPST_Dev')  IS NULL CREATE DATABASE [RPST_Dev] COLLATE SQL_Latin1_General_CP1_CI_AS;
 IF DB_ID(N'RPST_Test') IS NULL CREATE DATABASE [RPST_Test] COLLATE SQL_Latin1_General_CP1_CI_AS;
 GO
+-- Schemas (create_schemas: false in config/project.yaml): production already has them and no migration creates one,
+-- so the dev and test databases get them here.
+IF NOT EXISTS (SELECT 1 FROM [RPST_Dev].sys.schemas WHERE name = N'Layercake') EXEC [RPST_Dev].sys.sp_executesql N'CREATE SCHEMA [Layercake] AUTHORIZATION dbo;';
+IF NOT EXISTS (SELECT 1 FROM [RPST_Test].sys.schemas WHERE name = N'Layercake') EXEC [RPST_Test].sys.sp_executesql N'CREATE SCHEMA [Layercake] AUTHORIZATION dbo;';
+GO

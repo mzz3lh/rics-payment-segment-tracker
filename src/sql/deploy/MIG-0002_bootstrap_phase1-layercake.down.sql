@@ -7,7 +7,7 @@ SET XACT_ABORT ON;
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
-IF etl.fn_MigrationIsApplied('MIG-0002') = 0
+IF Layercake.fn_migration_is_applied('MIG-0002') = 0
 BEGIN
     PRINT 'MIG-0002 not applied; nothing to roll back.';
     SET NOEXEC ON;

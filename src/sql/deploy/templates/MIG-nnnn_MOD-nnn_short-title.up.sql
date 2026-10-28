@@ -5,7 +5,7 @@
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 GO
-IF etl.fn_MigrationIsApplied('MIG-nnnn') = 1
+IF Layercake.fn_migration_is_applied('MIG-nnnn') = 1
 BEGIN
     PRINT 'MIG-nnnn already applied; skipping.';
     SET NOEXEC ON;
@@ -17,9 +17,9 @@ GO
 -- Tables: guarded CREATE / ALTER. Code objects: CREATE OR ALTER (each in its own batch).
 -- ===== changes end =====
 GO
-EXEC etl.usp_RecordMigration @MigrationId = 'MIG-nnnn', @ModuleId = 'MOD-nnn',
-     @Description = N'<what this migration changes>', @Direction = 'up',
-     @ScriptName = N'MIG-nnnn_MOD-nnn_short-title.up.sql', @CommitHash = '$(CommitHash)';
+EXEC Layercake.usp_record_migration @migration_id = 'MIG-nnnn', @module_id = 'MOD-nnn',
+     @description = N'<what this migration changes>', @direction = 'up',
+     @script_name = N'MIG-nnnn_MOD-nnn_short-title.up.sql', @commit_hash = '$(CommitHash)';
 COMMIT;
 GO
 SET NOEXEC OFF;
