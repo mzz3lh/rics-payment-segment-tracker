@@ -106,7 +106,11 @@ agents:
 # (phase1, baseline MIG-0002_bootstrap_phase1-layercake), so new code follows the solution's own conventions
 # where they differ from the base standards. Approved by a human like any project standard.
 conventions:
-  schemas: [Layercake, audit, etl]
+  # Production admits objects in the existing Layercake schema only, and the deploy login cannot create schemas
+  # (Mike, 2026-10-28). So MIG-0000 creates no schema and the deploy journal lives in Layercake.
+  schemas: [Layercake]
+  create_schemas: false
+  journal: {schema: Layercake, naming: snake}
   table_name: ^[a-z][a-z0-9_]*$
   column_name: ^_?[a-z][a-z0-9_]*$
   load_logging: [Layercake.usp_etl_log_start, Layercake.usp_etl_log_end]

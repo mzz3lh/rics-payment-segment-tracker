@@ -14,7 +14,7 @@ SET XACT_ABORT ON;
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
-IF etl.fn_MigrationIsApplied('MIG-0007') = 1
+IF Layercake.fn_migration_is_applied('MIG-0007') = 1
 BEGIN
     PRINT 'MIG-0007 already applied; skipping.';
     SET NOEXEC ON;
@@ -277,9 +277,9 @@ BEGIN
 END;
 GO
 -- ===== changes end =====
-EXEC etl.usp_RecordMigration @MigrationId = 'MIG-0007', @ModuleId = 'MOD-005',
-     @Description = N'Invoice line-type mapping and currency', @Direction = 'up',
-     @ScriptName = N'MIG-0007_MOD-005_invoice-line-type-mapping-and-currency.up.sql', @CommitHash = '$(CommitHash)';
+EXEC Layercake.usp_record_migration @migration_id = 'MIG-0007', @module_id = 'MOD-005',
+     @description = N'Invoice line-type mapping and currency', @direction = 'up',
+     @script_name = N'MIG-0007_MOD-005_invoice-line-type-mapping-and-currency.up.sql', @commit_hash = '$(CommitHash)';
 COMMIT;
 GO
 SET NOEXEC OFF;

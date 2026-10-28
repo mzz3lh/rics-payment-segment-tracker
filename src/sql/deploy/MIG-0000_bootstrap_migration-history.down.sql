@@ -6,25 +6,25 @@
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 GO
-IF OBJECT_ID(N'etl.MigrationHistory', N'U') IS NULL
+IF OBJECT_ID(N'Layercake.migration_history', N'U') IS NULL
 BEGIN
     PRINT 'MIG-0000 not present; nothing to roll back.';
     SET NOEXEC ON;
 END
 GO
-IF EXISTS (SELECT 1 FROM etl.vw_MigrationState WHERE MigrationId <> 'MIG-0000' AND CurrentState = 'up')
+IF EXISTS (SELECT 1 FROM Layercake.vw_migration_state WHERE migration_id <> 'MIG-0000' AND current_state = 'up')
     THROW 50010, 'Roll back every later migration before MIG-0000.', 1;
 GO
 BEGIN TRANSACTION;
-DROP PROCEDURE IF EXISTS etl.usp_RecordDbtDeploy;
-DROP VIEW IF EXISTS etl.vw_DbtVersion;
-IF OBJECT_ID(N'etl.DbtDeployHistory', N'U') IS NOT NULL
-    EXEC sp_rename N'etl.DbtDeployHistory', N'DbtDeployHistory_rolledback_MIG0000';
-DROP PROCEDURE IF EXISTS etl.usp_RecordMigration;
-DROP FUNCTION IF EXISTS etl.fn_MigrationIsApplied;
-DROP VIEW IF EXISTS etl.vw_DatabaseVersion;
-DROP VIEW IF EXISTS etl.vw_MigrationState;
-EXEC sp_rename N'etl.MigrationHistory', N'MigrationHistory_rolledback_MIG0000';
+DROP PROCEDURE IF EXISTS Layercake.usp_record_dbt_deploy;
+DROP VIEW IF EXISTS Layercake.vw_dbt_version;
+IF OBJECT_ID(N'Layercake.dbt_deploy_history', N'U') IS NOT NULL
+    EXEC sp_rename N'Layercake.dbt_deploy_history', N'dbt_deploy_history_rolledback_MIG0000';
+DROP PROCEDURE IF EXISTS Layercake.usp_record_migration;
+DROP FUNCTION IF EXISTS Layercake.fn_migration_is_applied;
+DROP VIEW IF EXISTS Layercake.vw_database_version;
+DROP VIEW IF EXISTS Layercake.vw_migration_state;
+EXEC sp_rename N'Layercake.migration_history', N'migration_history_rolledback_MIG0000';
 COMMIT;
 GO
 SET NOEXEC OFF;

@@ -13,7 +13,7 @@ SET XACT_ABORT ON;
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
-IF etl.fn_MigrationIsApplied('MIG-0009') = 1
+IF Layercake.fn_migration_is_applied('MIG-0009') = 1
 BEGIN
     PRINT 'MIG-0009 already applied; skipping.';
     SET NOEXEC ON;
@@ -520,9 +520,9 @@ BEGIN
 END;
 GO
 -- ===== changes end =====
-EXEC etl.usp_RecordMigration @MigrationId = 'MIG-0009', @ModuleId = 'MOD-007',
-     @Description = N'Member-year attributes and new event-table columns', @Direction = 'up',
-     @ScriptName = N'MIG-0009_MOD-007_member-year-attributes-and-new-event-tab.up.sql', @CommitHash = '$(CommitHash)';
+EXEC Layercake.usp_record_migration @migration_id = 'MIG-0009', @module_id = 'MOD-007',
+     @description = N'Member-year attributes and new event-table columns', @direction = 'up',
+     @script_name = N'MIG-0009_MOD-007_member-year-attributes-and-new-event-tab.up.sql', @commit_hash = '$(CommitHash)';
 COMMIT;
 GO
 SET NOEXEC OFF;

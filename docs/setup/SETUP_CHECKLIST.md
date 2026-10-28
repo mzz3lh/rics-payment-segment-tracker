@@ -22,7 +22,7 @@ One-time machine setup (Python, local SQL Server, CLR, tSQLt download) is in the
 - [ ] 5. Generate one password per agent in your secret store. Run `src/sql/setup/02_create_agent_users.sql` in SQLCMD mode in each database (instructions in the file header). Passwords must not contain a single quote.
 - [ ] 6. Run `src/sql/setup/03_grant_access_dev.sql` and `04_grant_access_test.sql`.
 - [ ] 7. Run `src/sql/setup/05_verify_access.sql` in each database. The last result set must be empty. Save the output with this checklist.
-- [ ] 8. Run `src/sql/deploy/MIG-0000_bootstrap_migration-history.up.sql` in SQLCMD mode (`-v CommitHash=<git sha>`) in both databases, then `src/sql/deploy/MIG-0001_bootstrap_audit-tables.up.sql` (load audit tables) the same way. `SELECT * FROM etl.vw_DatabaseVersion;` returns `MIG-0001`.
+- [ ] 8. Run `src/sql/deploy/MIG-0000_bootstrap_migration-history.up.sql` in SQLCMD mode (`-v CommitHash=<git sha>`) in both databases, then `src/sql/deploy/MIG-0001_bootstrap_audit-tables.up.sql` the same way (in this project it creates nothing and only records itself). `SELECT * FROM Layercake.vw_database_version;` returns `MIG-0001`.
 - [ ] 9. Run `tests/tsqlt/test_Smoke.sql` and `EXEC tSQLt.Run 'test_Smoke';` in each database. Both tests pass.
 - [ ] 10. Sign the access request above.
 - [ ] 11. Turn on the project CI (`.github/workflows/project-ci.yml`): in the project repository's Settings > Secrets and variables > Actions, add the variable `FRAMEWORK_REPO` (the framework repository, owner/name), optionally `FRAMEWORK_REF` (default `main`), and the secret `FRAMEWORK_TOKEN` (a fine-grained token with read-only Contents access to the framework repository). The first push runs it; both jobs' steps go green on the new project.

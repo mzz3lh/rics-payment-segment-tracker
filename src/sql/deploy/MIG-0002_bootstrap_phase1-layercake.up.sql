@@ -7,7 +7,7 @@ SET XACT_ABORT ON;
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
-IF etl.fn_MigrationIsApplied('MIG-0002') = 1
+IF Layercake.fn_migration_is_applied('MIG-0002') = 1
 BEGIN
     PRINT 'MIG-0002 already applied; skipping.';
     SET NOEXEC ON;
@@ -9388,9 +9388,9 @@ alter table Layercake.silv_annual_rate_base with check
     foreign key (gender_id) references Layercake.silv_ref_gender (id);
 go
 GO
-EXEC etl.usp_RecordMigration @MigrationId = 'MIG-0002', @ModuleId = NULL,
-     @Description = N'Baseline: existing solution (phase1-layercake)', @Direction = 'up',
-     @ScriptName = N'MIG-0002_bootstrap_phase1-layercake.up.sql', @CommitHash = '$(CommitHash)';
+EXEC Layercake.usp_record_migration @migration_id = 'MIG-0002', @module_id = NULL,
+     @description = N'Baseline: existing solution (phase1-layercake)', @direction = 'up',
+     @script_name = N'MIG-0002_bootstrap_phase1-layercake.up.sql', @commit_hash = '$(CommitHash)';
 COMMIT;
 GO
 SET NOEXEC OFF;

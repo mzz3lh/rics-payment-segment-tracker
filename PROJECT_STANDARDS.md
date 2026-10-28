@@ -40,8 +40,16 @@ This project extends an existing solution. Its deployable scripts were imported 
 `MIG-0002_bootstrap_phase1-layercake` (object files under `src/sql/<schema>/`, other scripts under `src/sql/baseline/`).
 Overrides of the base standards, so that new code matches the solution and nothing that reads it breaks:
 
-- Schemas (2.1): `Layercake`, `audit`, `etl`; new objects go only in these (`MIG-0000` still
-  creates the base layer schemas, unused).
+- Schemas (2.1): `Layercake` only. Production admits objects in the existing `Layercake` schema only and the
+  deploy login cannot create schemas, so no deployable script creates one (`create_schemas: false`): `MIG-0000`
+  only checks that `Layercake` exists. In dev and test, `src/sql/setup/00_create_databases.sql` creates it.
+  Mike, 2026-10-28.
+- Deploy journal (3.1): in `Layercake`, named like the solution: `Layercake.migration_history`,
+  `Layercake.vw_migration_state`, `Layercake.vw_database_version`, `Layercake.fn_migration_is_applied`,
+  `Layercake.usp_record_migration` (and the dbt journal objects, unused while dbt is off). Phase 1's own
+  `Layercake.schema_migration` is left to `Deploy-Database.ps1`. Mike, 2026-10-28 (card: New Layercake journal).
+- Load audit (3): `MIG-0001` creates nothing in this project (no `audit` schema); it only records itself, so
+  migration numbers match the framework's.
 - Table names (2.1): `^[a-z][a-z0-9_]*$`.
 - Column names (2.1): `^_?[a-z][a-z0-9_]*$`; the leading underscore is only for the standard bronze audit columns (`_loaded_at`, `_updated_at`, `_is_deleted`, `_deleted_at`), as in the Phase 1 bronze tables.
 - Load logging (3): load procedures call `Layercake.usp_etl_log_start`, `Layercake.usp_etl_log_end` instead of the `audit` procedures.
