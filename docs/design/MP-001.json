@@ -232,7 +232,7 @@
       "id": "MOD-008",
       "title": "Segment anomalies",
       "sequence": 8,
-      "scope": "Builds usp_load_silv_data_anomaly_segment, which reconciles CORPORATE_FLAG_NO_SCHEME, DOUBLE_PAYMENT, CONCESSION_NOT_IN_REFERENCE and FULL_CONCESSION_NO_CONCESSION rows in the existing silv_data_anomaly (structure unchanged). Does not touch other anomaly types.",
+      "scope": "Builds usp_load_silv_data_anomaly_segment, which reconciles CORPORATE_FLAG_NO_SCHEME, DOUBLE_PAYMENT, CONCESSION_NOT_IN_REFERENCE and FULL_CONCESSION_NO_CONCESSION rows in the existing silv_data_anomaly (structure unchanged). Does not touch other anomaly types. Also scopes the Phase 1 usp_load_silv_data_anomaly so that it resolves only the anomaly types it detects itself (answers.md, MOD-008 anomaly ownership).",
       "requirement_ids": [
         "REQ-006",
         "REQ-011"
@@ -255,7 +255,8 @@
       ],
       "objects": [
         "Layercake.usp_load_silv_data_anomaly_segment",
-        "Layercake.silv_data_anomaly"
+        "Layercake.silv_data_anomaly",
+        "Layercake.usp_load_silv_data_anomaly"
       ],
       "status": "planned",
       "build_tool": "migrations"
