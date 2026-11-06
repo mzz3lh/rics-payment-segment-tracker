@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-009",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-06T13:25:50Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-009.json",
+      "tests/tsqlt/test_MOD009.sql"
+    ]
+  },
+  "module_id": "MOD-009",
+  "branch": "agent/developer/MOD-009-retire-silv-payment-events-payment-sourc",
+  "commit": "cf6a2ca423c2414b1d65d2ccc61e058f16cb9035",
+  "requirement_ids": [
+    "REQ-006"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_payment_events.sql",
+      "object": "Layercake.silv_payment_events",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-006"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD009_dev].[test no deployed module outside the test classes references payment_source]",
+    "[test_MOD009_dev].[test payment events load still takes payment_date from settled approved cash transactions]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0011",
+      "up_script": "src/sql/deploy/MIG-0011_MOD-009_retire-silv-payment-events-payment-sourc.up.sql",
+      "down_script": "src/sql/deploy/MIG-0011_MOD-009_retire-silv-payment-events-payment-sourc.down.sql",
+      "rollback_test": {
+        "commit": "cf6a2ca423c2414b1d65d2ccc61e058f16cb9035",
+        "run_at": "2026-11-06T13:25:46.098337+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "MP-001's scope for MOD-009 says the Phase 1 procedure that loads silv_payment_events is changed to stop writing payment_source. Per the 2026-11-06 answer to Q-031, Layercake.usp_load_silv_payment_events never names payment_source (the column only took its default), so the procedure is left unchanged and the migration changes only the table. The module plan lists only Layercake.silv_payment_events as its object.",
+    "The down script re-adds payment_source with its default N'Individual', so existing rows get 'Individual'. This was the only value the column could hold, because the Phase 1 load never wrote it. The rollback therefore restores both the data and the schema.",
+    "The existing primary key name pk_silv_payment_events does not follow base standards 2.1 (PK_<schema>_<Table>). It is kept as is, because the module changes nothing but payment_source and TC-009-003 checks that the key is unchanged."
+  ],
+  "notes": "MIG-0011 drops the default df_silv_payment_events_src and then the column Layercake.silv_payment_events.payment_source (RULE-027; drop approved under Q-035 and Q-024). The down script adds the column back with its default. No procedure or view changes: usp_load_silv_payment_events already writes only the other five columns. Starting point: TC-009-001 and TC-009-002 failed and the other five passed, because the existing load already behaved as required. All 7 Tester tests and 2 dev tests now pass. The dev tests check that no module outside the test schemas references payment_source, and that the load still fills payment_date from settled, approved cash transactions (the Tester's tests leave payment_date NULL). Round-trip and checks pass. The sqlfluff findings are advisory and come from the Phase 1 lower-case style, which is kept on purpose.\n\nTest-first: the first run had 5 of 7 of the Tester's tests passing; the final run passed 7 of 7 and 2 unit test(s), in 3 run(s)."
+}
