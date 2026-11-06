@@ -5,6 +5,8 @@
 
 ----------------------------------------------------
 --  Layercake.silv_payment_events
+--  payment_source retired by MOD-009 (RULE-027, Q-024, Q-035):
+--  payer type now lives on silv_member_year_attributes.
 ----------------------------------------------------
 create table Layercake.silv_payment_events
 (
@@ -13,6 +15,5 @@ create table Layercake.silv_payment_events
     payment_date     date null,          -- first cash transaction date from custtrans (informational)
     renewal_date_adj date null,          -- adjusted renewal date - always within the campaign year; drives the day-by-day paid logic
     invoice_position nvarchar(64) null,
-    payment_source   nvarchar(64) not null constraint df_silv_payment_events_src default N'Individual',
     constraint pk_silv_payment_events primary key clustered (contact_no, campaign_year)
 );
