@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-009",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-06T12:21:04Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-11-06T13:23:51Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-009",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-009-001",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-10",
+      "category": "happy_path",
+      "description": "After the change script, Layercake.silv_payment_events still exists but has no payment_source column and no payment_source default (df_silv_payment_events_src).",
+      "preconditions": "assumes Q-024 and Q-035: the drop is approved and nothing downstream reads payment_source (RULE-027 working assumption; Q-035 asked again 2026-11-06, no answer yet). Reads the deployed table's metadata, not faked. The down script's restore is covered by the migration check and roundtrip (MOD-016), not by tSQLt.",
+      "expected": "The table exists (1); 0 columns named payment_source; 0 default constraints named df_silv_payment_events_src.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD009].[test TC-009-001 silv_payment_events has no payment_source column]"
+    },
+    {
+      "id": "TC-009-002",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-10",
+      "category": "reconciliation",
+      "description": "No other change (REQ-001 still holds): the table keeps exactly its other five Phase 1 columns with the same types and nullability.",
+      "preconditions": "assumes Q-035: drop approved. Reads the deployed table's metadata, not faked. The full REQ-001 before-and-after comparison is MOD-016's.",
+      "expected": "Exactly 5 columns: contact_no nvarchar(200) not null; campaign_year int not null; payment_date date null; renewal_date_adj date null; invoice_position nvarchar(64) null.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD009].[test TC-009-002 silv_payment_events keeps its other five Phase 1 columns unchanged]"
+    },
+    {
+      "id": "TC-009-003",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-10",
+      "category": "reconciliation",
+      "description": "No other change: the primary key is still clustered on (contact_no, campaign_year).",
+      "preconditions": "Reads the deployed table's metadata, not faked.",
+      "expected": "Primary key: CLUSTERED, key column 1 contact_no, key column 2 campaign_year, nothing else.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD009].[test TC-009-003 silv_payment_events keeps its clustered primary key on contact_no and campaign_year]"
+    },
+    {
+      "id": "TC-009-004",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-10",
+      "category": "happy_path",
+      "description": "The changed Phase 1 load still inserts the paid positions without writing payment_source. Unpaid and soft-deleted status rows are left out. The run is logged Success.",
+      "preconditions": "assumes Q-031: Layercake.usp_load_silv_payment_events is the Phase 1 procedure that loads the table (asked 2026-11-06, no answer yet). Faked: brnz_subs_status, brnz_cust_trans (empty, so payment_date is NULL), silv_payment_events (empty), etl_run_log (@Identity, @Defaults), etl_progress_log, etl_daily_count_pending_rebuild, etl_daily_count_loaded (empty). brnz_subs_status rows: 9000001 2025 Fully Paid adj 2024-11-01; 9000002 2025 Partially Paid adj 2024-12-15; 9000003 2025 Full Concession adj NULL; 9000004 2024 Pre-Subs Payment adj 2023-10-05; 9000005 2025 Unpaid; 9000006 2025 Fully Paid soft-deleted.",
+      "expected": "silv_payment_events holds exactly 4 rows (contact, year, payment_date, renewal_date_adj, invoice_position): (9000001, 2025, NULL, 2024-11-01, Fully Paid), (9000002, 2025, NULL, 2024-12-15, Partially Paid), (9000003, 2025, NULL, NULL, Full Concession), (9000004, 2024, NULL, 2023-10-05, Pre-Subs Payment). One etl_run_log row: silver, silv_payment_events, Success, inserted 4, updated 0, deleted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD009].[test TC-009-004 payment events load inserts paid positions without payment_source]"
+    },
+    {
+      "id": "TC-009-005",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-10",
+      "category": "negative",
+      "description": "The changed load still updates a changed position in place and deletes a position that is no longer paid, keeping an unchanged row.",
+      "preconditions": "assumes Q-031. Same fakes as TC-009-004. Target before (5 columns only): (9100001, 2025, NULL, 2024-11-01, Partially Paid), (9100002, 2025, NULL, 2024-11-10, Fully Paid), (9100003, 2024, NULL, 2023-11-01, Fully Paid). Status rows: 9100001 2025 Fully Paid; 9100002 2025 Unpaid; 9100003 2024 Fully Paid, same dates.",
+      "expected": "Target holds exactly (9100001, 2025, NULL, 2024-11-01, Fully Paid) and (9100003, 2024, NULL, 2023-11-01, Fully Paid). One etl_run_log row: Success, inserted 0, updated 1, deleted 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD009].[test TC-009-005 payment events load updates changed and deletes no longer paid positions]"
+    },
+    {
+      "id": "TC-009-006",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-10",
+      "category": "idempotency",
+      "description": "Running the changed load twice on unchanged data leaves the table identical and logs 0, 0, 0 on the second run.",
+      "preconditions": "assumes Q-031. Same fakes as TC-009-004. Status rows: 9200001 2025 Fully Paid adj 2024-11-01; 9200002 2025 Partially Paid adj 2024-12-15; 9200003 2024 Full Concession adj NULL. Load run twice.",
+      "expected": "Whole-table snapshot after the second run equals the one after the first. etl_run_log holds two Success rows: (3, 0, 0) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD009].[test TC-009-006 payment events load rerun on unchanged data changes nothing]"
+    },
+    {
+      "id": "TC-009-007",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-10",
+      "category": "negative",
+      "description": "When a write fails part-way, the changed load still rolls back, logs Failed with the error message and re-raises. Its pending update and delete leave nothing behind.",
+      "preconditions": "assumes Q-031. Runs without the tSQLt transaction. Same fakes as TC-009-004, plus a test-only CHECK on the faked target that rejects contact_no 'REJECT-01'. Target before: (9300001, 2025, NULL, 2024-11-01, Partially Paid), (9300002, 2024, NULL, 2023-11-01, Fully Paid). Status rows: 9300001 2025 Fully Paid (update pending), 9300003 2025 Fully Paid and REJECT-01 2025 Fully Paid (inserts); 9300002 absent (delete pending).",
+      "expected": "Error 547 reaches the caller. The target still holds exactly the two rows from before, unchanged (9300001 still Partially Paid). etl_run_log holds exactly one row: silv_payment_events, status Failed, error_message not NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD009].[test TC-009-007 failed payment events load rolls back logs Failed and re-raises]"
+    }
+  ]
+}
