@@ -11,6 +11,10 @@
     hard-deleted: a row that stops being detected is stamped
     resolved_at, and re-opened if it recurs.
 
+    Only the eleven types this procedure detects are ever resolved here.
+    Other anomaly types in the table (the payment segment types) belong
+    to their own loads, which reconcile them (MOD-008 anomaly ownership).
+
     Rules 1-4 read silv_member_base: the events are still emitted
     exactly as derived (module 9) - the anomaly log records WHERE the
     derivation had to tolerate bad data, it never changes the
@@ -546,11 +550,17 @@ begin
         exec Layercake.usp_etl_log_progress @log_id, N'anomalies: new', @ins, @substep_ts output;
 
         -- no longer detected (source data fixed, or the rule no longer
-        -- fires): stamp resolved_at, keep the row for audit
+        -- fires): stamp resolved_at, keep the row for audit. Only this
+        -- procedure's own eleven types: the segment and invoice anomaly
+        -- types are reconciled by their own loads (MOD-008 anomaly ownership)
         update tgt
         set resolved_at = sysdatetime()
         from Layercake.silv_data_anomaly tgt
         where tgt.resolved_at is null
+          and tgt.anomaly_type in ('ELECTION_NO_ENROLMENT', 'ELECTION_BEFORE_ENROLMENT', 'RPQ_WITH_ENROLMENT',
+                                   'STALE_LAPSE_IGNORED', 'NO_RICS_RECORD', 'NO_TRANSACTIONS', 'JOIN_NO_PAYMENT',
+                                   'ENROLMENT_AFTER_FIRST_PAID', 'ELECTION_AFTER_FIRST_PAID',
+                                   'ENROLMENT_BEFORE_FIRST_PAID', 'ELECTION_BEFORE_FIRST_PAID')
           and not exists (select 1 from #anom_stage s
                           where s.anomaly_nk = tgt.anomaly_nk);
         set @del = @@rowcount;

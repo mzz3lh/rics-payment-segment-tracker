@@ -217,3 +217,59 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
 GO
+
+CREATE PROCEDURE test_MOD008_dev.[test the Phase 1 anomaly load resolves only its own types and leaves segment and invoice types open]
+AS
+BEGIN
+    -- Every Phase 1 source is empty, so no Phase 1 rule fires this run.
+    EXEC tSQLt.FakeTable 'Layercake.etl_progress_log', @Identity = 1, @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.silv_member_base';
+    EXEC tSQLt.FakeTable 'Layercake.brnz_contact', @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.brnz_contact_test_record', @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.brnz_rics_record', @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.brnz_cust_trans', @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.ref_enrolment_exception';
+    EXEC tSQLt.FakeTable 'Layercake.vw_enrolment_base';
+    EXEC tSQLt.FakeTable 'Layercake.vw_student_superseded';
+
+    INSERT INTO Layercake.silv_data_anomaly
+        (anomaly_nk, anomaly_type, contact_no, source_enr_id, detail, first_detected_at, last_seen_at, resolved_at)
+    VALUES (N'NO_RICS_RECORD:E1', 'NO_RICS_RECORD', N'E1', NULL, N'phase 1 open',
+            '2025-01-01T00:00:00', '2025-01-01T00:00:00', NULL),
+           (N'JOIN_NO_PAYMENT:E2', 'JOIN_NO_PAYMENT', N'E2', NULL, N'phase 1 resolved',
+            '2024-01-01T00:00:00', '2024-01-01T00:00:00', '2024-06-01T00:00:00'),
+           (N'CORPORATE_FLAG_NO_SCHEME:E3:2025', 'CORPORATE_FLAG_NO_SCHEME', N'E3', NULL, N'segment open',
+            '2025-01-01T00:00:00', '2025-01-01T00:00:00', NULL),
+           (N'FULL_CONCESSION_NO_CONCESSION:E4:2025', 'FULL_CONCESSION_NO_CONCESSION', N'E4', NULL, N'segment open',
+            '2025-01-01T00:00:00', '2025-01-01T00:00:00', NULL),
+           (N'EV-E5-2025', 'EVENT_NO_INVOICE', N'E5', NULL, N'invoice open',
+            '2025-01-01T00:00:00', '2025-01-01T00:00:00', NULL);
+
+    EXEC Layercake.usp_load_silv_data_anomaly;
+
+    SELECT anomaly_nk, CASE WHEN resolved_at IS NULL THEN 0 ELSE 1 END AS is_resolved
+    INTO #Actual
+    FROM Layercake.silv_data_anomaly;
+
+    SELECT anomaly_nk, is_resolved
+    INTO #Expected
+    FROM (VALUES (CAST(N'NO_RICS_RECORD:E1' AS nvarchar(240)), 1),
+                 (CAST(N'JOIN_NO_PAYMENT:E2' AS nvarchar(240)), 1),
+                 (CAST(N'CORPORATE_FLAG_NO_SCHEME:E3:2025' AS nvarchar(240)), 0),
+                 (CAST(N'FULL_CONCESSION_NO_CONCESSION:E4:2025' AS nvarchar(240)), 0),
+                 (CAST(N'EV-E5-2025' AS nvarchar(240)), 0)) AS v(anomaly_nk, is_resolved);
+
+    EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
+
+    -- The already-resolved Phase 1 row keeps its original stamp.
+    DECLARE @expected_resolved datetime2(3) = '2024-06-01T00:00:00';
+    DECLARE @e2_resolved datetime2(3) = (SELECT resolved_at FROM Layercake.silv_data_anomaly WHERE anomaly_nk = N'JOIN_NO_PAYMENT:E2');
+    EXEC tSQLt.AssertEquals @expected_resolved, @e2_resolved;
+
+    SELECT status, rows_inserted, rows_updated, rows_deleted INTO #ActualLog FROM Layercake.etl_run_log;
+    SELECT status, rows_inserted, rows_updated, rows_deleted
+    INTO #ExpectedLog
+    FROM (VALUES (CAST('Success' AS varchar(10)), 0, 0, 1)) AS v(status, rows_inserted, rows_updated, rows_deleted);
+    EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
+END;
+GO
