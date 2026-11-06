@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-008",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-06T08:54:27Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-11-06T09:23:58Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-008",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-008-001",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-04",
+      "category": "happy_path",
+      "description": "Contact P3, 2025: segment invoice payment mode Corporate, no corporate subscription for 2025 (only a 2024 one), paid position. RULE-025.",
+      "preconditions": "assumes Q-002: Corporate test is segment invoice Corporate plus a live corporate subscription that year. Standard set-up (SetUp fakes every table read or written and seeds payment methods 1-5 with Corporate = 5, payer types, concession types No concession 1 / Retired 2 / Exceptional Hardship 3, line types, campaign years 2021-2026). P3: invoice 900301 INV-P3-25 (2025, Corporate), one SUBS line 450.00; brnz_corporate_subscription row for 2024 only (Active/Active); silv_payment_events 'Fully Paid' 2025; one 2025 Renewal; attributes 2025 = payment 5, payer Individual 1, concession 1, segment invoice 900301.",
+      "expected": "silv_data_anomaly holds exactly one row: (CORPORATE_FLAG_NO_SCHEME, P3).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-001 Corporate segment invoice without a corporate subscription raises one CORPORATE_FLAG_NO_SCHEME row]"
+    },
+    {
+      "id": "TC-008-002",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-04",
+      "category": "happy_path",
+      "description": "Design: anomaly_nk is the contact number and Campaign Year; detail names the Campaign Year and the segment invoice.",
+      "preconditions": "assumes Q-002. Data as TC-008-001 (P3, invoice 900301 INV-P3-25, 2025). The exact text format of anomaly_nk and detail is left to the build.",
+      "expected": "Exactly one CORPORATE_FLAG_NO_SCHEME row for P3 whose anomaly_nk contains 'P3' and '2025', and whose detail contains '2025' and names the invoice ('INV-P3-25' or rec_id '900301').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-002 anomaly_nk names the contact and year and detail names the year and segment invoice]"
+    },
+    {
+      "id": "TC-008-003",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-04",
+      "category": "negative",
+      "description": "Contact P1, 2025: Corporate segment invoice and a live corporate subscription (SCH-001, Active/Active, 2025). No anomaly.",
+      "preconditions": "assumes Q-002, Q-027 (active value 'Active'). P1: invoice 900101 Corporate, SUBS 450.00; subscription SCH-001 2025 Active/Active live; paid 2025; attributes payment 5, payer Corporate 2, ref 'SCH-001'.",
+      "expected": "silv_data_anomaly is empty.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-003 Corporate segment invoice with a live corporate subscription raises no anomaly]"
+    },
+    {
+      "id": "TC-008-004",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-04",
+      "category": "negative",
+      "description": "A corporate subscription row that is soft-deleted in bronze (_is_deleted = 1) is not live, so a Corporate segment invoice is still flagged.",
+      "preconditions": "assumes Q-002, Q-027. P12: invoice 901201 Corporate 2025; subscription SCH-012 2025 Active/Active with _is_deleted 1; paid 2025; attributes payment 5, payer Individual 1.",
+      "expected": "silv_data_anomaly holds exactly one row: (CORPORATE_FLAG_NO_SCHEME, P12).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-004 soft-deleted corporate subscription is not live and the flag is raised]"
+    },
+    {
+      "id": "TC-008-005",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-04",
+      "category": "negative",
+      "description": "Only the segment invoice counts: an earlier 2025 invoice paid Corporate does not raise the flag when the latest (segment) invoice is Card.",
+      "preconditions": "assumes Q-002, Q-012 (latest eligible invoice sets the year). P13: invoice 901301 (2024-10-05, Corporate) and 901302 (2025-01-10, Card), each with a SUBS 450.00 line; no corporate subscription; paid 2025; attributes payment Card 2, segment invoice 901302.",
+      "expected": "silv_data_anomaly is empty.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-005 Corporate on an earlier non-segment invoice raises no flag]"
+    },
+    {
+      "id": "TC-008-006",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-04",
+      "category": "boundary",
+      "description": "Anomalies are derived for contact-years from 2022 only: a 2021 Corporate invoice without a subscription raises nothing, a 2022 one raises the flag.",
+      "preconditions": "assumes Q-002, Q-011. P14: 2021 invoice 901421 Corporate, attributes 2021 all -2, no segment invoice. P15: 2022 invoice 901522 Corporate, attributes 2022 payment 5, payer 1. Neither has a subscription; both have a paid position.",
+      "expected": "silv_data_anomaly holds exactly one row: (CORPORATE_FLAG_NO_SCHEME, P15). Nothing for P14.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-006 flag is raised for 2022 but not for 2021]"
+    },
+    {
+      "id": "TC-008-007",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-04",
+      "category": "negative",
+      "description": "A year with no eligible invoice, whose Corporate payment method is only carried forward, has no segment invoice and raises no flag; the invoiced year does.",
+      "preconditions": "assumes Q-002, Q-006. P16: 2025 invoice 901625 Corporate, no subscription, paid 2025; no 2026 invoice. Attributes 2025 payment 5 not carried; 2026 payment 5 carried 1, payer 1 carried 1, no segment invoice. Events: 2025 Renewal, 2026 Lapse.",
+      "expected": "silv_data_anomaly holds exactly one row, (CORPORATE_FLAG_NO_SCHEME, P16), and no row's anomaly_nk contains '2026'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-007 a carried-forward year with no invoice raises no flag]"
+    },
+    {
+      "id": "TC-008-008",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-12",
+      "category": "happy_path",
+      "description": "Contact P7, 2025: Corporate segment invoice; the 2025 subscription has Sub Status 'Active' but Sub User Status 'Inactive', so it is not live.",
+      "preconditions": "assumes Q-002, Q-027. P7: invoice 900701 Corporate; subscription SCH-007 2025 Active/Inactive, live in bronze; paid 2025; attributes payment 5, payer Individual 1.",
+      "expected": "silv_data_anomaly holds exactly one row: (CORPORATE_FLAG_NO_SCHEME, P7).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-008 subscription with Sub User Status Inactive is not live and the flag is raised]"
+    },
+    {
+      "id": "TC-008-009",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-07",
+      "category": "happy_path",
+      "description": "Contact P6, 2025: segment invoice settled 225.00 by Card and 225.00 by Corporate; P6 is in a live corporate subscription. RULE-026.",
+      "preconditions": "assumes Q-002, Q-027. P6: invoice 900601 (inv_payment_method Card, voucher V-P6-25) with SUBS 450.00; payment lines on P6's account with lastsettlevoucher V-P6-25: 225.00 'Card' and 225.00 'Corporate'; subscription SCH-006 2025 Active/Active; paid; attributes payment Card 2, payer Corporate 2, ref 'SCH-006'.",
+      "expected": "silv_data_anomaly holds exactly one row: (DOUBLE_PAYMENT, P6). No CORPORATE_FLAG_NO_SCHEME.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-009 Card and Corporate settlement with a live subscription raises one DOUBLE_PAYMENT row]"
+    },
+    {
+      "id": "TC-008-010",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-13",
+      "category": "happy_path",
+      "description": "Contact P8, 2025: segment invoice settled 225.00 by Card and 225.00 by Corporate; no live corporate subscription; paid position.",
+      "preconditions": "assumes Q-002. P8: invoice 900801 (Card, V-P8-25), SUBS 450.00; payment lines 225.00 'Card' and 225.00 'Corporate' settling V-P8-25 on P8's account; no subscription; paid; attributes payment Card 2, payer Individual 1.",
+      "expected": "silv_data_anomaly holds exactly one row: (DOUBLE_PAYMENT, P8).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-010 Card and Corporate settlement without a live subscription raises one DOUBLE_PAYMENT row]"
+    },
+    {
+      "id": "TC-008-011",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-13",
+      "category": "negative",
+      "description": "No double payment where the invoice is settled by one method only, or where the Corporate settlement line is soft-deleted (not live).",
+      "preconditions": "assumes Q-002. P10: invoice 901001 settled 225.00 Card + 225.00 Card. P11: invoice 901101 settled 225.00 Card (live) + 225.00 Corporate with _is_deleted 1. Both paid, attributes payment Card 2, payer 1.",
+      "expected": "silv_data_anomaly is empty.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-011 single-method settlement and a soft-deleted Corporate payment raise no DOUBLE_PAYMENT]"
+    },
+    {
+      "id": "TC-008-012",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-13",
+      "category": "boundary",
+      "description": "A contact-year that meets both RULE-025 (Corporate segment invoice, no live subscription) and RULE-026 (settled by Corporate and Card) gets one row of each type, with distinct anomaly_nk values.",
+      "preconditions": "assumes Q-002. P17: invoice 901701 inv_payment_method Corporate, SUBS 450.00, settled 225.00 Card + 225.00 Corporate; no subscription; paid; attributes payment 5, payer Individual 1.",
+      "expected": "silv_data_anomaly holds exactly (CORPORATE_FLAG_NO_SCHEME, P17) and (DOUBLE_PAYMENT, P17), with 2 distinct anomaly_nk values.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-012 Corporate invoice settled by Card and Corporate without a subscription raises both types once]"
+    },
+    {
+      "id": "TC-008-013",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-11",
+      "category": "idempotency",
+      "description": "A second load on unchanged data adds no rows and leaves every existing anomaly row untouched (design: existing cases left untouched), and logs 0 inserted, 0 updated, 0 deleted.",
+      "preconditions": "Data for P3 (flag), P8 (double payment), K4 (CONUNKNOWN) and K5 (Full Concession, no concession line), as in TC-008-001, -010, -018 and -022. Load run once, snapshot of silv_data_anomaly (all columns) taken, etl_run_log cleared, load run again.",
+      "expected": "First run leaves 4 rows. silv_data_anomaly after the second run is identical in every column to the snapshot. etl_run_log holds one row for the second run: status 'Success', rows_inserted 0, rows_updated 0, rows_deleted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-013 rerun on unchanged data leaves every anomaly row untouched and logs 0 0 0]"
+    },
+    {
+      "id": "TC-008-014",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-11",
+      "category": "negative",
+      "description": "Design: cases that no longer apply are deleted on the next run (for example after a correction); cases that still apply are left untouched.",
+      "preconditions": "Data for P3 and P8 as TC-008-016. Load run once. Then P3 gains a live 2025 subscription SCH-003 (Active/Active) and its attributes become payer Corporate 2, ref 'SCH-003'. etl_run_log cleared; load run again.",
+      "expected": "No silv_data_anomaly row remains for P3. P8's DOUBLE_PAYMENT row is identical in every column to before the rerun. etl_run_log: status 'Success', rows_inserted 0, rows_updated 0, rows_deleted 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-014 a case that no longer applies is removed and a still-valid case is untouched]"
+    },
+    {
+      "id": "TC-008-015",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-11",
+      "category": "negative",
+      "description": "The load touches only its own four anomaly types: rows of Phase 1 types and of the invoice anomaly types are left as they were, including one for the same contact.",
+      "preconditions": "silv_data_anomaly pre-loaded with NO_TRANSACTIONS for P3, EVENT_NO_INVOICE for P99 and a resolved JOIN_NO_PAYMENT for P98 (explicit timestamps). P3 data as TC-008-001.",
+      "expected": "Rows of the other types are identical in every column before and after the run; exactly one CORPORATE_FLAG_NO_SCHEME row exists for P3.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-015 anomaly rows of other types are left untouched]"
+    },
+    {
+      "id": "TC-008-016",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-11",
+      "category": "reconciliation",
+      "description": "Design logging: a successful run ends its etl_run_log row 'Success' with counts that agree with the rows written.",
+      "preconditions": "P3 (flag) and P8 (double payment) data; empty silv_data_anomaly; etl_run_log faked with defaults.",
+      "expected": "etl_run_log holds one row: status 'Success', rows_inserted 2, rows_updated 0, rows_deleted 0, error_message NULL, finished_at set.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-016 successful run logs Success with the rows inserted]"
+    },
+    {
+      "id": "TC-008-017",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-11",
+      "category": "negative",
+      "description": "Error path (design: try/catch with XACT_ABORT, error recorded through usp_etl_log_end, re-raised): a write the target rejects re-raises, logs 'Failed' and leaves silv_data_anomaly unchanged.",
+      "preconditions": "Runs without the tSQLt transaction. silv_data_anomaly holds a stale CORPORATE_FLAG_NO_SCHEME row for PSTALE (a pending delete) and a NO_TRANSACTIONS row for P3. Corporate-without-subscription data for P3 and PERR (2025). A test-only CHECK on the faked silv_data_anomaly rejects contact_no 'PERR'.",
+      "expected": "Error 547 reaches the caller. silv_data_anomaly is identical to before in every column (PSTALE row still there, no P3 or PERR row). etl_run_log holds one row, status 'Failed', with a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-017 failed write rolls back logs Failed and re-raises]"
+    },
+    {
+      "id": "TC-008-018",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-05",
+      "category": "happy_path",
+      "description": "Contact K4, 2025: the segment invoice has item code 'CONUNKNOWN', which is not in silv_ref_concession_type (RULE-052). anomaly_nk carries contact, year and item code; detail names year and invoice.",
+      "preconditions": "K4: invoice 910401 INV-K4-25 (Card), lines SUBS 450.00 and CONUNKNOWN -100.00; paid 'Fully Paid'; attributes concession -1 Unrecognised, segment invoice 910401.",
+      "expected": "silv_data_anomaly holds exactly one row: (CONCESSION_NOT_IN_REFERENCE, K4). Its anomaly_nk contains 'K4', '2025' and 'CONUNKNOWN'; its detail contains '2025' and 'INV-K4-25' or '910401'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-018 concession code not in the reference raises one CONCESSION_NOT_IN_REFERENCE row naming the code]"
+    },
+    {
+      "id": "TC-008-019",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-05",
+      "category": "negative",
+      "description": "Concession codes that are in the reference raise no CONCESSION_NOT_IN_REFERENCE, whether full or reduced.",
+      "preconditions": "K1: Full Concession invoice 910101 with SUBS 450.00 and CONRETIRED -450.00, Full Concession position, attributes concession Retired 2. K3: Fully Paid invoice 910301 with SUBS 450.00 and CONHARDSHIP -225.00, attributes concession Exceptional Hardship 3.",
+      "expected": "silv_data_anomaly is empty.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-019 concession codes found in the reference raise no CONCESSION_NOT_IN_REFERENCE]"
+    },
+    {
+      "id": "TC-008-020",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-05",
+      "category": "duplicates",
+      "description": "The same unknown concession code on two lines of one invoice is one case.",
+      "preconditions": "K8: invoice 910801 with SUBS 450.00 and two CONUNKNOWN lines of -50.00; paid; attributes concession -1.",
+      "expected": "silv_data_anomaly holds exactly one row: (CONCESSION_NOT_IN_REFERENCE, K8).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-020 the same unknown code on two lines raises one row]"
+    },
+    {
+      "id": "TC-008-021",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-05",
+      "category": "boundary",
+      "description": "Design: anomaly_nk for CONCESSION_NOT_IN_REFERENCE includes the item code, so two different unknown codes on one invoice are two cases.",
+      "preconditions": "K9: invoice 910901 with SUBS 450.00, CONUNKNOWN -50.00 and CONOTHER -50.00 (neither in the reference); paid; attributes concession -1.",
+      "expected": "Exactly two rows, both (CONCESSION_NOT_IN_REFERENCE, K9): one anomaly_nk contains 'CONUNKNOWN', the other 'CONOTHER'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-021 two different unknown codes on one invoice raise one row per code]"
+    },
+    {
+      "id": "TC-008-022",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-06",
+      "category": "happy_path",
+      "description": "Contact K5 has a Full Concession position in 2025 and a segment invoice with no concession line (RULE-053).",
+      "preconditions": "Full Concession position is set consistently in every source that can hold it: silv_payment_events invoice_position 'Full Concession', invoice payment_status 'Full Concession', full_concession_flag 'Y'. K5: invoice 910501 INV-K5-25 with one SUBS 450.00 line; attributes concession No concession 1.",
+      "expected": "silv_data_anomaly holds exactly one row: (FULL_CONCESSION_NO_CONCESSION, K5); its anomaly_nk contains 'K5' and '2025', its detail '2025' and 'INV-K5-25' or '910501'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-022 Full Concession position with no concession line raises one FULL_CONCESSION_NO_CONCESSION row]"
+    },
+    {
+      "id": "TC-008-023",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-06",
+      "category": "boundary",
+      "description": "A Full Concession position whose invoice carries only a reduced concession (Exceptional Hardship, discount 50) has no full-rate concession type, so it is flagged.",
+      "preconditions": "K6: Full Concession position (all three sources as TC-008-022); invoice 910601 with SUBS 450.00 and CONHARDSHIP -225.00; attributes concession 3 (is_full_concession 0).",
+      "expected": "silv_data_anomaly holds exactly one row: (FULL_CONCESSION_NO_CONCESSION, K6).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-023 Full Concession position with only a reduced concession raises the row]"
+    },
+    {
+      "id": "TC-008-024",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-06",
+      "category": "negative",
+      "description": "No FULL_CONCESSION_NO_CONCESSION where the Full Concession invoice has a full-rate type (Retired, discount 100), or where the position is not Full Concession.",
+      "preconditions": "K1: Full Concession position, invoice 910101 with CONRETIRED -450.00, attributes concession 2. K2: 'Fully Paid' position, payment_status 'Fully Paid', flag 'N', invoice 910201 with SUBS only, attributes No concession 1.",
+      "expected": "silv_data_anomaly is empty.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-024 full-rate concession or a non Full Concession position raises no FULL_CONCESSION_NO_CONCESSION]"
+    },
+    {
+      "id": "TC-008-025",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-06",
+      "category": "reconciliation",
+      "description": "Across the synthetic set, every Full Concession position has either a full-rate concession type or a FULL_CONCESSION_NO_CONCESSION row: 0 exceptions.",
+      "preconditions": "K1 (Retired), K5 (no concession line) and K6 (Exceptional Hardship) with Full Concession positions; K2 with a Fully Paid position. Data as TC-008-022 to TC-008-024.",
+      "expected": "3 Full Concession positions; 0 of them have a non-full concession type and no anomaly row; exactly 2 FULL_CONCESSION_NO_CONCESSION rows (K5, K6).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-025 every Full Concession position has a full-rate concession or an anomaly row]"
+    },
+    {
+      "id": "TC-008-026",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-12",
+      "category": "nulls",
+      "description": "A subscription row with a NULL Sub Status is not active, so it is not a live subscription and the Corporate segment invoice is flagged.",
+      "preconditions": "assumes Q-002, Q-027. P18: invoice 901801 Corporate 2025; subscription SCH-018 2025 with sub_status NULL and sub_user_status 'Active', live in bronze; paid; attributes payment 5, payer Individual 1.",
+      "expected": "silv_data_anomaly holds exactly one row: (CORPORATE_FLAG_NO_SCHEME, P18).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD008].[test TC-008-026 subscription with a NULL Sub Status is not live and the flag is raised]"
+    }
+  ]
+}
