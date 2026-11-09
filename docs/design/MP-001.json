@@ -563,7 +563,7 @@
       "id": "MOD-018",
       "title": "Derived retirement date",
       "sequence": 11,
-      "scope": "Builds Layercake.vw_silv_derived_retirement_date (RULE-099, one row per contact with a derived date) and changes the Phase 1 Layercake.usp_load_silv_member_base so that silv_member_base.retirement_date takes that date instead of apuk_retirementdate, null where there is none (RULE-100, RULE-101, ADR-005). No other Phase 1 object changes: events, annual rate base, member profile and daily count pick the date up as they read it today. Tests run the Phase 1 loads on synthetic data, compare with a snapshot taken before the change (AC-017-07), and rebuild the daily count with usp_load_silver @RebuildFrom where a test needs past days. The down script restores the Phase 1 procedure and drops the view. Its documentation update records the one-off daily rebuild after the first run as a human handover step.",
+      "scope": "Builds Layercake.vw_silv_derived_retirement_date (RULE-099, one row per contact with a derived date) and changes the Phase 1 Layercake.usp_load_silv_member_base so that silv_member_base.retirement_date takes that date instead of apuk_retirementdate, null where there is none (RULE-100, RULE-101, ADR-005). No other Phase 1 logic changes: events, annual rate base, member profile and daily count pick the date up as they read it today. Tests run the Phase 1 loads on synthetic data, compare with a snapshot taken before the change (AC-017-07), and rebuild the daily count with usp_load_silver @RebuildFrom where a test needs past days. The down script restores the Phase 1 procedure and drops the view. Its documentation update records the one-off daily rebuild after the first run as a human handover step. Also adds COLLATE DATABASE_DEFAULT to the string columns of #ev_stage in the Phase 1 usp_load_silv_membership_events (answers.md, MOD-018 events load collation); its event logic is unchanged.",
       "requirement_ids": [
         "REQ-017"
       ],
@@ -581,7 +581,8 @@
       ],
       "objects": [
         "Layercake.vw_silv_derived_retirement_date",
-        "Layercake.usp_load_silv_member_base"
+        "Layercake.usp_load_silv_member_base",
+        "Layercake.usp_load_silv_membership_events"
       ],
       "status": "planned",
       "build_tool": "migrations"
