@@ -118,3 +118,6 @@ the agent's working assumption. Example:
 ## Revenue and retirement sources: bronze column names (approved by Mike by merging this PR, 2026-11-09)
 - The two columns added to Layercake.brnz_subs_status from Subs.vwSubsMemberStatuses are snake_case, inv_total_amount (from 'Inv Total Amount') and retired_concession (from 'Retired Concession'), as PROJECT_STANDARDS 2.1 requires. The table's existing Phase 1 columns keep their names; no exception to 2.1 is made.
 - Fact checked in RPST_Dev (read-only), not a decision: Layercake.usp_load_brnz_subs_status lands the view and lists its columns explicitly, so it changes to load the two new columns.
+
+## Revenue and retirement sources: retirement date readers (approved by Mike by merging this PR, 2026-11-09)
+- Q-048: the derived retirement date replaces Layercake.silv_member_base.retirement_date for every reader, and it only sets Practising / Retired (membership_status_id). It does not change which membership events exist or their dates: every Phase 1 use in Layercake.usp_load_silv_membership_events is inside the join that picks the status, and the annual rate base and daily counts use it for status only. No difference or reconciliation script reads silv_member_base.retirement_date; their diagnostic columns keep showing the source apuk_retirementdate, and their PASS checks (by region and grade) are unaffected.
