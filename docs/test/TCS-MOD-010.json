@@ -1,0 +1,524 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-010",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-09T16:40:28Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-09T16:53:31Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-010",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-010-001",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-01",
+      "category": "happy_path",
+      "description": "A1's 2025 Renewal takes Inv Total Amount from its live 2025 status row, not the invoice (540.00 with tax) or its lines (450.00 subscription, 90.00 tax).",
+      "preconditions": "Standard set-up for every test: SetUp fakes silv_membership_events, silv_payment_events, brnz_subs_status, brnz_subs_invoice, brnz_subs_invoice_line, silv_ref_invoice_line_type (SUBS_MRICS/SUB subscription, RAFEE_MRICS/SUB readmission fee, ENROLFEE/APP enrolment or application fee, VATUK/TAX tax, CONRETIRED/SUB and CONEXCEPTIONHP/SUB concession), silv_event_amount (defaults) and etl_run_log (identity, defaults). Here: event 11 RN:A1:2025 Renewal 2024-11-05 CY2025; status (A1, 2025, Fully Paid, 450.00, live); invoice 101 (2024-10-20, 540.00 GBP) with lines 450.00 SUBS_MRICS and 90.00 VATUK.",
+      "expected": "One row: (RN:A1:2025, 11, A1, Renewal, 2024-11-05, amount year 2025, invoice_rec_id 101, 'Matched', subs_amount_gbp 450.0000, invoiced_subtotal_gbp 450.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-001 renewal carries inv total amount not the invoice lines]"
+    },
+    {
+      "id": "TC-010-002",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-02",
+      "category": "happy_path",
+      "description": "A 2025 Readmission whose invoice has a 450.00 subscription line and a 100.00 RAFEE_MRICS fee line carries the status row's 450.00; the fee is not added.",
+      "preconditions": "Standard set-up (TC-010-001). Event 21 RA:RA1:2025 Readmission 2025-03-10; status (RA1, 2025, Fully Paid, 450.00); invoice 201 (550.00) with the two lines.",
+      "expected": "(RA:RA1:2025, 21, 2025, invoice 201, 'Matched', 450.0000, 450.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-002 readmission amount does not add the readmission fee]"
+    },
+    {
+      "id": "TC-010-003",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-03",
+      "category": "happy_path",
+      "description": "A Join in CY2024 whose contact's paid positions are 2025 and 2026 takes its amount and invoice match from 2025, the first paid position year; the APP enrolment fee line is not added.",
+      "preconditions": "Paid position is a silv_payment_events row (answers.md MOD-007, Phase 1 paid position). Standard set-up (TC-010-001). Event 31 JR:J3 Join 2024-06-15 CY2024; payment events (J3, 2025) and (J3, 2026); status rows (J3, 2025, Fully Paid, 200.00) and (J3, 2026, Fully Paid, 210.00); invoices 301 (CY2025, lines 200.00 SUB + 50.00 ENROLFEE/APP) and 302 (CY2026).",
+      "expected": "(JR:J3, 31, Join, 2024-06-15, amount year 2025, invoice 301, 'Matched', 200.0000, 200.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-003 join takes the amount of its first paid position year]"
+    },
+    {
+      "id": "TC-010-004",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-03",
+      "category": "nulls",
+      "description": "A Join whose contact has no paid position in any year takes its amount from its own Campaign Year; another contact's paid position plays no part.",
+      "preconditions": "assumes Q-029: a Join with no paid position uses its own Campaign Year. Standard set-up (TC-010-001). Event 41 JR:J4 Join 2024-12-01 CY2025; payment event only for J9 (2024); status (J4, 2025, No Payment, 450.00); no invoice.",
+      "expected": "(JR:J4, 41, Join, amount year 2025, invoice NULL, 'No eligible invoice', 450.0000, 450.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-004 join with no paid position uses its own campaign year]"
+    },
+    {
+      "id": "TC-010-005",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-05",
+      "category": "happy_path",
+      "description": "A 2025 Renewal with an EUR invoice (EUR 500.00, GBP 430.00) carries the GBP Inv Total Amount; no conversion is done.",
+      "preconditions": "Standard set-up (TC-010-001). Event 51 RN:E1:2025; status (E1, 2025, Fully Paid, 430.00); invoice 501 EUR with line amountcur 500.00, amountmst 430.00.",
+      "expected": "(RN:E1:2025, 51, 2025, invoice 501, 'Matched', 430.0000, 430.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-005 EUR invoice renewal carries the GBP inv total amount]"
+    },
+    {
+      "id": "TC-010-006",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-06",
+      "category": "boundary",
+      "description": "A Full Concession year with Inv Total Amount 0.00 gives 0.00, not null, and amount_status 'Full Concession'.",
+      "preconditions": "Standard set-up (TC-010-001). Event 61 RN:F1:2025; status (F1, 2025, Full Concession, 0.00); invoice 601 with lines SUBS_MRICS 450.00 and CONRETIRED -450.00.",
+      "expected": "(RN:F1:2025, 61, 2025, invoice 601, 'Matched', 0.0000, 0.0000, 'Full Concession'); the amounts are not NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-006 full concession carries 0 not null]"
+    },
+    {
+      "id": "TC-010-007",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-08",
+      "category": "nulls",
+      "description": "Three 2025 Renewals get null amounts and 'No invoice': no status row; only a soft-deleted status row (450.00); a live row with a null Inv Total Amount.",
+      "preconditions": "Standard set-up (TC-010-001). Events 71 C1, 72 C2, 73 C3 (Renewal 2024-11-05, CY2025). Status (C2, 2025, Fully Paid, 450.00, _is_deleted 1) and (C3, 2025, Fully Paid, NULL, live). No invoices.",
+      "expected": "Three rows, each amount year 2025, invoice NULL, 'No eligible invoice', subs and invoiced NULL, 'No invoice'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-007 no live status row or null amount gives No invoice]"
+    },
+    {
+      "id": "TC-010-008",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-08",
+      "category": "negative",
+      "description": "A status row for the contact's other year, or for another contact in the same year, supplies no amount; a status row with no event gets no row.",
+      "preconditions": "Standard set-up (TC-010-001). Event 81 RN:N4:2025; status (N4, 2024, Fully Paid, 300.00) and (N5, 2025, Fully Paid, 450.00); N5 has no event.",
+      "expected": "Exactly one row: (RN:N4:2025, 81, 2025, NULL, 'No eligible invoice', NULL, NULL, 'No invoice').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-008 status row of another year or another contact supplies no amount]"
+    },
+    {
+      "id": "TC-010-009",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-008-09",
+      "category": "happy_path",
+      "description": "With INV-A (400.00, fully credited) and INV-B (420.00), the Renewal carries the status row's 420.00 and is matched to INV-B, the only eligible invoice.",
+      "preconditions": "assumes Q-012: a fully credited invoice is eligible only where the year has no other. Standard set-up (TC-010-001). Event 91 RN:V1:2025; invoices 901 INV-A (2024-10-01, fully_credited 'Y') and 902 INV-B (2024-10-20, 'N'); status (V1, 2025, Fully Paid, 420.00).",
+      "expected": "(RN:V1:2025, 91, 2025, invoice 902, 'Matched', 420.0000, 420.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-009 fully credited invoice left out of amount and match]"
+    },
+    {
+      "id": "TC-010-010",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-10",
+      "category": "happy_path",
+      "description": "A corporate-funded Renewal carries its own status row's 380.00, whatever its own invoice (450.00 Corporate) or the firm's invoice (-70.00 on account FIRM01) holds.",
+      "preconditions": "assumes Q-005: firm-level discounts are not spread to individuals. Standard set-up (TC-010-001). Event 101 RN:CO1:2025; status (CO1, 2025, Fully Paid, 380.00); invoices 1001 (CO1, Corporate, 450.00) and 1002 (FIRM01, -70.00).",
+      "expected": "Exactly one row: (RN:CO1:2025, 101, 2025, invoice 1001, 'Matched', 380.0000, 380.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-010 corporate funded renewal carries its own status amount]"
+    },
+    {
+      "id": "TC-010-011",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-008-12",
+      "category": "happy_path",
+      "description": "R1: a Renewal (2024-11-05) and a Readmission (2025-03-10) with INV-1 (2024-10-20) and INV-2 (2025-03-01). The Readmission carries the whole 900.00; the events are paired with the invoices in date order.",
+      "preconditions": "assumes Q-022: equal counts pair in date order. Standard set-up (TC-010-001). Events 111 RN:R1:2025 and 112 RA:R1:2025; invoices 1101 INV-1 (DD) and 1102 INV-2 (Card, with a RAFEE_MRICS line); status (R1, 2025, Fully Paid, 900.00).",
+      "expected": "RN:R1:2025: invoice 1101, 'Matched', NULL, NULL, 'Counted on another event'. RA:R1:2025: invoice 1102, 'Matched', 900.0000, 900.0000, 'Invoiced'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-011 R1 readmission carries the year amount and each event matches its own invoice]"
+    },
+    {
+      "id": "TC-010-012",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-008-14",
+      "category": "happy_path",
+      "description": "R2: a Renewal and a Readmission with one eligible invoice INV-3 (2024-10-25). The Readmission carries 450.00 and takes INV-3; the Renewal gets no invoice, outcome 'Invoice shortfall'.",
+      "preconditions": "Standard set-up (TC-010-001). Events 121 RN:R2:2025 (2024-11-05) and 122 RA:R2:2025 (2025-03-10); invoice 1201 INV-3 with SUBS_MRICS 450.00 and RAFEE_MRICS 100.00; status (R2, 2025, Fully Paid, 450.00).",
+      "expected": "RN:R2:2025: invoice NULL, 'Invoice shortfall', NULL, NULL, 'Counted on another event'. RA:R2:2025: invoice 1201, 'Matched', 450.0000, 450.0000, 'Invoiced'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-012 R2 one invoice two events goes to the readmission and renewal is shortfall]"
+    },
+    {
+      "id": "TC-010-013",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-008-15",
+      "category": "happy_path",
+      "description": "R3: one Renewal and two eligible invoices INV-4 (2024-10-01, 400.00) and INV-5 (2024-12-01, 420.00). The Renewal carries the status row's 820.00 and is matched to the latest invoice, INV-5.",
+      "preconditions": "assumes Q-022: surplus invoices leave the earliest unmatched. Standard set-up (TC-010-001). Event 131 RN:R3:2025; invoices 1301 and 1302; status (R3, 2025, Fully Paid, 820.00).",
+      "expected": "(RN:R3:2025, 131, 2025, invoice 1302, 'Matched', 820.0000, 820.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-013 R3 one event two invoices carries 820 and matches the latest invoice]"
+    },
+    {
+      "id": "TC-010-014",
+      "requirement_ids": [
+        "REQ-009",
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-14",
+      "category": "boundary",
+      "description": "More events than invoices: Renewals on 2024-10-15 and 2024-12-01 and a Readmission on 2025-02-01, with invoices on 2024-10-01 and 2025-01-15. The invoices go to the Readmission and the earliest Renewal and are paired with them by date. The later Renewal is the shortfall.",
+      "preconditions": "Design invoice match pattern (RULE-085). Standard set-up (TC-010-001). Events 141 RN:S1:2025:1, 142 RN:S1:2025:2, 143 RA:S1:2025; invoices 1401 and 1402; status (S1, 2025, Fully Paid, 900.00).",
+      "expected": "141: invoice 1401, 'Matched', NULL, 'Counted on another event'. 142: invoice NULL, 'Invoice shortfall', NULL, 'Counted on another event'. 143: invoice 1402, 'Matched', 900.0000, 'Invoiced'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-014 three events two invoices go to readmission and earliest renewal paired by date]"
+    },
+    {
+      "id": "TC-010-015",
+      "requirement_ids": [
+        "REQ-009",
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-15",
+      "category": "boundary",
+      "description": "More invoices than events: two Renewals (2024-10-15, 2025-02-01) and invoices on 2024-10-01, 2024-11-01 and 2025-01-15. The events pair by date with the two latest invoices, and the earliest invoice is unmatched.",
+      "preconditions": "assumes Q-022. Standard set-up (TC-010-001). Events 151 and 152; invoices 1501, 1502, 1503; status (S2, 2025, Fully Paid, 1290.00).",
+      "expected": "151: invoice 1502, 'Matched', 1290.0000, 'Invoiced'. 152: invoice 1503, 'Matched', NULL, 'Counted on another event'. No row has invoice 1501.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-015 two events three invoices pair with the latest invoices by date]"
+    },
+    {
+      "id": "TC-010-016",
+      "requirement_ids": [
+        "REQ-009",
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-15",
+      "category": "boundary",
+      "description": "Match tie-breaks: invoices with equal trans_date are ordered by rec_id, so the higher rec_id is the latest. Events with equal dates are paired in event_nk order. The amount tie between same-type, same-date events goes to the lowest event_id instead.",
+      "preconditions": "assumes Q-036: match ties are broken by event_nk and rec_id. Q-047 (answered): the amount goes to the lowest event_id. Standard set-up (TC-010-001). S3: event 161; invoices 1601 and 1602, both 2024-10-20; status 450.00. S4: events 163 RN:S4:2025:b and 164 RN:S4:2025:a, both 2024-11-05; invoices 1611 (2024-10-01) and 1612 (2024-12-01); status 600.00.",
+      "expected": "161: invoice 1602, 'Matched', 450.0000, 'Invoiced'. 164 (nk a): invoice 1611, 'Matched', NULL, 'Counted on another event'. 163 (nk b): invoice 1612, 'Matched', 600.0000, 'Invoiced'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-016 match ties go by event_nk and rec_id while the amount tie goes to lowest event_id]"
+    },
+    {
+      "id": "TC-010-017",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-16",
+      "category": "boundary",
+      "description": "R4's only invoice (300.00) is fully credited, and the status row has 0.00 and 'Fully Credited'. The Renewal carries 0.00 with 'Fully credited', and the credited invoice stands in for the match.",
+      "preconditions": "assumes Q-012: fully credited invoices are eligible where the year has no other. Standard set-up (TC-010-001). Event 171 RN:R4:2025; invoice 1701 fully_credited 'Y'; status (R4, 2025, Fully Credited, 0.00).",
+      "expected": "(RN:R4:2025, 171, 2025, invoice 1701, 'Matched', 0.0000, 0.0000, 'Fully credited').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-017 R4 only invoice fully credited gives 0 and Fully credited]"
+    },
+    {
+      "id": "TC-010-018",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-008-17",
+      "category": "negative",
+      "description": "A later 'CRE-0002' credit note of -100.00 changes neither the amount (450.00) nor the match (INV-6).",
+      "preconditions": "Standard set-up (TC-010-001). Event 181 RN:R5:2025; invoices 1801 INV-6 (2024-10-15, 450.00) and 1802 'CRE-0002' (2024-12-01, full_invoice_amount_cur -100.00); status (R5, 2025, Fully Paid, 450.00).",
+      "expected": "(RN:R5:2025, 181, 2025, invoice 1801, 'Matched', 450.0000, 450.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-018 R5 later CRE credit note changes neither amount nor match]"
+    },
+    {
+      "id": "TC-010-019",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-18",
+      "category": "negative",
+      "description": "An invoice with a 450.00 subscription line and a 25.00 unmapped 'NEWFEE' line gives 450.00 and 'Invoiced', never 'Unmapped lines'.",
+      "preconditions": "Standard set-up (TC-010-001); NEWFEE has no mapping row. Event 191 RN:NF1:2025; invoice 1901 with both lines; status (NF1, 2025, Fully Paid, 450.00).",
+      "expected": "(RN:NF1:2025, 191, 2025, invoice 1901, 'Matched', 450.0000, 450.0000, 'Invoiced'), the only row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-019 unmapped line code still gives Invoiced]"
+    },
+    {
+      "id": "TC-010-020",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-008-19",
+      "category": "boundary",
+      "description": "A 2021 Renewal and a 2021 Readmission are 'Before invoice data', with null amounts and no invoice match. This holds even with a 2021 status row of 300.00 and a 2021 invoice, and the 'Before invoice data' status takes precedence over 'Counted on another event'.",
+      "preconditions": "assumes Q-011: years before 2022 have no invoice data. Standard set-up (TC-010-001). Events 201 RN:P1:2021 and 202 RA:P1:2021 (CY2021); status (P1, 2021, Fully Paid, 300.00); invoice 2001 (CY2021).",
+      "expected": "Both rows: amount year 2021, invoice NULL, match 'Before invoice data', NULL, NULL, amount_status 'Before invoice data'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-020 campaign year 2021 events are Before invoice data with no amount or match]"
+    },
+    {
+      "id": "TC-010-021",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-008-19",
+      "category": "boundary",
+      "description": "The 2022 edge: a CY2022 Renewal and a CY2021 Join whose first paid position is 2022 carry their 2022 amounts and are matched. A CY2021 Join with no paid position stays 'Before invoice data'.",
+      "preconditions": "assumes Q-011 and Q-029. Standard set-up (TC-010-001). 211 RN:B1:2022 (2021-11-01); status (B1, 2022, 300.00); invoice 2101 (CY2022). 212 JR:B2 Join 2021-08-01 CY2021; payment event (B2, 2022); status (B2, 2022, 250.00); invoice 2102 (CY2022). 213 JR:B3 Join CY2021, no paid position; status (B3, 2021, No Payment, 300.00).",
+      "expected": "211: 2022, invoice 2101, 'Matched', 300.0000, 'Invoiced'. 212: 2022, invoice 2102, 'Matched', 250.0000, 'Invoiced'. 213: 2021, NULL, 'Before invoice data', NULL, 'Before invoice data'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-021 amount campaign year 2022 is invoice data including a 2021 join paid in 2022]"
+    },
+    {
+      "id": "TC-010-022",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-20",
+      "category": "reconciliation",
+      "description": "Across R1, R2 and R3 (data as TC-010-011 to TC-010-013), the event amounts total the status rows' 900.00 + 450.00 + 820.00. Each contact-year's amount sits on exactly one event.",
+      "preconditions": "Standard set-up (TC-010-001). R1, R2 and R3 events, invoices and 2025 status rows as in TC-010-011, TC-010-012 and TC-010-013.",
+      "expected": "SUM(invoiced_subtotal_gbp) = 2170.0000 and SUM(subs_amount_gbp) = 2170.0000. Exactly 3 rows carry an amount, and 0 contact-years have other than one amount event.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-022 R1 R2 R3 event amounts total 2170 with one amount event per contact year]"
+    },
+    {
+      "id": "TC-010-023",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-21",
+      "category": "nulls",
+      "description": "On a mixed set every Join, Renewal and Readmission gets a row with a non-null amount_status, and subs_amount_gbp always equals invoiced_subtotal_gbp, null together. The set covers a Join with a later paid year, a 2021 year, no status row, a soft-deleted status row, a null amount, a Change and a Lapse, and a Full Concession pair.",
+      "preconditions": "Standard set-up (TC-010-001). Events 231 to 240 for M1 to M7 (8 Join, Renewal and Readmission, 1 Change, 1 Lapse); payment event (M1, 2025); status rows for M1 2025 450.00, M2 2021 300.00, M4 2025 deleted, M5 2025 NULL, M6 2025 450.00, M7 2025 Full Concession 0.00; invoice 2301 for M1 2025.",
+      "expected": "8 rows; 0 Join, Renewal or Readmission events without a row; 0 rows with NULL amount_status; 0 rows where the two amounts differ or only one is NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-023 every join renewal readmission has a status and equal amounts]"
+    },
+    {
+      "id": "TC-010-024",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-21",
+      "category": "negative",
+      "description": "Change and Lapse events get no silv_event_amount row, even when their contact-year has a status row and an invoice.",
+      "preconditions": "Standard set-up (TC-010-001). Events 241 Change and 242 Lapse for CL1 in CY2025; status (CL1, 2025, Fully Paid, 450.00); invoice 2401.",
+      "expected": "silv_event_amount is empty.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-024 change and lapse events get no row]"
+    },
+    {
+      "id": "TC-010-025",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-22",
+      "category": "duplicates",
+      "description": "R6 has three 2025 Renewals: event 502 (2024-11-05), 501 (2024-12-01) and 503 (2024-11-05). The earliest date wins, then the lowest event_id, so event 502 carries the 450.00.",
+      "preconditions": "Q-047 (answered). Standard set-up (TC-010-001). The three events; status (R6, 2025, Fully Paid, 450.00); no invoices.",
+      "expected": "502: 'No eligible invoice', 450.0000, 'Invoiced'. 501 and 503: 'No eligible invoice', NULL, NULL, 'Counted on another event'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-025 R6 same type tie goes to earliest date then lowest event_id]"
+    },
+    {
+      "id": "TC-010-026",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-008-23",
+      "category": "happy_path",
+      "description": "R7's CY2024 Join, whose first paid position is 2025, shares amount year 2025 with a 2025 Renewal. The Renewal carries 500.00 and takes the one 2025 invoice. The Join is 'Counted on another event' and is the match shortfall.",
+      "preconditions": "Standard set-up (TC-010-001). Events 261 JR:R7 (Join 2024-06-01, CY2024) and 262 RN:R7:2025 (2024-11-05); payment event (R7, 2025); status (R7, 2025, Fully Paid, 500.00); invoice 2601 (CY2025).",
+      "expected": "JR:R7: amount year 2025, NULL, 'Invoice shortfall', NULL, NULL, 'Counted on another event'. RN:R7:2025: 2025, invoice 2601, 'Matched', 500.0000, 'Invoiced'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-026 R7 renewal beats the join that takes amounts from the same year]"
+    },
+    {
+      "id": "TC-010-027",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-24",
+      "category": "nulls",
+      "description": "R8 has a 2025 Renewal and a 2025 Readmission and no status row. Both get 'No invoice', which comes before 'Counted on another event'.",
+      "preconditions": "Standard set-up (TC-010-001). Events 271 RN:R8:2025 and 272 RA:R8:2025; no status row; no invoices.",
+      "expected": "Both: 2025, NULL, 'No eligible invoice', NULL, NULL, 'No invoice'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-027 R8 no status row gives No invoice on both events]"
+    },
+    {
+      "id": "TC-010-028",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-25",
+      "category": "boundary",
+      "description": "R9 is a Full Concession year at 0.00 with a Renewal and a Readmission. The Readmission carries 0.00 with 'Full Concession', and the Renewal is 'Counted on another event'.",
+      "preconditions": "Standard set-up (TC-010-001). Events 281 RN:R9:2025 and 282 RA:R9:2025; status (R9, 2025, Full Concession, 0.00); one invoice 2801 (2025-03-01, lines 450.00 and CONRETIRED -450.00).",
+      "expected": "RN:R9:2025: NULL, 'Invoice shortfall', NULL, NULL, 'Counted on another event'. RA:R9:2025: invoice 2801, 'Matched', 0.0000, 0.0000, 'Full Concession'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-028 R9 full concession readmission carries 0 and renewal is counted on another event]"
+    },
+    {
+      "id": "TC-010-029",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-26",
+      "category": "happy_path",
+      "description": "The positions Bad Debt Write Off, Zero Value Invoice, No Payment, Partially Paid, Pre-Subs Payment and Fully Paid all give 'Invoiced' with the row's amount.",
+      "preconditions": "Q-045 (answered). Standard set-up (TC-010-001). Renewals 291 to 296 for Q1 to Q6 in CY2025; status rows with those positions, each 100.00 except Zero Value Invoice at 0.00; no invoices.",
+      "expected": "Q1 100.0000, Q2 0.0000, Q3 to Q6 100.0000; all 'No eligible invoice' and 'Invoiced'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-029 other invoice positions are all Invoiced]"
+    },
+    {
+      "id": "TC-010-030",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-26",
+      "category": "nulls",
+      "description": "A live status row with a NULL Member Invoice Position and an amount falls to 'otherwise' and gives 'Invoiced'.",
+      "preconditions": "Standard set-up (TC-010-001). Event 301 RN:QN:2025; status (QN, 2025, position NULL, 300.00).",
+      "expected": "(RN:QN:2025, 301, 2025, NULL, 'No eligible invoice', 300.0000, 300.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-030 null invoice position with an amount is Invoiced]"
+    },
+    {
+      "id": "TC-010-031",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-27",
+      "category": "negative",
+      "description": "The status row holds 450.00, the invoice's invoice_amount_gbp 500.00 and its lines sum to 520.00. The Renewal carries 450.00. Changing the invoice to 999.00 and the lines to 600.00 + 400.00, then reloading, leaves it at 450.00 and updates nothing.",
+      "preconditions": "Standard set-up (TC-010-001). Event 311 RN:Z1:2025; status (Z1, 2025, Fully Paid, 450.00); invoice 3101 (500.00) with lines 31011 300.00 and 31012 220.00. Load, update the invoice and line amounts, load again.",
+      "expected": "(RN:Z1:2025, 311, 2025, invoice 3101, 'Matched', 450.0000, 450.0000, 'Invoiced'). etl_run_log rows: ('Success', 1, 0, 0) and ('Success', 0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-031 invoice and line amounts never set the event amount even after they change]"
+    },
+    {
+      "id": "TC-010-032",
+      "requirement_ids": [
+        "REQ-011",
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-011-07",
+      "category": "happy_path",
+      "description": "Concessions reach the event amount only through Inv Total Amount. K1 has lines of 450.00 and Retired -450.00, with a status row of 0.00 (Full Concession), and carries 0.00. K6 has lines of 450.00 and Exceptional Hardship -225.00, with a status row of 225.00, and carries 225.00, below the 450.00 standard rate.",
+      "preconditions": "assumes Q-017: a reduced concession leaves the amount below the standard rate. Standard set-up (TC-010-001). Events 321 RN:K1:2025 and 322 RN:K6:2025; invoices 3201 and 3202 with those lines; status rows (K1, 2025, Full Concession, 0.00) and (K6, 2025, Fully Paid, 225.00).",
+      "expected": "K1: invoice 3201, 'Matched', 0.0000, 0.0000, 'Full Concession'. K6: invoice 3202, 'Matched', 225.0000, 225.0000, 'Invoiced'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-032 concession lines reach the amount only through inv total amount]"
+    },
+    {
+      "id": "TC-010-033",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-21",
+      "category": "idempotency",
+      "description": "A second load on unchanged data changes no row, including load_id, created_at and updated_at, and logs 0 inserted, 0 updated, 0 deleted.",
+      "preconditions": "Standard set-up (TC-010-001). Data as TC-010-023. Load twice.",
+      "expected": "silv_event_amount is identical in every column after both loads. etl_run_log holds ('Success', 8, 0, 0) and ('Success', 0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-033 rerun on unchanged data changes nothing and logs 0 0 0]"
+    },
+    {
+      "id": "TC-010-034",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-01",
+      "category": "idempotency",
+      "description": "A row whose status amount changed is updated in place: created_at is kept, and updated_at and load_id are refreshed. A row whose values are unchanged is not touched.",
+      "preconditions": "Standard set-up (TC-010-001). Events 341 RN:U1:2025 and 342 RN:U2:2025; status rows (U1, 2025, 450.00) and (U2, 2025, 300.00); no invoices. The target already holds U1 at 400.00 and U2 at 300.00, both 'No eligible invoice' and 'Invoiced', with load_id 7 and created_at and updated_at 2020-01-01.",
+      "expected": "U1: 450.0000 'Invoiced', created_at 2020-01-01, updated_at after 2020-01-01, load_id = the run's log_id. U2: unchanged, load_id 7 and updated_at 2020-01-01. etl_run_log: ('Success', 0, 1, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-034 changed row is updated in place and unchanged row untouched]"
+    },
+    {
+      "id": "TC-010-035",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-21",
+      "category": "negative",
+      "description": "A row for an event no longer in silv_membership_events is deleted, even when its contact still has a status row.",
+      "preconditions": "Standard set-up (TC-010-001). Event 351 RN:D1:2025; status rows for D1 and D9 (2025, 450.00). The target holds a row for RN:D9:2025 (event 359), which has no event.",
+      "expected": "Exactly (RN:D1:2025, 351, 2025, NULL, 'No eligible invoice', 450.0000, 450.0000, 'Invoiced'). etl_run_log: ('Success', 1, 0, 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-035 row for an event that no longer exists is deleted]"
+    },
+    {
+      "id": "TC-010-036",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-01",
+      "category": "happy_path",
+      "description": "The first load logs one etl_run_log row that ends 'Success' with its counts, and stamps every row's load_id with that row's log_id.",
+      "preconditions": "Standard set-up (TC-010-001). Events 361 Renewal (L1), 362 Readmission (L2) and 363 Join (L3, no paid position), each with a 2025 status row. Layer and step name are not asserted: the design does not state them.",
+      "expected": "One etl_run_log row ('Success', 3, 0, 0) with finished_at set and error_message NULL. All 3 rows have load_id = that log_id and non-NULL created_at and updated_at.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-036 first load logs Success with counts and stamps load_id]"
+    },
+    {
+      "id": "TC-010-037",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-01",
+      "category": "negative",
+      "description": "An Inv Total Amount of 10000000000000000.000000 overflows decimal(19,4), so the load fails. The error reaches the caller, the run is logged Failed, and the target is unchanged.",
+      "preconditions": "Runs without the tSQLt transaction. Standard set-up (TC-010-001). Events 371 RN:X1:2025 and 372 RN:X2:2025; status rows (X1, 2025, 10000000000000000.000000) and (X2, 2025, 300.00). The target holds RN:X1:2025 at 400.00 with load_id 7 and dates 2020-01-01.",
+      "expected": "Error 8115 reaches the caller. silv_event_amount is identical in every column to its state before the load. etl_run_log holds exactly one row, status 'Failed', with a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD010].[test TC-010-037 amount overflowing decimal 19 4 fails logs Failed and changes nothing]"
+    }
+  ]
+}
