@@ -111,3 +111,6 @@ the agent's working assumption. Example:
 ## Revenue and retirement sources: spec sign-off (approved by Mike by merging this PR, 2026-11-06)
 - Q-045 amount_status, now that amounts come from Subs.vwSubsMemberStatuses (first match wins): 'Before invoice data' for events before Campaign Year 2022; 'No invoice' when there is no status row or Inv Total Amount is null; 'Counted on another event'; 'Full Concession'; 'Fully credited'; otherwise 'Invoiced'. 'Unmapped lines' is retired. The view's other invoice positions (Bad Debt Write Off, Zero Value Invoice, No Payment, Partially Paid, Pre-Subs Payment, Fully Paid) are all 'Invoiced'.
 - Q-046 Phase 1 regression: active, paid and event counts by date, region and grade stay unchanged, and both Phase 1 difference scripts still PASS. Only results split by membership status (Practising / Retired) change with the derived retirement date.
+
+## Revenue and retirement sources: event tie-break (approved by Mike by merging this PR, 2026-11-09)
+- Q-047: when Q-039's order (Readmission, then Renewal, then Join, then the earliest event date) leaves two or more events of the same type on the same earliest date in one contact-year, the event with the lowest event_id carries the amount. The others carry null amounts and amount_status 'Counted on another event'.
