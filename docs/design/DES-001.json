@@ -1682,6 +1682,16 @@
         "REQ-017",
         "REQ-001"
       ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_membership_events",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 events load, changed by MOD-018 (answers.md, MOD-018 events load collation) in one respect only: the string columns of its temp table #ev_stage (event_nk, event_type, event_subtype, contact_no, campaign_quarter) are declared COLLATE DATABASE_DEFAULT, so the procedure compiles where tempdb's collation differs from the database's (error 468 against silv_payment_events.contact_no). Its event logic, row set and logging are unchanged, and it still reads silv_member_base.retirement_date for status (ADR-005). The down script restores the Phase 1 definition.",
+      "requirement_ids": [
+        "REQ-017",
+        "REQ-001"
+      ]
     }
   ],
   "patterns": [
