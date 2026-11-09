@@ -203,3 +203,68 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
 GO
+
+/* ---------------- Layercake.usp_load_silv_membership_events (collation fix only) ---------------- */
+
+CREATE PROCEDURE test_MOD018_dev.[test the events load runs where tempdb collation differs and a rerun changes nothing]
+AS
+BEGIN
+    EXEC tSQLt.FakeTable 'Layercake.silv_ref_membership_grade';
+    EXEC tSQLt.FakeTable 'Layercake.silv_ref_membership_status';
+    EXEC tSQLt.FakeTable 'Layercake.silv_membership_events', @Identity = 1, @Defaults = 1;
+
+    INSERT INTO Layercake.silv_ref_membership_grade (id, grade_name)
+    VALUES (0, 'N/A'), (1, 'Candidate'), (2, 'Qualified');
+    INSERT INTO Layercake.silv_ref_membership_status (id, status_name)
+    VALUES (0, 'N/A'), (1, 'Practising'), (2, 'Retired');
+
+    -- E1: direct entry 2015, retired from 2023-11-20, paid CY2024 and CY2025
+    INSERT INTO Layercake.silv_member_base
+        (contact_id, contact_no, enrolment_date, election_date, is_rpq, retirement_date, lapsed_date, rpq_variant_id, country_id, gender_id)
+    VALUES ('00000000-0000-0000-0000-0000000000e1', N'E1', NULL, '2015-01-01', 0, '2023-11-20', NULL, 0, 0, 0);
+    INSERT INTO Layercake.silv_payment_events (contact_no, campaign_year, payment_date, renewal_date_adj)
+    VALUES (N'E1', 2024, NULL, '2023-10-20'),
+           (N'E1', 2025, NULL, '2024-10-10');
+
+    EXEC Layercake.usp_load_silv_membership_events;
+
+    SELECT event_nk, event_type, event_subtype, event_date, membership_status_id, campaign_year, campaign_quarter
+    INTO #Actual
+    FROM Layercake.silv_membership_events;
+
+    SELECT event_nk, event_type, event_subtype, event_date, membership_status_id, campaign_year, campaign_quarter
+    INTO #Expected
+    FROM (VALUES (N'JR:E1', 'Join', 'Direct Entry', CAST('2015-01-01' AS date), 1, 2015, 'Q2'),
+                 (N'RN:E1:2024', 'Renewal', 'Standard', CAST('2023-10-20' AS date), 1, 2024, 'Q1'),
+                 (N'RN:E1:2025', 'Renewal', 'Standard', CAST('2024-10-10' AS date), 2, 2025, 'Q1'))
+         AS v (event_nk, event_type, event_subtype, event_date, membership_status_id, campaign_year, campaign_quarter);
+
+    EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
+
+    SELECT event_id, event_nk INTO #IdsFirst FROM Layercake.silv_membership_events;
+
+    -- rerun on unchanged data, then a run after the retirement date is cleared
+    EXEC Layercake.usp_load_silv_membership_events;
+    UPDATE Layercake.silv_member_base SET retirement_date = NULL WHERE contact_no = N'E1';
+    EXEC Layercake.usp_load_silv_membership_events;
+
+    SELECT event_id, event_nk INTO #IdsLast FROM Layercake.silv_membership_events;
+    EXEC tSQLt.AssertEqualsTable '#IdsFirst', '#IdsLast';
+
+    DECLARE @status_2025 int = (SELECT membership_status_id FROM Layercake.silv_membership_events WHERE event_nk = N'RN:E1:2025');
+    EXEC tSQLt.AssertEquals 1, @status_2025;
+
+    SELECT log_id, layer, step_name, status, rows_inserted, rows_updated, rows_deleted
+    INTO #ActualLog
+    FROM Layercake.etl_run_log;
+
+    SELECT log_id, layer, step_name, status, rows_inserted, rows_updated, rows_deleted
+    INTO #ExpectedLog
+    FROM (VALUES (CAST(1 AS bigint), 'silver', 'silv_membership_events', 'Success', 3, 0, 0),
+                 (CAST(2 AS bigint), 'silver', 'silv_membership_events', 'Success', 0, 0, 0),
+                 (CAST(3 AS bigint), 'silver', 'silv_membership_events', 'Success', 0, 1, 0))
+         AS v (log_id, layer, step_name, status, rows_inserted, rows_updated, rows_deleted);
+
+    EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
+END;
+GO
