@@ -108,6 +108,16 @@
     BEFORE the new join date is invalidated as stale, like any other
     lapse that predates the Join (STALE_LAPSE_IGNORED in module 10).
 
+    RETIREMENT DATE (MOD-018, ADR-005, RULE-100/101): retirement_date is
+    the DERIVED date from Layercake.vw_silv_derived_retirement_date - the
+    Renewal Date of the contact's earliest live 'Retired Conc.' Campaign
+    Year in brnz_subs_status - not apuk_retirementdate, which is entered
+    by hand and is not always trustworthy. Null where the contact has no
+    derived date: no fallback to apuk_retirementdate or 'First Retired
+    Year' (Q-040). Only the value changes; the row set does not. Events,
+    annual rate base and (through silv_member_profile) the daily count
+    read this column for Practising / Retired and pick it up unchanged.
+
     DRIVER EXCLUSIONS:
       * Student grade (200000003) on the latest rics record - 'Rules to
         note' #2 - UNLESS the Student status is SUPERSEDED in the
@@ -313,7 +323,8 @@ begin
                 null, cast(c.Rics_LapsedDate as date)) as lapsed_date,
             isnull(lr.id, 0)                        as lapse_reason_id,
             lr.reason_name                          as lapse_reason_name,
-            cast(rec.apuk_retirementdate as date)   as retirement_date,
+            -- MOD-018: the derived date, null where there is none (see the header)
+            drd.derived_retirement_date             as retirement_date,
             lin.[ENR ID]                            as source_enr_id,
             isnull(rv.id, 0)                        as rpq_variant_id,
             isnull(ctry.id, 0)                      as country_id,
@@ -412,6 +423,9 @@ begin
             on  lin.[Route ID] = rv.variant_id
         left join #rics_record rec
             on c.Rics_contactno = rec.apuk_ricsmembershipnumber
+        -- MOD-018: one row per contact, so the left join cannot fan out
+        left join Layercake.vw_silv_derived_retirement_date drd
+            on drd.contact_no = c.Rics_contactno
         left join Layercake.silv_ref_lapse_reason lr
             on rec.apuk_lapsecode = lr.lapse_code
         left join Layercake.silv_ref_country ctry
