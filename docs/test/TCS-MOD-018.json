@@ -1,0 +1,291 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-018",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-09T14:58:08Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-09T15:11:38Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-018",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-018-001",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-01",
+      "category": "happy_path",
+      "description": "AC-017-01 on vw_silv_derived_retirement_date: T1's earliest live 'Retired Conc.' year with a Renewal Date gives the date. The view uses Renewal Date, not Renewal Date Adj.",
+      "preconditions": "SetUp fakes every table the module and the Phase 1 loads it feeds read or write, and seeds grade (0 N/A, 1 Candidate, 2 Qualified) and status (0 N/A, 1 Practising, 2 Retired). brnz_subs_status for T1 (all live): 2023 'No Conc.' Renewal Date 2022-10-15; 2024 'Retired Conc.' Renewal Date 2023-11-20, Renewal Date Adj 2023-12-31; 2025 'Retired Conc.' 2024-10-05.",
+      "expected": "Exactly one row: T1, retirement_campaign_year 2024, derived_retirement_date 2023-11-20.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-001 T1 derived date is the Renewal Date of the earliest Retired Conc year]"
+    },
+    {
+      "id": "TC-018-002",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-02",
+      "category": "nulls",
+      "description": "AC-017-02: a 'Retired Conc.' year whose Renewal Date is null is passed over, and the next 'Retired Conc.' year that has a date gives the derived date (Q-041).",
+      "preconditions": "brnz_subs_status for T2 (live): 2024 'Retired Conc.' Renewal Date NULL; 2025 'Retired Conc.' Renewal Date 2024-12-01.",
+      "expected": "Exactly one row: T2, 2025, 2024-12-01.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-002 T2 a Retired Conc year with a null Renewal Date is skipped]"
+    },
+    {
+      "id": "TC-018-003",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-03",
+      "category": "negative",
+      "description": "AC-017-03: a soft-deleted brnz_subs_status row (_is_deleted = 1) is ignored even though it is the earliest 'Retired Conc.' year.",
+      "preconditions": "brnz_subs_status for T3: 2023 'Retired Conc.' Renewal Date 2022-11-01, _is_deleted 1; 2024 'Retired Conc.' Renewal Date 2023-10-12, live.",
+      "expected": "Exactly one row: T3, 2024, 2023-10-12.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-003 T3 a soft deleted Retired Conc row is ignored]"
+    },
+    {
+      "id": "TC-018-004",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-04",
+      "category": "negative",
+      "description": "AC-017-04 on the view: a contact with no 'Retired Conc.' row has no derived date. 'Non-Retired Conc.', 'No Conc.', 'No Invoice' and a NULL retired_concession are not retired, and 'First Retired Year' plays no part (Q-040).",
+      "preconditions": "brnz_subs_status for T4 (live): 2023 'No Conc.' 2022-10-15; 2024 'Non-Retired Conc.' 2023-10-20; 2025 'No Invoice' NULL; 2026 retired_concession NULL, 2025-10-10. Subs.vwSubsMemberStatuses (faked) row T4/2024 with First Retired Year 2018.",
+      "expected": "The view returns no rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-004 T4 with no Retired Conc row has no derived date]"
+    },
+    {
+      "id": "TC-018-005",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-01",
+      "category": "duplicates",
+      "description": "On the combined AC-017-01 to AC-017-04 set, the view gives one row per contact that has a derived date. T1 has two 'Retired Conc.' years and still gives one row. T4 gives none.",
+      "preconditions": "brnz_subs_status holds the T1, T2, T3 rows of TC-018-001 to TC-018-003, plus T4 2023 'No Conc.' and 2024 'Non-Retired Conc.'.",
+      "expected": "Exactly 3 rows: (T1, 2024, 2023-11-20), (T2, 2025, 2024-12-01), (T3, 2024, 2023-10-12).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-005 mixed contacts give exactly one row per contact with a derived date]"
+    },
+    {
+      "id": "TC-018-006",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-01",
+      "category": "boundary",
+      "description": "RULE-099 takes the Renewal Date of the lowest Campaign Year, not the earliest Renewal Date across the years. A later year whose Renewal Date is earlier does not win.",
+      "preconditions": "brnz_subs_status for T10 (live): 2024 'Retired Conc.' Renewal Date 2023-11-20; 2025 'Retired Conc.' Renewal Date 2023-10-05 (Renewal Date Adj 2024-10-01).",
+      "expected": "Exactly one row: T10, 2024, 2023-11-20.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-006 the earliest Campaign Year wins even when a later year has an earlier Renewal Date]"
+    },
+    {
+      "id": "TC-018-007",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-01",
+      "category": "happy_path",
+      "description": "usp_load_silv_member_base writes the derived date to silv_member_base.retirement_date in place of apuk_retirementdate for T1 (AC-017-01). It does the same for T2 and T3 (the AC-017-02 and AC-017-03 rows).",
+      "preconditions": "T1, T2 and T3 are members: live brnz_contact, brnz_rics_record and brnz_cust_trans rows each, and ref_enrolment_exception election 2015-01-01. apuk_retirementdate: T1 2021-06-01, T2 2020-01-01, T3 2019-01-01. brnz_subs_status rows as in TC-018-001 to TC-018-003.",
+      "expected": "silv_member_base holds exactly T1 retirement_date 2023-11-20, T2 2024-12-01 and T3 2023-10-12.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-007 member base takes the derived date in place of apuk_retirementdate]"
+    },
+    {
+      "id": "TC-018-008",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-04",
+      "category": "nulls",
+      "description": "AC-017-04 through the load: T4 has no derived date, so silv_member_base.retirement_date is NULL. There is no fallback to apuk_retirementdate or to 'First Retired Year' (RULE-101, Q-040).",
+      "preconditions": "T4 is a member with apuk_retirementdate 2019-05-01 and election 2010-01-01. brnz_subs_status: 2023 'No Conc.', 2024 'Non-Retired Conc.'. Subs.vwSubsMemberStatuses (faked) has T4 rows with First Retired Year 2018.",
+      "expected": "silv_member_base holds exactly one row: T4 with retirement_date NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-008 T4 gets a null retirement date with no fallback to apuk or First Retired Year]"
+    },
+    {
+      "id": "TC-018-009",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-07",
+      "category": "negative",
+      "description": "Only retirement_date changes. The row set is still the Phase 1 member set: a contact with no status rows keeps its row with a NULL date, and a contact who has a 'Retired Conc.' row but is not a member gets no row. The other columns and the logging are unchanged.",
+      "preconditions": "Members T1 (apuk 2021-06-01) and T6 (apuk 2022-02-02), both with election 2015-01-01 via ref_enrolment_exception. brnz_subs_status: T1 2024 'Retired Conc.' 2023-11-20; T7 2024 'Retired Conc.' 2023-11-01, with no brnz_contact or brnz_rics_record row.",
+      "expected": "silv_member_base holds exactly 2 rows. T1: contact_id ...0001, enrolment_date NULL, election_date 2015-01-01, is_rpq 0, election_from_exception 1, lapsed_date NULL, retirement_date 2023-11-20. T6: the same with contact_id ...0006 and retirement_date NULL. No T7 row. etl_run_log has one row: silver, silv_member_base, 'Success', 2 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-009 the member base row set other columns and logging are unchanged]"
+    },
+    {
+      "id": "TC-018-010",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-07",
+      "category": "idempotency",
+      "description": "A second run of usp_load_silv_member_base on unchanged sources leaves silv_member_base identical.",
+      "preconditions": "Members T1 (apuk 2021-06-01; status 2023 'No Conc.', 2024 'Retired Conc.' 2023-11-20) and T6 (no status rows). The load is run twice, with a full-table snapshot after each run.",
+      "expected": "Both snapshots are identical in every column. etl_run_log has 2 'Success' rows for silv_member_base. T1 retirement_date is 2023-11-20.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-010 a rerun on unchanged sources leaves silv_member_base identical]"
+    },
+    {
+      "id": "TC-018-011",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-07",
+      "category": "negative",
+      "description": "The error handling is unchanged. The load fails while writing the derived date: the error reaches the caller, the run is logged 'Failed', and the previous content of silv_member_base is kept.",
+      "preconditions": "Runs outside the tSQLt transaction. Member T1 (apuk 2021-06-01) has status 2024 'Retired Conc.' 2023-11-20. silv_member_base holds the previous run's T1 row with retirement_date 2021-06-01. A test-only CHECK on the faked silv_member_base rejects retirement_date 2023-11-20.",
+      "expected": "Error 547 is raised to the caller. silv_member_base is identical to before (T1 still 2021-06-01). etl_run_log has one row: silv_member_base, 'Failed', with a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-011 a load the target rejects re-raises logs Failed and leaves silv_member_base unchanged]"
+    },
+    {
+      "id": "TC-018-012",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-05",
+      "category": "happy_path",
+      "description": "AC-017-05 in silv_membership_events. After usp_load_silv_member_base, the unchanged Phase 1 events load sets T1's Renewals to Practising before the derived date 2023-11-20 and Retired from it, where apuk 2021-06-01 would have made all of them Retired.",
+      "preconditions": "Member T1: apuk 2021-06-01, election 2015-01-01 (ref_enrolment_exception), status rows as in AC-017-01. silv_payment_events: 2023 renewal_date_adj 2022-10-15; 2024 2023-10-20; 2025 2024-10-10. The 2023 row keeps CY2024 a Renewal rather than a Readmission (ASM-003). Runs usp_load_silv_member_base, then usp_load_silv_membership_events.",
+      "expected": "T1's Renewal events: 2022-10-15 status 1 (Practising), 2023-10-20 status 1 (Practising), 2024-10-10 status 2 (Retired).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-012 T1 Renewals in silv_membership_events are Practising before and Retired from the derived date]"
+    },
+    {
+      "id": "TC-018-013",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-05",
+      "category": "happy_path",
+      "description": "AC-017-05 in fact_membership_events: gold carries the same statuses after usp_load_fact_membership_events.",
+      "preconditions": "As TC-018-012, then usp_load_fact_membership_events (dim_date faked empty).",
+      "expected": "T1's Renewal facts: 2022-10-15 status 1, 2023-10-20 status 1, 2024-10-10 status 2.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-013 T1 Renewals in fact_membership_events are Practising before and Retired from the derived date]"
+    },
+    {
+      "id": "TC-018-014",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-04",
+      "category": "nulls",
+      "description": "AC-017-04 events part: T4 has no derived date, so every T4 event in silv_membership_events and fact_membership_events is Practising, even though apuk 2019-05-01 precedes the Renewals.",
+      "preconditions": "Member T4: apuk 2019-05-01, election 2010-01-01, status rows 'No Conc.' and 'Non-Retired Conc.', First Retired Year 2018 in faked Subs.vwSubsMemberStatuses. silv_payment_events: 2023 2022-10-15; 2024 2023-10-20. Runs the member base, events and fact loads.",
+      "expected": "silv T4 Renewals: 2022-10-15 status 1 and 2023-10-20 status 1. No T4 event in silv or fact has a status other than 1. fact has 2 T4 Renewals.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-014 every T4 event is Practising in silv and fact despite apuk 2019-05-01]"
+    },
+    {
+      "id": "TC-018-015",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-07",
+      "category": "reconciliation",
+      "description": "AC-017-07 for silv_membership_events: before and after the change, the same events exist with the same event_id and every non-status column equal (segment and amount columns left out). Only membership_status_id differs, and only for contacts whose derived date differs from apuk_retirementdate.",
+      "preconditions": "The 'before' state is simulated: the Phase 1 procedure no longer exists in the test, and Phase 1 differs only in retirement_date (DES-001), so silv_member_base.retirement_date is set to each contact's apuk_retirementdate after the load and the events load is run (snapshot). Then the member base and events loads are rerun (snapshot). Contacts, each with election and payments for CY2023 (2022-10-15) and CY2024 (2023-10-20): T1 apuk 2021-06-01, derived 2023-11-20, plus CY2025 2024-10-10; T4 apuk 2019-05-01, no derived date; T8 apuk 2023-11-20, derived 2023-11-20, plus CY2025 2024-10-10; T9 neither date.",
+      "expected": "Non-status columns are identical. Exactly 4 events change status, all from 2 to 1: T1 Renewal 2022-10-15, T1 Renewal 2023-10-20, T4 Renewal 2022-10-15, T4 Renewal 2023-10-20. No changed event belongs to a contact whose derived date equals apuk_retirementdate.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-015 silv_membership_events before and after differ only in membership_status_id of contacts whose date changed]"
+    },
+    {
+      "id": "TC-018-016",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-07",
+      "category": "reconciliation",
+      "description": "AC-017-07 for fact_membership_events: the same before-and-after comparison on gold, with usp_load_fact_membership_events run after each events load.",
+      "preconditions": "As TC-018-015, with the fact load run after each events load. Segment and amount columns left out.",
+      "expected": "Same event_ids, and every non-status column (including date_id) identical. Exactly 4 facts change status from 2 to 1: T1 Renewals 2022-10-15 and 2023-10-20, T4 Renewals 2022-10-15 and 2023-10-20.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-016 fact_membership_events before and after differ only in membership_status_id of contacts whose date changed]"
+    },
+    {
+      "id": "TC-018-017",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-06",
+      "category": "boundary",
+      "description": "AC-017-06 daily part. The derived date reaches silv_daily_count_detail through silv_member_profile: T5 is Practising on the day before the derived date 2025-01-15 and Retired on it (inclusive). Under apuk 2024-03-01 they would be Retired on every day.",
+      "preconditions": "Member T5: apuk 2024-03-01, election 2015-01-01, status 2024 'No Conc.' 2023-10-20 and 2025 'Retired Conc.' 2025-01-15. silv_member_state_ranges: T5 'election' from 2015-01-01, open-ended, region 'UK'. ref_date_spine holds only 2024-06-01, 2025-01-14, 2025-01-15 and 2025-02-01. No dates are marked loaded. Runs the member base, member profile and daily count loads.",
+      "expected": "silv_daily_count_detail has 4 rows, grade 'election', active_count 1 each: 2024-06-01 status 1, 2025-01-14 status 1, 2025-01-15 status 2, 2025-02-01 status 2.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-017 T5 daily detail is Practising up to the day before the derived date and Retired from it]"
+    },
+    {
+      "id": "TC-018-018",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-06",
+      "category": "happy_path",
+      "description": "AC-017-06 annual part in silv_annual_rate_base: T5 counts only under Practising for CY2024 (boundaries 2023-09-30 and 2024-09-30), and is Retired at the CY2025 end boundary.",
+      "preconditions": "T5 as in TC-018-017. ref_campaign_year_config: 2024 (2023-10-01 to 2024-09-30) and 2025 (2024-10-01 to 2025-09-30). No events. Runs usp_load_silv_member_base, then usp_load_silv_annual_rate_base.",
+      "expected": "Exactly 3 rows (campaign_year, grade_id, status_id, country 0, gender 0, start, end, joined, readmitted, lapsed, renewed): (2024,2,1,0,0,1,1,0,0,0,0), (2025,2,1,0,0,1,0,0,0,0,0), (2025,2,2,0,0,0,1,0,0,0,0). There is no Retired row for 2024.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-018 T5 counts only under Practising in silv_annual_rate_base for CY2024]"
+    },
+    {
+      "id": "TC-018-019",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-06",
+      "category": "happy_path",
+      "description": "AC-017-06 in fact_annual_rate_base: gold carries the same counts after usp_load_fact_annual_rate_base.",
+      "preconditions": "As TC-018-018, then usp_load_fact_annual_rate_base. The identity id is not compared.",
+      "expected": "Exactly the 3 rows of TC-018-018: (2024,2,1,...,1,1,0,0,0,0), (2025,2,1,...,1,0,...), (2025,2,2,...,0,1,...).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-019 T5 counts only under Practising in fact_annual_rate_base for CY2024]"
+    },
+    {
+      "id": "TC-018-020",
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "acceptance_criterion_id": "AC-017-06",
+      "category": "reconciliation",
+      "description": "The design's daily-history behaviour (ASM-002). Once the derived date replaces apuk, the member profile load registers a pending rebuild, and the daily run leaves dates already loaded alone. The one-off usp_load_silv_daily_count @RebuildFrom then applies the new split and closes the pending row.",
+      "preconditions": "T5 as in TC-018-017. State as Phase 1 left it: silv_member_profile T5 retirement_date 2024-03-01. 2024-06-01 and 2025-02-01 are marked loaded, and silv_daily_count_detail counts T5 Retired (2) on both. ref_date_spine holds only those two dates. Runs the member base, member profile and daily count loads (no rebuild), then the daily count with @RebuildFrom set to the pending row's affected_from. usp_load_silv_daily_count stands in for usp_load_silver @RebuildFrom.",
+      "expected": "After the plain daily run, 2024-06-01 is still status 2. The pending row has source 'member_profile' and affected_from 2024-03-01. After the rebuild: 2024-06-01 status 1 and 2025-02-01 status 2, both 'election' with active_count 1. No open 'member_profile' pending row remains.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD018].[test TC-018-020 loaded daily history keeps the old split until a rebuild from the pending date applies the derived date]"
+    }
+  ]
+}
