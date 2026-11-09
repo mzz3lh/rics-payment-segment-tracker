@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-010",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-09T16:57:45Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-010.json",
+      "tests/tsqlt/test_MOD010.sql"
+    ]
+  },
+  "module_id": "MOD-010",
+  "branch": "agent/developer/MOD-010-event-amounts-and-invoice-matching",
+  "commit": "883490bb046fbacfd9fc4577a7828b2fd34ce05e",
+  "requirement_ids": [
+    "REQ-008",
+    "REQ-009",
+    "REQ-011"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_event_amount.sql",
+      "object": "Layercake.silv_event_amount",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_event_amount.sql",
+      "object": "Layercake.usp_load_silv_event_amount",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-008",
+        "REQ-009",
+        "REQ-011"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD010_dev].[test case only contact_no change is one update]",
+    "[test_MOD010_dev].[test insert update and delete in one run are each counted]",
+    "[test_MOD010_dev].[test join takes the earliest paid year even when it is before its own year]",
+    "[test_MOD010_dev].[test only live eligible invoices of the amount year are matched]",
+    "[test_MOD010_dev].[test overflowing amount on a join from its paid year fails and leaves the target unchanged]",
+    "[test_MOD010_dev].[test shortfall tie on type and date gives the invoice to the lower event_nk]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0014",
+      "up_script": "src/sql/deploy/MIG-0014_MOD-010_event-amounts-and-invoice-matching.up.sql",
+      "down_script": "src/sql/deploy/MIG-0014_MOD-010_event-amounts-and-invoice-matching.down.sql",
+      "rollback_test": {
+        "commit": "883490bb046fbacfd9fc4577a7828b2fd34ce05e",
+        "run_at": "2026-11-09T16:57:40.126752+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "notes": "MOD-010 builds Layercake.silv_event_amount (PK event_nk; CK on the six RULE-088 amount_status values; indexes on (contact_no, amount_campaign_year) and invoice_rec_id; created_at/updated_at default SYSDATETIME()) and Layercake.usp_load_silv_event_amount @run_id uniqueidentifier = NULL, logged as usp_etl_log_start @run_id, 'silver', 'silv_event_amount'. Starting point: all 37 test_MOD010 tests failed (table missing); now 37/37 plus 6 test_MOD010_dev pass, round-trip and check pass.\nBehaviour: amount Campaign Year = own year, a Join's = MIN(campaign_year) of the contact in silv_payment_events, else its own (RULE-032 read literally, so a paid year before the Join's own year is used: pinned by a dev test). Amount event per contact and amount year: Readmission, Renewal, Join, earliest event_date, lowest event_id; it takes brnz_subs_status.inv_total_amount (live row) cast to decimal(19,4), into both amount columns; an overflowing value fails the load (8115), logs Failed and changes nothing. amount_status follows RULE-088 in order. Invoice match (from 2022, eligible invoices from vw_silv_eligible_invoice of the amount year): events that get an invoice are those ranked within the invoice count by type priority, event_date, event_nk; they pair in (event_date, event_nk) order with the latest invoices by the view's invoice_seq (trans_date, rec_id). match_outcome: 'Before invoice data' (<2022), 'No eligible invoice', 'Invoice shortfall', 'Matched'. No invoice or line amount is read. Writes only differences (EXCEPT comparison, contact_no and event_type as bytes); a rerun logs 0, 0, 0.\nChoice for the Tester: on the shortfall, a tie on type and date goes to the lower event_nk (Q-036's match tie-break), while the amount tie goes to the lowest event_id (Q-047); the two can pick different events (dev test 'shortfall tie on type and date...'). No grants needed for this module.\n\nTest-first: the first run had 0 of 37 of the Tester's tests passing; the final run passed 37 of 37 and 6 unit test(s), in 3 run(s)."
+}
