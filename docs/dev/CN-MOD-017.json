@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-017",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-09T12:12:46Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-017.json",
+      "tests/tsqlt/test_MOD017.sql"
+    ]
+  },
+  "module_id": "MOD-017",
+  "branch": "agent/developer/MOD-017-member-status-bronze-extension",
+  "commit": "4ab5c95a4f5f0ac291dff4a50d73944094e7743f",
+  "requirement_ids": [
+    "REQ-002"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.brnz_subs_status.sql",
+      "object": "Layercake.brnz_subs_status",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-002"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_brnz_subs_status.sql",
+      "object": "Layercake.usp_load_brnz_subs_status",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-002"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD017_dev].[test a Retired Concession the target rejects on update rolls back the whole load and logs Failed]",
+    "[test_MOD017_dev].[test a case-only or trailing-space change in Retired Concession is landed byte for byte]",
+    "[test_MOD017_dev].[test a duplicate source key keeps the row with the latest Renewal Date Adj and its new columns]",
+    "[test_MOD017_dev].[test a soft deleted row restored with unchanged values counts as one update and a gone row as one delete]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0012",
+      "up_script": "src/sql/deploy/MIG-0012_MOD-017_member-status-bronze-extension.up.sql",
+      "down_script": "src/sql/deploy/MIG-0012_MOD-017_member-status-bronze-extension.down.sql",
+      "rollback_test": {
+        "commit": "4ab5c95a4f5f0ac291dff4a50d73944094e7743f",
+        "run_at": "2026-11-09T12:12:42.442226+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Layercake.usp_load_brnz_subs_status and the brnz_subs_status table file keep the Phase 1 lower-case keyword style and constraint names (df_/pk_brnz_subs_status_*) rather than base standards 2.1/upper-case keywords: the module changes as little as the behaviour needs and follows the code around it. The sqlfluff capitalisation findings come from this and are left as they are."
+  ],
+  "notes": "MOD-017 adds inv_total_amount numeric(38,6) NULL and retired_concession varchar(17) NULL to Layercake.brnz_subs_status through a change script (src/sql/changes/MOD-017). ALTER TABLE ADD puts them after the audit columns, and the table file lists them in that order. The down script drops both columns and restores the Phase 1 procedure.\n\nusp_load_brnz_subs_status now lands 'Inv Total Amount' and 'Retired Concession' 1:1 and includes them in its EXCEPT change test, so a change to or from NULL counts as a change. retired_concession is compared as varbinary(17), so a source change that differs only in case or trailing spaces is landed too, because the case-insensitive collation would hide it. The key, the row_number duplicate guard, insert, soft delete and restore, the row-count check and the logging are unchanged.\n\nThe first run after deployment updates every live row once to fill the new columns. A rerun on unchanged source then logs 0/0/0.\n\nStarting point: 2 of 9 Tester tests passed and 7 failed (invalid column inv_total_amount). Now all 9 Tester tests and all 4 dev tests pass: case and trailing-space change, duplicate source key tie-break, restore and delete counts, and the error path rolling back a part-done load. The round-trip passes.\n\nTest-first: the first run had 2 of 9 of the Tester's tests passing; the final run passed 9 of 9 and 4 unit test(s), in 3 run(s)."
+}
