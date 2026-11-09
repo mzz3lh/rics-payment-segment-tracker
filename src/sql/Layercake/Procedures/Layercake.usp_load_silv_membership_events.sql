@@ -182,14 +182,17 @@ begin
         -- share a Rics_contactno, a per-contact event derivation fans out and
         -- this PK fails the load loudly (by design - fix the duplicate contact
         -- rather than silently double count).
+        -- MOD-018: the string columns take the database collation, not
+        -- tempdb's, so the joins to permanent tables (and the temp tables
+        -- selected out of this one) compile where the two differ (error 468).
         create table #ev_stage
         (
-            event_nk             nvarchar(220) not null primary key,
-            event_type           varchar(20) not null,
-            event_subtype        varchar(20) not null,
+            event_nk             nvarchar(220) collate database_default not null primary key,
+            event_type           varchar(20) collate database_default not null,
+            event_subtype        varchar(20) collate database_default not null,
             event_date           date not null,
             source_enr_id        uniqueidentifier null,
-            contact_no           nvarchar(200) not null,
+            contact_no           nvarchar(200) collate database_default not null,
             grade_id             int not null,
             assessment_route_id  int not null,
             rpq_variant_id       int not null,
@@ -198,7 +201,7 @@ begin
             gender_id            int not null,
             membership_status_id int not null,
             campaign_year        int not null,
-            campaign_quarter     char(2) not null
+            campaign_quarter     char(2) collate database_default not null
         );
 
         -- Join / Candidate: one event per contact. The earliest qualifying

@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-018",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-09T16:00:22Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-018.json",
+      "tests/tsqlt/test_MOD018.sql"
+    ]
+  },
+  "module_id": "MOD-018",
+  "branch": "agent/developer/MOD-018-derived-retirement-date",
+  "commit": "0482c3f013f1422d5ac1cbff226895b978820678",
+  "requirement_ids": [
+    "REQ-017"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Views/Layercake.vw_silv_derived_retirement_date.sql",
+      "object": "Layercake.vw_silv_derived_retirement_date",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-017"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_member_base.sql",
+      "object": "Layercake.usp_load_silv_member_base",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-017"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_membership_events.sql",
+      "object": "Layercake.usp_load_silv_membership_events",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-017"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD018_dev].[test a case or trailing space variant of Retired Conc counts as retired]",
+    "[test_MOD018_dev].[test a contact whose only Retired Conc rows are deleted or undated has no row]",
+    "[test_MOD018_dev].[test a rejected null retirement date fails the load logs Failed and keeps the previous rows]",
+    "[test_MOD018_dev].[test the derived date is taken even when the latest rics record has no apuk date]",
+    "[test_MOD018_dev].[test the events load runs where tempdb collation differs and a rerun changes nothing]",
+    "[test_MOD018_dev].[test the log counts the rows inserted and the previous rows as deleted]",
+    "[test_MOD018_dev].[test view columns have the designed types and nullability]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0013",
+      "up_script": "src/sql/deploy/MIG-0013_MOD-018_derived-retirement-date.up.sql",
+      "down_script": "src/sql/deploy/MIG-0013_MOD-018_derived-retirement-date.down.sql",
+      "rollback_test": {
+        "commit": "0482c3f013f1422d5ac1cbff226895b978820678",
+        "run_at": "2026-11-09T16:00:17.213013+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "notes": "Starting point: the branch already had Layercake.vw_silv_derived_retirement_date and the changed Layercake.usp_load_silv_member_base. The first run_tests passed 21 and failed 5 (TC-018-012 to TC-018-016). All 5 failed with error 468 (a collation conflict) inside Layercake.usp_load_silv_membership_events.\n\nChange in this session: in usp_load_silv_membership_events, the five string columns of #ev_stage (event_nk, event_type, event_subtype, contact_no, campaign_quarter) are now declared COLLATE DATABASE_DEFAULT (answers.md, MOD-018 events load collation). The temp tables built from #ev_stage with SELECT INTO (#join_based, #join_cy, #lapse_cy, #readmit_cy) take that collation from it. Nothing else in the procedure changed: event logic, row set, logging and Phase 1 lower-case style are all as before. The down script restores the Phase 1 definition.\n\nUnit tests (test_MOD018_dev, 7): one new test for the events load. It checks a Join and two Renewals, Practising before and Retired from retirement_date. It also checks that a rerun on unchanged data logs 0/0/0, that clearing the date updates one event in place with the same event_id, and the three etl_run_log rows.\n\nResults: all 27 tests pass (20 Tester, 7 dev). The rollback round-trip passes and check passes. The sqlfluff findings are advisory and are almost all in the existing Phase 1 lower-case code, so they were left.\n\nHandover (ASM-002, DES-001): after the first Phase 1 run on this migration, a human runs Layercake.usp_load_silver @RebuildFrom = <the affected_from date on the open 'member_profile' pending row> (or @FullRebuild = 1) once. Until then, past daily counts keep the old Practising / Retired split.\n\nTest-first: the first run had 15 of 20 of the Tester's tests passing; the final run passed 20 of 20 and 7 unit test(s), in 3 run(s)."
+}
