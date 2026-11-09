@@ -114,3 +114,7 @@ the agent's working assumption. Example:
 
 ## Revenue and retirement sources: event tie-break (approved by Mike by merging this PR, 2026-11-09)
 - Q-047: when Q-039's order (Readmission, then Renewal, then Join, then the earliest event date) leaves two or more events of the same type on the same earliest date in one contact-year, the event with the lowest event_id carries the amount. The others carry null amounts and amount_status 'Counted on another event'.
+
+## Revenue and retirement sources: bronze column names (approved by Mike by merging this PR, 2026-11-09)
+- The two columns added to Layercake.brnz_subs_status from Subs.vwSubsMemberStatuses are snake_case, inv_total_amount (from 'Inv Total Amount') and retired_concession (from 'Retired Concession'), as PROJECT_STANDARDS 2.1 requires. The table's existing Phase 1 columns keep their names; no exception to 2.1 is made.
+- Fact checked in RPST_Dev (read-only), not a decision: Layercake.usp_load_brnz_subs_status lands the view and lists its columns explicitly, so it changes to load the two new columns.
