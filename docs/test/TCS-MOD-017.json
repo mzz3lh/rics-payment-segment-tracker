@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-017",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-09T12:04:32Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-09T12:10:16Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-017",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-017-001",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-07",
+      "category": "happy_path",
+      "description": "The AC-002-07 scenario: with 4 synthetic Subs.vwSubsMemberStatuses rows, usp_load_brnz_subs_status lands 4 live rows, and inv_total_amount and retired_concession equal the source for each ([Contact No.], [Campaign Year]), including a null amount.",
+      "preconditions": "Faked: Subs.vwSubsMemberStatuses, Layercake.brnz_subs_status (empty, @Defaults), Layercake.etl_run_log (@Identity, @Defaults). Source: 100001/2024 1234.560000 'Retired Conc.'; 100001/2025 480.000000 'Retired Conc.'; 100002/2025 0.000000 'Non-Retired Conc.'; 100003/2025 NULL 'No Invoice'. The new columns only exist after the module's change script, so the test reads them from a SELECT * snapshot of the table.",
+      "expected": "Exactly 4 rows, _is_deleted 0 on each: 100001/2024 inv_total_amount 1234.560000 'Retired Conc.'; 100001/2025 480.000000 'Retired Conc.'; 100002/2025 0.000000 'Non-Retired Conc.'; 100003/2025 NULL 'No Invoice'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD017].[test TC-017-001 four source rows land live with Inv Total Amount and Retired Concession 1:1]"
+    },
+    {
+      "id": "TC-017-002",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-08",
+      "category": "reconciliation",
+      "description": "The first run after deployment: rows Phase 1 landed before the change (new columns NULL) keep their existing column values and row count, gain the new columns from the source, and each live row is updated once.",
+      "preconditions": "brnz_subs_status holds 4 live rows as Phase 1 left them (new columns not set, so NULL; _loaded_at and _updated_at 2020-01-01): 200001/2024 'Fully Paid' 2023-10-20/2023-10-20; 200001/2025 'Partially Paid' 2024-10-15/2024-12-01; 200002/2025 'Full Concession' 2024-11-05/2024-11-05; 200003/2025 'No Payment' NULL/NULL. Source has the same 4 rows with the same existing columns plus amounts 1234.560000, 480.000000, 0.000000, NULL and Retired Concession 'Retired Conc.', 'Retired Conc.', 'Non-Retired Conc.', 'No Invoice'.",
+      "expected": "Still exactly 4 rows, all live, with Contact No., Campaign Year, Member Invoice Position, Renewal Date and Renewal Date Adj exactly as before and _loaded_at still 2020-01-01; inv_total_amount and retired_concession now equal the source. etl_run_log: one row 'Success', 0 inserted, 4 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD017].[test TC-017-002 rows landed before the change keep their existing columns and row count and gain the new columns]"
+    },
+    {
+      "id": "TC-017-003",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-08",
+      "category": "happy_path",
+      "description": "On the same synthetic data loaded into an empty table, the existing columns still land 1:1 with one row per source row, audit columns set and logging unchanged.",
+      "preconditions": "Empty brnz_subs_status (@Defaults). Source: 300001/2024 'Fully Paid' 2023-10-20/2023-10-20; 300001/2025 'Partially Paid' 2024-10-15/2024-12-01; 300002/2025 'Full Concession' 2024-11-05/2024-11-05; 300003/2025 'No Payment' NULL/NULL (with new-column values as in TC-017-001).",
+      "expected": "Exactly those 4 rows with the existing columns equal to the source, _is_deleted 0, _deleted_at NULL, _loaded_at and _updated_at not NULL. etl_run_log: one row 'Success', 4 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD017].[test TC-017-003 first load onto an empty table lands the existing columns 1:1 and one row per source row]"
+    },
+    {
+      "id": "TC-017-004",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-07",
+      "category": "nulls",
+      "description": "The change test treats NULL in inv_total_amount as a value: a live amount that becomes NULL, and a NULL amount that becomes a value, are both updates; a row whose amount is NULL on both sides is untouched.",
+      "preconditions": "brnz_subs_status live rows (_loaded_at and _updated_at 2020-01-01): 400001/2025 100.000000 'No Conc.'; 400002/2025 NULL 'No Conc.'; 400003/2025 NULL 'No Invoice'. Source: the same rows with every other column unchanged, but 400001 amount NULL and 400002 amount 200.000000. Seed rows are inserted with dynamic SQL because the new columns exist only after the change script.",
+      "expected": "400001 inv_total_amount NULL and 400002 200.000000, both with _updated_at refreshed (no longer 2020-01-01); 400003 still NULL with _updated_at 2020-01-01. _loaded_at stays 2020-01-01 and all rows stay live. etl_run_log: 'Success', 0 inserted, 2 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD017].[test TC-017-004 a change to or from a null Inv Total Amount is a change and an unchanged null row is untouched]"
+    },
+    {
+      "id": "TC-017-005",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-07",
+      "category": "happy_path",
+      "description": "A difference in only one of the new columns, with every existing column unchanged, counts as a change: the row is updated in place and _updated_at refreshed.",
+      "preconditions": "brnz_subs_status live rows (2020-01-01 audit dates), all 'Fully Paid' and 'No Conc.': 500001/2025 450.000000; 500002/2025 300.000000; 500003/2025 600.000000. Source: 500001 amount 500.500000 (Retired Concession unchanged); 500002 Retired Concession 'Retired Conc.' (amount unchanged); 500003 unchanged.",
+      "expected": "500001: 500.500000 'No Conc.', _updated_at refreshed. 500002: 300.000000 'Retired Conc.', _updated_at refreshed. 500003: 600.000000 'No Conc.', _updated_at still 2020-01-01. Member Invoice Position 'Fully Paid' and _loaded_at 2020-01-01 on all three, all live. etl_run_log: 'Success', 0 inserted, 2 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD017].[test TC-017-005 a change in only Inv Total Amount or only Retired Concession updates that row in place]"
+    },
+    {
+      "id": "TC-017-006",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-07",
+      "category": "idempotency",
+      "description": "A second load on unchanged source, including a NULL amount, changes nothing in brnz_subs_status and logs 0 inserted, 0 updated, 0 deleted.",
+      "preconditions": "Empty brnz_subs_status; source holds the 4 rows of TC-017-001 (contacts 600001-600003, one NULL amount). Load run twice; a full-table snapshot taken after each.",
+      "expected": "The table (every column, including _loaded_at and _updated_at) is identical after the second load. etl_run_log holds two 'Success' rows: (4, 0, 0) and (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD017].[test TC-017-006 a second load on unchanged source changes nothing and logs 0 0 0]"
+    },
+    {
+      "id": "TC-017-007",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-07",
+      "category": "boundary",
+      "description": "No narrowing or transformation: the largest numeric(38,6) amount and the smallest fraction land exactly, and the longest Retired Concession value (17 characters) lands byte for byte.",
+      "preconditions": "Empty brnz_subs_status. Source: 700001/2025 Inv Total Amount 99999999999999999999999999999999.999999, Retired Concession 'Non-Retired Conc.'; 700002/2025 -0.000001, 'Retired Conc.'. Relies on inv_total_amount numeric(38,6) and retired_concession varchar(17) as DES-001 states.",
+      "expected": "700001 inv_total_amount 99999999999999999999999999999999.999999 and retired_concession bytes equal to CAST('Non-Retired Conc.' AS varbinary); 700002 -0.000001 and bytes of 'Retired Conc.'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD017].[test TC-017-007 the largest numeric 38 6 amount and the 17 character Retired Concession land exactly]"
+    },
+    {
+      "id": "TC-017-008",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-08",
+      "category": "negative",
+      "description": "The soft-delete and restore behaviour is unchanged: a row missing from the source is marked deleted, not removed, and keeps its values; a soft-deleted row the source sends again is restored with the source's new-column values, not inserted twice.",
+      "preconditions": "brnz_subs_status: live 800001/2025 'Fully Paid' 300.000000 'No Conc.'; soft-deleted 800002/2025 'Fully Paid' 250.000000 'No Conc.' (_deleted_at 2020-06-01). Source holds only 800002, now 275.000000 'Retired Conc.'.",
+      "expected": "Exactly 2 rows. 800001: _is_deleted 1, _deleted_at set, 'Fully Paid', 300.000000, 'No Conc.'. 800002: _is_deleted 0, _deleted_at NULL, 'Fully Paid', 275.000000, 'Retired Conc.'. Live count 1 equals the source count 1. etl_run_log status 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD017].[test TC-017-008 a row gone from the source is soft deleted and a deleted row that returns is restored with the new columns]"
+    },
+    {
+      "id": "TC-017-009",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-08",
+      "category": "negative",
+      "description": "The error handling is unchanged: the load fails part-way through its writes on a row the target rejects. The faked target carries a test-only CHECK constraint that rejects inv_total_amount 777.770000, while an update to another row is already pending. The error reaches the caller, the run is logged Failed and the table is unchanged.",
+      "preconditions": "Runs outside the tSQLt transaction. brnz_subs_status holds live 900001/2025 'No Payment' 100.000000 'No Conc.', plus a test-only CHECK (inv_total_amount IS NULL OR inv_total_amount <> 777.770000). Source: 900001 changed to 'Fully Paid' 2024-10-15 'Retired Conc.', and new 900002/2025 with Inv Total Amount 777.770000.",
+      "expected": "Check-constraint error 547 is raised to the caller. brnz_subs_status is identical to before (900001 still 'No Payment' 'No Conc.', no 900002). etl_run_log holds one row with status 'Failed' and a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD017].[test TC-017-009 a load the target rejects part-way re-raises logs Failed and leaves the table unchanged]"
+    }
+  ]
+}
