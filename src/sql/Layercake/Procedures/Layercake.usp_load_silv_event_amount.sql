@@ -1,0 +1,248 @@
+/*====================================================================
+    Layercake.usp_load_silv_event_amount
+    Silver layer - silv_membership_events, silv_payment_events,
+    brnz_subs_status and vw_silv_eligible_invoice
+    -> Layercake.silv_event_amount (ADR-002)
+    One row per Join, Renewal and Readmission event. Every event is
+    recomputed and only differences are written: new events inserted,
+    changed rows updated (created_at kept), rows for events that no
+    longer exist deleted. Logged.
+      amount Campaign Year  own year; a Join takes its contact's first
+                            paid position year (MIN campaign_year in
+                            silv_payment_events), else its own (RULE-032)
+      amount event          one per contact and amount Campaign Year:
+                            Readmission, Renewal, Join, then earliest
+                            event_date, then lowest event_id (RULE-098)
+      amount                inv_total_amount of the live brnz_subs_status
+                            row, never an invoice or line amount (Q-042)
+      amount_status         first case of RULE-088 that applies
+      invoice match         for the REQ-009 checks only (RULE-084 to
+                            RULE-086, RULE-089), from 2022
+    Tie-breaks chosen here (not fixed by the design): events of the same
+    type and date are given an invoice on the shortfall in event_nk order,
+    and are paired by date in event_nk order (Q-036).
+====================================================================*/
+CREATE OR ALTER PROCEDURE Layercake.usp_load_silv_event_amount
+    @run_id uniqueidentifier = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @run_id IS NULL SET @run_id = NEWID();
+
+    DECLARE @first_invoice_year int = 2022;   -- RULE-041, RULE-093, Q-011
+
+    DECLARE @log_id bigint,
+            @ins    int,
+            @upd    int,
+            @del    int,
+            @now    datetime2(3),
+            @err    nvarchar(4000);
+
+    BEGIN TRY
+        EXEC Layercake.usp_etl_log_start @run_id, 'silver', 'silv_event_amount', @log_id OUTPUT;
+
+        SET @now = SYSDATETIME();
+
+        CREATE TABLE #event
+        (
+            event_nk              nvarchar(220) COLLATE DATABASE_DEFAULT NOT NULL PRIMARY KEY CLUSTERED,
+            event_id              int           NOT NULL,
+            contact_no            nvarchar(200) COLLATE DATABASE_DEFAULT NOT NULL,
+            event_type            varchar(20)   COLLATE DATABASE_DEFAULT NOT NULL,
+            event_date            date          NOT NULL,
+            amount_campaign_year  int           NOT NULL,
+            type_priority         tinyint       NOT NULL,
+            amount_rank           int           NULL,
+            priority_rank         int           NULL,
+            event_count           int           NULL,
+            invoice_count         int           NOT NULL DEFAULT 0,
+            match_rank            int           NULL,
+            invoice_rec_id        bigint        NULL,
+            match_outcome         varchar(30)   COLLATE DATABASE_DEFAULT NULL,
+            subs_amount_gbp       decimal(19,4) NULL,
+            invoiced_subtotal_gbp decimal(19,4) NULL,
+            amount_status         varchar(30)   COLLATE DATABASE_DEFAULT NULL
+        );
+
+        -- Amount Campaign Year (RULE-032, Q-029).
+        INSERT INTO #event (event_nk, event_id, contact_no, event_type, event_date, amount_campaign_year, type_priority)
+        SELECT e.event_nk,
+               e.event_id,
+               e.contact_no,
+               e.event_type,
+               e.event_date,
+               CASE WHEN e.event_type = 'Join' THEN COALESCE(p.first_paid_year, e.campaign_year)
+                    ELSE e.campaign_year
+               END,
+               CASE e.event_type WHEN 'Readmission' THEN 1 WHEN 'Renewal' THEN 2 ELSE 3 END
+        FROM Layercake.silv_membership_events AS e
+        LEFT JOIN (SELECT pe.contact_no, MIN(pe.campaign_year) AS first_paid_year
+                   FROM Layercake.silv_payment_events AS pe
+                   GROUP BY pe.contact_no) AS p
+            ON  p.contact_no = e.contact_no
+            AND e.event_type = 'Join'
+        WHERE e.event_type IN ('Join', 'Renewal', 'Readmission');
+
+        -- amount_rank: the amount event (RULE-098, Q-047). priority_rank: the order in
+        -- which invoices go to events when they are short (RULE-085).
+        WITH ranked AS
+        (
+            SELECT ev.amount_rank,
+                   ev.priority_rank,
+                   ev.event_count,
+                   ROW_NUMBER() OVER (PARTITION BY ev.contact_no, ev.amount_campaign_year
+                                      ORDER BY ev.type_priority, ev.event_date, ev.event_id) AS new_amount_rank,
+                   ROW_NUMBER() OVER (PARTITION BY ev.contact_no, ev.amount_campaign_year
+                                      ORDER BY ev.type_priority, ev.event_date, ev.event_nk) AS new_priority_rank,
+                   COUNT(*) OVER (PARTITION BY ev.contact_no, ev.amount_campaign_year) AS new_event_count
+            FROM #event AS ev
+        )
+        UPDATE ranked
+        SET amount_rank   = new_amount_rank,
+            priority_rank = new_priority_rank,
+            event_count   = new_event_count;
+
+        -- Eligible invoices of these contact-years from 2022 (RULE-014, RULE-093).
+        CREATE TABLE #invoice
+        (
+            contact_no    nvarchar(200) COLLATE DATABASE_DEFAULT NOT NULL,
+            campaign_year int           NOT NULL,
+            invoice_seq   bigint        NOT NULL,
+            rec_id        bigint        NOT NULL,
+            invoice_count int           NOT NULL,
+            PRIMARY KEY CLUSTERED (contact_no, campaign_year, invoice_seq)
+        );
+
+        INSERT INTO #invoice (contact_no, campaign_year, invoice_seq, rec_id, invoice_count)
+        SELECT v.contact_no,
+               v.campaign_year,
+               v.invoice_seq,
+               v.rec_id,
+               COUNT(*) OVER (PARTITION BY v.contact_no, v.campaign_year)
+        FROM Layercake.vw_silv_eligible_invoice AS v
+        WHERE v.campaign_year >= @first_invoice_year
+          AND EXISTS (SELECT 1 FROM #event AS ev
+                      WHERE ev.contact_no = v.contact_no
+                        AND ev.amount_campaign_year = v.campaign_year);
+
+        UPDATE ev
+        SET invoice_count = i.invoice_count
+        FROM #event AS ev
+        INNER JOIN (SELECT DISTINCT contact_no, campaign_year, invoice_count FROM #invoice) AS i
+            ON  i.contact_no = ev.contact_no
+            AND i.campaign_year = ev.amount_campaign_year
+        WHERE ev.amount_campaign_year >= @first_invoice_year;
+
+        -- The events that receive an invoice, in date order (RULE-084, RULE-085).
+        WITH matched AS
+        (
+            SELECT ev.match_rank,
+                   ROW_NUMBER() OVER (PARTITION BY ev.contact_no, ev.amount_campaign_year
+                                      ORDER BY ev.event_date, ev.event_nk) AS new_match_rank
+            FROM #event AS ev
+            WHERE ev.amount_campaign_year >= @first_invoice_year
+              AND ev.priority_rank <= ev.invoice_count
+        )
+        UPDATE matched
+        SET match_rank = new_match_rank;
+
+        -- Paired with the latest invoices: surplus invoices are the earliest (RULE-086).
+        UPDATE ev
+        SET invoice_rec_id = i.rec_id
+        FROM #event AS ev
+        INNER JOIN #invoice AS i
+            ON  i.contact_no = ev.contact_no
+            AND i.campaign_year = ev.amount_campaign_year
+            AND i.invoice_seq = ev.match_rank + ev.invoice_count
+                                - CASE WHEN ev.event_count < ev.invoice_count THEN ev.event_count
+                                       ELSE ev.invoice_count
+                                  END
+        WHERE ev.match_rank IS NOT NULL;
+
+        -- Amounts and amount_status (RULE-033, RULE-035, RULE-040, RULE-041, RULE-088).
+        -- The cast to the events' decimal(19,4) fails the load on an overflowing amount.
+        UPDATE ev
+        SET match_outcome =
+                CASE WHEN ev.amount_campaign_year < @first_invoice_year THEN 'Before invoice data'
+                     WHEN ev.invoice_count = 0 THEN 'No eligible invoice'
+                     WHEN ev.invoice_rec_id IS NULL THEN 'Invoice shortfall'
+                     ELSE 'Matched'
+                END,
+            subs_amount_gbp =
+                CASE WHEN ev.amount_campaign_year >= @first_invoice_year AND ev.amount_rank = 1
+                     THEN CAST(s.inv_total_amount AS decimal(19,4))
+                END,
+            invoiced_subtotal_gbp =
+                CASE WHEN ev.amount_campaign_year >= @first_invoice_year AND ev.amount_rank = 1
+                     THEN CAST(s.inv_total_amount AS decimal(19,4))
+                END,
+            amount_status =
+                CASE WHEN ev.amount_campaign_year < @first_invoice_year THEN 'Before invoice data'
+                     WHEN s.inv_total_amount IS NULL THEN 'No invoice'
+                     WHEN ev.amount_rank > 1 THEN 'Counted on another event'
+                     WHEN s.[Member Invoice Position] = 'Full Concession' THEN 'Full Concession'
+                     WHEN s.[Member Invoice Position] = 'Fully Credited' THEN 'Fully credited'
+                     ELSE 'Invoiced'
+                END
+        FROM #event AS ev
+        LEFT JOIN Layercake.brnz_subs_status AS s
+            ON  s.[Contact No.] = ev.contact_no
+            AND s.[Campaign Year] = ev.amount_campaign_year
+            AND s._is_deleted = 0;
+
+        BEGIN TRANSACTION;
+
+        DELETE t
+        FROM Layercake.silv_event_amount AS t
+        WHERE NOT EXISTS (SELECT 1 FROM #event AS ev WHERE ev.event_nk = t.event_nk);
+        SET @del = @@ROWCOUNT;
+
+        -- Strings compare as bytes, so a case-only change still lands.
+        UPDATE t
+        SET event_id              = ev.event_id,
+            contact_no            = ev.contact_no,
+            event_type            = ev.event_type,
+            event_date            = ev.event_date,
+            amount_campaign_year  = ev.amount_campaign_year,
+            invoice_rec_id        = ev.invoice_rec_id,
+            match_outcome         = ev.match_outcome,
+            subs_amount_gbp       = ev.subs_amount_gbp,
+            invoiced_subtotal_gbp = ev.invoiced_subtotal_gbp,
+            amount_status         = ev.amount_status,
+            load_id               = @log_id,
+            updated_at            = @now
+        FROM Layercake.silv_event_amount AS t
+        INNER JOIN #event AS ev
+            ON ev.event_nk = t.event_nk
+        WHERE EXISTS (SELECT ev.event_id, CAST(ev.contact_no AS varbinary(400)), CAST(ev.event_type AS varbinary(20)),
+                             ev.event_date, ev.amount_campaign_year, ev.invoice_rec_id, ev.match_outcome,
+                             ev.subs_amount_gbp, ev.invoiced_subtotal_gbp, ev.amount_status
+                      EXCEPT
+                      SELECT t.event_id, CAST(t.contact_no AS varbinary(400)), CAST(t.event_type AS varbinary(20)),
+                             t.event_date, t.amount_campaign_year, t.invoice_rec_id, t.match_outcome,
+                             t.subs_amount_gbp, t.invoiced_subtotal_gbp, t.amount_status);
+        SET @upd = @@ROWCOUNT;
+
+        INSERT INTO Layercake.silv_event_amount
+            (event_nk, event_id, contact_no, event_type, event_date, amount_campaign_year, invoice_rec_id,
+             match_outcome, subs_amount_gbp, invoiced_subtotal_gbp, amount_status, load_id, created_at, updated_at)
+        SELECT ev.event_nk, ev.event_id, ev.contact_no, ev.event_type, ev.event_date, ev.amount_campaign_year,
+               ev.invoice_rec_id, ev.match_outcome, ev.subs_amount_gbp, ev.invoiced_subtotal_gbp, ev.amount_status,
+               @log_id, @now, @now
+        FROM #event AS ev
+        WHERE NOT EXISTS (SELECT 1 FROM Layercake.silv_event_amount AS t WHERE t.event_nk = ev.event_nk);
+        SET @ins = @@ROWCOUNT;
+
+        COMMIT TRANSACTION;
+        EXEC Layercake.usp_etl_log_end @log_id, 'Success', @ins, @upd, @del;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        SET @err = CONCAT(ERROR_MESSAGE(), ' (error ', ERROR_NUMBER(), ', line ', ERROR_LINE(), ')');
+        IF @log_id IS NOT NULL
+            EXEC Layercake.usp_etl_log_end @log_id, 'Failed', @ins, @upd, @del, @err;
+        THROW;
+    END CATCH;
+END;
