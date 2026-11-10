@@ -1,0 +1,408 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-011",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-10T10:13:07Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-10T10:23:59Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-011",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-011-001",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-01",
+      "category": "happy_path",
+      "description": "A 2025 Renewal whose contact-year has no eligible invoice gets exactly one EVENT_NO_INVOICE row (RULE-042).",
+      "preconditions": "Standard set-up for every test (SetUp): silv_event_amount, brnz_subs_invoice, brnz_subs_invoice_line, silv_ref_invoice_line_type, ref_campaign_year_config and etl_run_log faked; Campaign Years 2021-2026 configured 1 Oct to 30 Sep; line types SUBMRICS/SUB subscription, RAFEE_MRICS/SUB readmission fee, APPFEE/APP enrolment or application fee. Each test fakes silv_data_anomaly itself. Rows identify their event or invoice through anomaly_nk, which the design says is the event_nk or the invoice rec_id; tests check that anomaly_nk contains it, not its exact format. Here: silv_event_amount Renewal RN:E1:2025 (amount year 2025, match_outcome 'No eligible invoice', invoice_rec_id NULL); no invoices.",
+      "expected": "silv_data_anomaly holds exactly one row: contact_no E1, anomaly_type EVENT_NO_INVOICE, anomaly_nk naming RN:E1:2025.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-001 Renewal with no eligible invoice gives one EVENT_NO_INVOICE row]"
+    },
+    {
+      "id": "TC-011-002",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-01",
+      "category": "happy_path",
+      "description": "A successful load is logged in Layercake.etl_run_log with status Success and its row counts.",
+      "preconditions": "Same rows as TC-011-001; etl_run_log faked with identity and defaults.",
+      "expected": "etl_run_log holds one row: status 'Success', rows_inserted 1, rows_updated 0, rows_deleted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-002 successful load logs Success with one row inserted]"
+    },
+    {
+      "id": "TC-011-003",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-01",
+      "category": "boundary",
+      "description": "2022, the first amount Campaign Year the invoice source covers, is checked (RULE-093).",
+      "preconditions": "Renewal RN:E2:2022 dated 2021-11-10, amount year 2022, 'No eligible invoice'; no invoices.",
+      "expected": "Exactly one row: E2, EVENT_NO_INVOICE, naming RN:E2:2022.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-003 Renewal in 2022 with no eligible invoice gives EVENT_NO_INVOICE]"
+    },
+    {
+      "id": "TC-011-004",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-01",
+      "category": "reconciliation",
+      "description": "When a corrected invoice arrives and the event is matched, the next load deletes the EVENT_NO_INVOICE row (design: cases no longer raised are deleted).",
+      "preconditions": "Load once with E1's Renewal unmatched (gives EVENT_NO_INVOICE). Then add eligible invoice 911001 (E1, 2025, subscription line 450.00) and set the Renewal to 'Matched' on 911001; load again.",
+      "expected": "silv_data_anomaly is empty. The second etl_run_log row is 'Success' with rows_inserted 0, rows_updated 0, rows_deleted 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-004 corrected invoice deletes the EVENT_NO_INVOICE row on the next load]"
+    },
+    {
+      "id": "TC-011-005",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-02",
+      "category": "happy_path",
+      "description": "A 2025 eligible invoice for a contact with no event taking amounts from 2025 gets exactly one INVOICE_NO_EVENT row (RULE-043).",
+      "preconditions": "Invoice 920001 (N1, 2025, INV-N1-25, fully_credited 'N', subscription line 450.00); no events.",
+      "expected": "Exactly one row: N1, INVOICE_NO_EVENT, anomaly_nk naming 920001.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-005 eligible 2025 invoice with no event gives one INVOICE_NO_EVENT row]"
+    },
+    {
+      "id": "TC-011-006",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-02",
+      "category": "negative",
+      "description": "INVOICE_NO_EVENT follows the events' amount Campaign Year: a Join dated in CY2024 that takes its amounts from 2025 leaves the 2024 invoice without an event (RULE-032, RULE-043).",
+      "preconditions": "N2 invoices 920011 (2024) and 920012 (2025), both eligible. Join JN:N2 dated 2024-06-01, amount year 2025, matched to 920012.",
+      "expected": "Exactly one row: N2, INVOICE_NO_EVENT, naming 920011 and not 920012.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-006 invoice year with no event taking amounts from it gives INVOICE_NO_EVENT though a Join falls in it]"
+    },
+    {
+      "id": "TC-011-007",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-02",
+      "category": "duplicates",
+      "description": "Two eligible invoices in a contact-year with no event give one INVOICE_NO_EVENT row each, and no EVENT_MATCHES_MULTIPLE_INVOICES row (RULE-043, RULE-091 applies only where events exist).",
+      "preconditions": "N4 invoices 920041 (2024-10-10) and 920042 (2025-01-10), both 2025 and eligible; no events.",
+      "expected": "Two rows, both N4 INVOICE_NO_EVENT: one naming 920041, one naming 920042.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-007 two eligible invoices in a year with no event give one INVOICE_NO_EVENT row each]"
+    },
+    {
+      "id": "TC-011-008",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-02",
+      "category": "negative",
+      "description": "Invoices that are not eligible (RULE-014, vw_silv_eligible_invoice) raise no INVOICE_NO_EVENT: a credit note, a deleted invoice and a fee-only invoice.",
+      "preconditions": "N3, 2025, no events: 920031 'CRE-0031' with full_invoice_amount_cur -100.00; 920032 with _is_deleted 1; 920033 whose only own line is APPFEE (enrolment or application fee).",
+      "expected": "silv_data_anomaly is empty.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-008 credit note, deleted and fee-only invoices raise no INVOICE_NO_EVENT]"
+    },
+    {
+      "id": "TC-011-009",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-02",
+      "category": "boundary",
+      "description": "Invoice anomalies start at Campaign Year 2022: a 2021 invoice with no event raises nothing, a 2022 one does (RULE-093).",
+      "preconditions": "Eligible invoices 920051 (N5, 2021) and 920061 (N6, 2022); no events.",
+      "expected": "Exactly one row: N6, INVOICE_NO_EVENT, naming 920061.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-009 invoice with no event raises INVOICE_NO_EVENT in 2022 but not in 2021]"
+    },
+    {
+      "id": "TC-011-010",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-03",
+      "category": "happy_path",
+      "description": "A Readmission dated 2025-08-12 (Campaign Year quarter 4) whose matched invoice has no readmission fee line gets exactly one READMISSION_NO_FEE row (RULE-044).",
+      "preconditions": "Readmission RD:D1:2025 dated 2025-08-12, matched to 930001, whose only own line is SUBMRICS 450.00.",
+      "expected": "Exactly one row: D1, READMISSION_NO_FEE, naming RD:D1:2025; no READMISSION_FREE.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-010 Readmission on 2025-08-12 with no fee line gives one READMISSION_NO_FEE row]"
+    },
+    {
+      "id": "TC-011-011",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-03",
+      "category": "reconciliation",
+      "description": "Across a set of 2025 Readmissions, each one with no matched invoice or no fee line has exactly one explaining row, and one with a fee line has none (RULE-044, RULE-090).",
+      "preconditions": "D2 RD:D2:2025 'No eligible invoice'. D3: RDA:D3:2025 (2025-05-01) matched to 930031 with RAFEE_MRICS line, RDB:D3:2025 (2025-06-01) 'Invoice shortfall'. D4 RD:D4:2025 dated 2025-02-14 matched to 930041, no fee line. D5 RD:D5:2025 dated 2025-05-20 matched to 930051, no fee line. D6 RD:D6:2025 matched to 930061 with fee line.",
+      "expected": "Exactly four rows: D2 EVENT_NO_INVOICE for RD:D2:2025; D3 INVOICE_MATCHES_MULTIPLE_EVENTS for RDB:D3:2025; D4 READMISSION_FREE for RD:D4:2025; D5 READMISSION_NO_FEE for RD:D5:2025. None for RDA:D3:2025 or D6.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-011 each Readmission without invoice or fee line has exactly one explaining row]"
+    },
+    {
+      "id": "TC-011-012",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-03",
+      "category": "negative",
+      "description": "A readmission fee line that is soft-deleted in bronze is not a fee line.",
+      "preconditions": "Readmission RD:D7:2025 dated 2025-08-12 matched to 930071: live SUBMRICS 450.00 and RAFEE_MRICS 100.00 with _is_deleted 1.",
+      "expected": "Exactly one row: D7, READMISSION_NO_FEE, naming RD:D7:2025.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-012 deleted readmission fee line does not count as a fee]"
+    },
+    {
+      "id": "TC-011-013",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-03",
+      "category": "negative",
+      "description": "A fee line is one whose line type in silv_ref_invoice_line_type is 'readmission fee', not one whose code looks like a fee (RULE-044).",
+      "preconditions": "Mapping adds XREADMIT/SUB as 'readmission fee'. D8 RD:D8:2025 (2025-08-12) matched to 930081 with lines SUBMRICS and RAFEE_ZZZ (no mapping row, so unmapped). D9 RD:D9:2025 (2025-08-12) matched to 930091 with lines SUBMRICS and XREADMIT.",
+      "expected": "Exactly one row: D8, READMISSION_NO_FEE, naming RD:D8:2025. Nothing for D9.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-013 readmission fee is recognised by its mapped line type not its item code]"
+    },
+    {
+      "id": "TC-011-014",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-03",
+      "category": "negative",
+      "description": "Only the matched invoice's own lines (same account and voucher) count. A fee line on another account, or on a settling voucher, does not.",
+      "preconditions": "D10 RD:D10:2025 (2025-08-12) matched to 930101 (account D10, voucher V930101). Lines: SUBMRICS on D10/V930101; RAFEE_MRICS on account OTHER1, voucher V930101; RAFEE_MRICS on D10, voucher PAY930101, lastsettlevoucher V930101.",
+      "expected": "Exactly one row: D10, READMISSION_NO_FEE, naming RD:D10:2025.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-014 fee lines on another account or on a settling voucher are not the invoice own lines]"
+    },
+    {
+      "id": "TC-011-015",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-03",
+      "category": "negative",
+      "description": "The readmission fee check applies only to Readmissions. A Renewal matched to an invoice with no fee line raises nothing, even inside the free window.",
+      "preconditions": "Renewal RN:F1:2025 dated 2025-02-14, matched to 930111, whose only line is SUBMRICS 450.00.",
+      "expected": "silv_data_anomaly is empty.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-015 Renewal matched to an invoice with no fee line raises no readmission row]"
+    },
+    {
+      "id": "TC-011-016",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-04",
+      "category": "idempotency",
+      "description": "A second load on unchanged data leaves every anomaly row, and so every type's count, unchanged.",
+      "preconditions": "Data raising one row of each type: E1 Renewal unmatched; N1 invoice 920001 with no event; R2 Renewal shortfall and Readmission matched to INV-3 (with fee); R3 Renewal matched to INV-5 with surplus INV-4; D4 Readmission 2025-02-14 with no fee; D1 Readmission 2025-08-12 with no fee. Load, snapshot the table, load again.",
+      "expected": "The table after the second load equals the snapshot, row for row (anomaly_id, first_detected_at and the rest). Counts: EVENT_NO_INVOICE 1, INVOICE_NO_EVENT 1, INVOICE_MATCHES_MULTIPLE_EVENTS 1, EVENT_MATCHES_MULTIPLE_INVOICES 1, READMISSION_FREE 1, READMISSION_NO_FEE 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-016 second load on unchanged data leaves every anomaly row unchanged]"
+    },
+    {
+      "id": "TC-011-017",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-04",
+      "category": "idempotency",
+      "description": "The rerun on unchanged data writes nothing and logs it.",
+      "preconditions": "E1 Renewal unmatched and N1 invoice 920001 with no event; the load runs twice.",
+      "expected": "The latest etl_run_log row is 'Success' with rows_inserted 0, rows_updated 0, rows_deleted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-017 second load on unchanged data logs 0 inserted 0 updated 0 deleted]"
+    },
+    {
+      "id": "TC-011-018",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-04",
+      "category": "negative",
+      "description": "The load touches only its own six types. Segment and Phase 1 anomaly rows, open or resolved, are left exactly as they were.",
+      "preconditions": "Existing rows: DOUBLE_PAYMENT for E1, NO_RICS_RECORD for E1, and a resolved JOIN_NO_PAYMENT for Z2, with set detail and timestamps. E1 Renewal unmatched, so the load also inserts a row.",
+      "expected": "After the load, the rows of types other than the six equal the three rows before it, in every column.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-018 rows of other anomaly types are left untouched]"
+    },
+    {
+      "id": "TC-011-019",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-04",
+      "category": "reconciliation",
+      "description": "An existing row of any of the six types that the current data no longer raises is deleted.",
+      "preconditions": "One existing row of each of the six types for contact Z9; there are no events or invoices.",
+      "expected": "silv_data_anomaly is empty.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-019 own-type rows no longer raised are deleted]"
+    },
+    {
+      "id": "TC-011-020",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-04",
+      "category": "negative",
+      "description": "Error path (design: try/catch, error logged, re-raised). If writing the anomalies fails, the error reaches the caller, the run is logged Failed and silv_data_anomaly is unchanged, so a rerun starts clean.",
+      "preconditions": "Runs without tSQLt's transaction. silv_data_anomaly is faked without its identity and with pk_silv_data_anomaly applied, so inserting a new anomaly row fails with error 515. No data value can make the load fail: no source column is wider than its target. Existing stale row: EVENT_NO_INVOICE for Z9, which the load would delete. E1 Renewal unmatched, which the load would insert.",
+      "expected": "The call raises error 515. etl_run_log has one row with status 'Failed' and a non-null error_message. silv_data_anomaly still equals its state before the call: the Z9 row is present and no E1 row exists.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-020 failed load logs Failed re-raises and leaves silv_data_anomaly unchanged]"
+    },
+    {
+      "id": "TC-011-021",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-05",
+      "category": "happy_path",
+      "description": "A Readmission dated 2025-02-14 whose invoice has no readmission fee line falls in the free window and gets READMISSION_FREE, not READMISSION_NO_FEE (RULE-092).",
+      "preconditions": "Q-032 is answered: the window is Campaign Year quarter 2, 1 Jan to 31 Mar. Readmission RD:D4:2025 dated 2025-02-14, matched to 930041 with SUBMRICS only.",
+      "expected": "Exactly one row: D4, READMISSION_FREE, naming RD:D4:2025; no READMISSION_NO_FEE.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-021 Readmission on 2025-02-14 with no fee line gives one READMISSION_FREE row]"
+    },
+    {
+      "id": "TC-011-022",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-05",
+      "category": "boundary",
+      "description": "The edges of the free window for CY2025 (start 2024-10-01): 1 January and 31 March are inside it; 31 December and 1 April are outside.",
+      "preconditions": "Q-032 is answered. Four Readmissions, each matched to its own invoice with no fee line: G1 2025-01-01, G2 2025-03-31, G3 2024-12-31, G4 2025-04-01.",
+      "expected": "Exactly four rows: G1 READMISSION_FREE, G2 READMISSION_FREE, G3 READMISSION_NO_FEE, G4 READMISSION_NO_FEE.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-022 free window runs 1 January to 31 March inclusive for a Campaign Year starting 1 October]"
+    },
+    {
+      "id": "TC-011-023",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-05",
+      "category": "boundary",
+      "description": "The window is months four to six counted from the Campaign Year's campaign_year_start in ref_campaign_year_config, not fixed calendar months (RULE-092, ADR-004).",
+      "preconditions": "Q-032 is answered. The 2026 config row is changed to start 2025-11-01 and end 2026-10-31, so the window is 2026-02-01 to 2026-04-30. H1 Readmission dated 2026-04-15 and H2 Readmission dated 2026-01-15, both in 2026 and each matched to an invoice with no fee line.",
+      "expected": "Exactly two rows: H1 READMISSION_FREE and H2 READMISSION_NO_FEE.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-023 free window is months four to six counted from campaign_year_start]"
+    },
+    {
+      "id": "TC-011-024",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-06",
+      "category": "happy_path",
+      "description": "Contact R1 (AC-008-12) has two events, each with its own invoice, so it has no invoice anomaly.",
+      "preconditions": "assumes Q-022: events and invoices are paired in date order. INV-1 950001 dated 2024-10-20 (subscription 450.00, DD). INV-2 950002 dated 2025-03-01 (subscription 450.00 and RAFEE_MRICS 100.00, Card). Renewal RN:R1:2025 dated 2024-11-05 is matched to INV-1. Readmission RD:R1:2025 dated 2025-03-10 is matched to INV-2 and carries 900.00.",
+      "expected": "silv_data_anomaly is empty: 0 INVOICE_NO_EVENT, 0 EVENT_NO_INVOICE, 0 INVOICE_MATCHES_MULTIPLE_EVENTS and 0 EVENT_MATCHES_MULTIPLE_INVOICES. There is no readmission row either, because INV-2 has a fee line.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-024 contact R1 with two events and two invoices has no invoice anomaly]"
+    },
+    {
+      "id": "TC-011-025",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-07",
+      "category": "happy_path",
+      "description": "Contact R2 (AC-008-14) has two events and one invoice. The Readmission takes INV-3 and the Renewal is left without one, so it gets INVOICE_MATCHES_MULTIPLE_EVENTS and not EVENT_NO_INVOICE (RULE-085, RULE-090).",
+      "preconditions": "INV-3 950003 dated 2024-10-25 (subscription 450.00, RAFEE_MRICS 100.00). Renewal RN:R2:2025 dated 2024-11-05 is 'Invoice shortfall'. Readmission RD:R2:2025 dated 2025-03-10 is matched to 950003.",
+      "expected": "Exactly one row: R2, INVOICE_MATCHES_MULTIPLE_EVENTS, naming RN:R2:2025; 0 EVENT_NO_INVOICE.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-025 contact R2 has one INVOICE_MATCHES_MULTIPLE_EVENTS row for its Renewal]"
+    },
+    {
+      "id": "TC-011-026",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-08",
+      "category": "happy_path",
+      "description": "Contact R3 (AC-008-15) has one Renewal and two invoices. The Renewal takes the later INV-5, and the earlier INV-4 is the surplus: EVENT_MATCHES_MULTIPLE_INVOICES and not INVOICE_NO_EVENT (RULE-086, RULE-091).",
+      "preconditions": "assumes Q-022: surplus invoices are the earliest. INV-4 950004 dated 2024-10-01 (400.00). INV-5 950005 dated 2024-12-01 (420.00). Renewal RN:R3:2025 dated 2024-11-05 is matched to 950005.",
+      "expected": "Exactly one row: R3, EVENT_MATCHES_MULTIPLE_INVOICES, naming 950004 and not 950005; 0 INVOICE_NO_EVENT.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-026 contact R3 has one EVENT_MATCHES_MULTIPLE_INVOICES row for INV-4]"
+    },
+    {
+      "id": "TC-011-027",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-09",
+      "category": "negative",
+      "description": "A Renewal and a Readmission in Campaign Year 2021, neither with an invoice, raise nothing. This holds even though the Readmission falls in quarter 2 (RULE-093).",
+      "preconditions": "assumes Q-011: years before 2022 raise no invoice anomalies. K9: Renewal RN:K9:2021 dated 2020-11-05 and Readmission RD:K9:2021 dated 2021-02-10, both with amount year 2021 and match_outcome 'Before invoice data'. No invoices.",
+      "expected": "silv_data_anomaly is empty.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-027 Renewal and Readmission in Campaign Year 2021 with no invoice raise nothing]"
+    },
+    {
+      "id": "TC-011-028",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-09",
+      "category": "boundary",
+      "description": "The 2022 cut-off applies to the amount Campaign Year (RULE-032, RULE-093). A Join dated in 2021 that takes its amounts from 2022 is checked. A Join dated in 2022 that takes its amounts from 2021 is not.",
+      "preconditions": "assumes Q-029 for the Join's amount Campaign Year. J1: Join JN:J1 dated 2021-05-01, amount year 2022, 'No eligible invoice'. J2: Join JN:J2 dated 2022-03-01, amount year 2021, 'Before invoice data'. No invoices.",
+      "expected": "Exactly one row: J1, EVENT_NO_INVOICE, naming JN:J1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-028 the amount Campaign Year not the event year decides whether a Join is checked]"
+    },
+    {
+      "id": "TC-011-029",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-10",
+      "category": "negative",
+      "description": "The readmission fee check reads the matched invoice's lines and never the event amount (Q-042). R2's Readmission carries 450.00, which leaves the fee out, yet it raises no readmission row because INV-3 has a fee line. A Readmission whose amount is 550.00 but whose invoice has no fee line still gets READMISSION_NO_FEE.",
+      "preconditions": "R2 as in TC-011-025: Readmission RD:R2:2025 matched to INV-3 950003 (RAFEE_MRICS 100.00), invoiced_subtotal_gbp 450.00. R2B: Readmission RD:R2B:2025 dated 2025-05-20, matched to 950013 (SUBMRICS 450.00 only), invoiced_subtotal_gbp 550.00.",
+      "expected": "Among READMISSION_FREE and READMISSION_NO_FEE rows there is exactly one: R2B, READMISSION_NO_FEE, naming RD:R2B:2025. None for R2.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD011].[test TC-011-029 readmission fee check reads the invoice lines not the event amount]"
+    }
+  ]
+}
