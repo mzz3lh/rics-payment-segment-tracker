@@ -124,3 +124,6 @@ the agent's working assumption. Example:
 
 ## MOD-018 events load collation (approved by Mike by merging this PR, 2026-11-09)
 - The Phase 1 Layercake.usp_load_silv_membership_events fails with error 468 wherever tempdb's collation differs from the database's (Latin1_General_CI_AS against SQL_Latin1_General_CP1_CI_AS here), because the string columns of its temp table #ev_stage (event_nk, event_type, event_subtype, contact_no, campaign_quarter) have no COLLATE clause. MOD-018 fixes it: Layercake.usp_load_silv_membership_events is added to MOD-018's objects in MP-001, and the only change is COLLATE DATABASE_DEFAULT on those columns. Its event logic is unchanged. The down script restores the Phase 1 definition.
+
+## MOD-011 free-readmission window (approved by Mike by merging this PR, 2026-11-10)
+- Q-023 / Q-032: the free-readmission window is the Campaign Year's second quarter, 1 January to 31 March for a Campaign Year starting 1 October, the same quarter as Phase 1's campaign_quarter Q2 (ADR-004 Option A). The calendar 1 April to 30 June wording in SPEC-001 RULE-092, its assumption and AC-009-05 was wrong and is corrected; AC-009-05's free Readmission is now dated 2025-02-14.
