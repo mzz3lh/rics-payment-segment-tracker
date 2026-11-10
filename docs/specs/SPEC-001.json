@@ -1157,7 +1157,7 @@
         },
         {
           "id": "RULE-092",
-          "rule": "A readmission falls under the free-readmission policy when its event date is between 1 April and 30 June of the calendar year, inclusive (assumes Q-023)."
+          "rule": "A readmission falls under the free-readmission policy when its event date falls in the second quarter of its Campaign Year: months four to six counted from campaign_year_start (1 January to 31 March, inclusive, for a Campaign Year starting 1 October), the same quarter as Phase 1's campaign_quarter Q2 (Q-023)."
         }
       ],
       "mappings": [
@@ -1186,7 +1186,7 @@
         },
         {
           "id": "AC-009-05",
-          "criterion": "A Readmission dated 2025-05-14 whose invoice has no readmission fee line has exactly one READMISSION_FREE row and no READMISSION_NO_FEE row (assumes Q-023)."
+          "criterion": "A Readmission dated 2025-02-14 whose invoice has no readmission fee line has exactly one READMISSION_FREE row and no READMISSION_NO_FEE row (Q-023)."
         },
         {
           "id": "AC-009-06",
@@ -1794,7 +1794,7 @@
     "Retired concessions are the six retired item codes used by Subs.usp_Refresh_SubsInvoices, and the comparison covers paid positions (Q-018).",
     "corporate_account_ref holds the live corporate subscription's Scheme No (Q-019).",
     "synapse_fo.CUSTTRANS_RICS holds one row per invoice line with an item code (productcode), and tax appears as its own line, as Subs.usp_Refresh_SubsInvoices treats it (Q-021).",
-    "A free readmission is a Readmission whose event date falls between 1 April and 30 June of the calendar year (Q-023).",
+    "A free readmission is a Readmission whose event date falls in the second quarter of its Campaign Year, 1 January to 31 March for a Campaign Year starting 1 October (Q-023).",
     "Removing silv_payment_events.payment_source breaks nothing downstream (Q-024).",
     "Acceptance in this release is on synthetic data only, with no pass threshold for real data (for example minimum payment method coverage) (Q-026).",
     "The Layercake column names used in this spec (for example silv_membership_events.event_date, contact_no, campaign_year and event_type; silv_data_anomaly columns; the Phase 1 paid position) are taken from the v1 draft and the Phase 1 baseline (Q-028).",

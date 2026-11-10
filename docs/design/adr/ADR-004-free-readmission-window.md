@@ -29,3 +29,6 @@ Pending: filled in by a human at the architecture validation gate.
 
 ## Consequences
 The invoice anomaly load (MOD-011) reads campaign_year_start from Layercake.ref_campaign_year_config to place each Readmission in its Campaign Year quarter. If the calendar option is chosen, that lookup is dropped. If the business confirms Campaign Year Q2 and the year does not start on 1 January, AC-009-03 and AC-009-05 need new dates in a spec update.
+
+## Addendum (2026-11-10)
+Q-032 is answered: the window is the Campaign Year's second quarter (Option A), which is 1 January to 31 March for a Campaign Year starting 1 October, the same quarter as Phase 1's campaign_quarter Q2. It does not coincide with April to June. RULE-092, the spec's assumption and AC-009-05 are corrected to match; AC-009-05 now tests a Readmission dated 2025-02-14. AC-009-03's 2025-08-12 Readmission is in Campaign Year quarter 4, so it stays READMISSION_NO_FEE.

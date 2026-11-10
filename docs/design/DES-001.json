@@ -1918,7 +1918,8 @@
       "id": "Q-032",
       "question": "Spec Q-023 is recorded as answered 'Campaign Year Quarter', but RULE-092, the spec's assumptions, AC-009-03 and AC-009-05 use calendar 1 April to 30 June. Is the free-readmission window the Campaign Year's second quarter, and does it coincide with April to June (does the Campaign Year start on 1 January)? Working assumption: Campaign Year quarter 2 (ADR-004).",
       "raised_by": "technical_architect",
-      "status": "open",
+      "status": "answered",
+      "answer": "The free-readmission window is the Campaign Year's second quarter, 1 January to 31 March for a Campaign Year starting 1 October, matching Phase 1's campaign_quarter Q2. It does not coincide with April to June; RULE-092, the spec's assumption and AC-009-05 (now dated 2025-02-14) are corrected to match (Mike, 2026-11-10).",
       "blocks": [
         "MOD-011"
       ]
