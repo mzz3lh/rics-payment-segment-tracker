@@ -7,17 +7,17 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-11-10T11:14:21Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-10T11:27:41Z",
+      "approved_by": "Mike",
+      "approved_at": "2026-11-10T12:22:13Z",
       "gate": "test_design_review",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+      "comments": "Reopened: TC-012-012 only: check the event tables' real columns (types, NOT NULL, dropped columns), not the faked ones"
     }
   },
   "module_id": "MOD-012",
