@@ -412,49 +412,67 @@ GO
 CREATE PROCEDURE test_MOD012.[test TC-012-012 event tables drop the eight unsupplied amount columns and keep the nine segment and amount columns]
 AS
 BEGIN
-    SELECT c.TABLE_NAME COLLATE DATABASE_DEFAULT AS table_name, c.COLUMN_NAME COLLATE DATABASE_DEFAULT AS column_name
+    -- SetUp fakes both event tables; read the real (renamed) tables through their logged ObjectId.
+    SELECT t.table_name, COALESCE(r.ObjectId, OBJECT_ID(N'Layercake.' + t.table_name)) AS object_id
+    INTO #Tables
+    FROM (VALUES (N'silv_membership_events'), (N'fact_membership_events')) AS t(table_name)
+    OUTER APPLY (
+        SELECT TOP (1) l.ObjectId
+        FROM tSQLt.Private_RenamedObjectLog AS l
+        WHERE PARSENAME(l.OriginalName, 1) = t.table_name
+          AND OBJECT_SCHEMA_NAME(l.ObjectId) = N'Layercake'
+        ORDER BY l.Id
+    ) AS r;
+
+    SELECT t.table_name
+    INTO #Missing
+    FROM #Tables AS t
+    WHERE t.object_id IS NULL;
+
+    EXEC tSQLt.AssertEmptyTable '#Missing', 'event table not found';
+
+    SELECT t.table_name COLLATE DATABASE_DEFAULT AS table_name, c.name COLLATE DATABASE_DEFAULT AS column_name
     INTO #Dropped
-    FROM INFORMATION_SCHEMA.COLUMNS AS c
-    WHERE c.TABLE_SCHEMA = 'Layercake'
-      AND c.TABLE_NAME IN ('silv_membership_events', 'fact_membership_events')
-      AND c.COLUMN_NAME IN ('subs_amount', 'fee_amount', 'invoiced_subtotal', 'credited_amount', 'currency_id', 'fee_amount_gbp', 'credited_amount_gbp', 'net_amount_gbp');
+    FROM #Tables AS t
+    JOIN sys.columns AS c ON c.object_id = t.object_id
+    WHERE c.name IN (N'subs_amount', N'fee_amount', N'invoiced_subtotal', N'credited_amount', N'currency_id', N'fee_amount_gbp', N'credited_amount_gbp', N'net_amount_gbp');
 
     EXEC tSQLt.AssertEmptyTable '#Dropped', 'dropped amount columns still present';
 
-    SELECT c.TABLE_NAME COLLATE DATABASE_DEFAULT AS table_name,
-           c.COLUMN_NAME COLLATE DATABASE_DEFAULT AS column_name,
-           c.DATA_TYPE COLLATE DATABASE_DEFAULT AS data_type,
-           CAST(CASE WHEN c.DATA_TYPE = 'decimal' THEN CONCAT(c.NUMERIC_PRECISION, ',', c.NUMERIC_SCALE)
-                     WHEN c.DATA_TYPE = 'varchar' THEN CAST(c.CHARACTER_MAXIMUM_LENGTH AS varchar(10))
+    SELECT t.table_name COLLATE DATABASE_DEFAULT AS table_name,
+           c.name COLLATE DATABASE_DEFAULT AS column_name,
+           CAST(TYPE_NAME(c.user_type_id) AS nvarchar(128)) COLLATE DATABASE_DEFAULT AS data_type,
+           CAST(CASE WHEN TYPE_NAME(c.user_type_id) IN (N'decimal', N'numeric') THEN CONCAT(c.precision, ',', c.scale)
+                     WHEN TYPE_NAME(c.user_type_id) IN (N'varchar', N'char') THEN CAST(c.max_length AS varchar(10))
+                     WHEN TYPE_NAME(c.user_type_id) IN (N'nvarchar', N'nchar') THEN CAST(c.max_length / 2 AS varchar(10))
                      ELSE '' END AS varchar(20)) COLLATE DATABASE_DEFAULT AS type_detail,
-           c.IS_NULLABLE COLLATE DATABASE_DEFAULT AS is_nullable
+           c.is_nullable
     INTO #Actual
-    FROM INFORMATION_SCHEMA.COLUMNS AS c
-    WHERE c.TABLE_SCHEMA = 'Layercake'
-      AND c.TABLE_NAME IN ('silv_membership_events', 'fact_membership_events')
-      AND c.COLUMN_NAME IN ('payment_method_id', 'payment_method_carried', 'payer_type_id', 'payer_type_carried', 'concession_type_id', 'concession_type_carried', 'subs_amount_gbp', 'invoiced_subtotal_gbp', 'amount_status');
+    FROM #Tables AS t
+    JOIN sys.columns AS c ON c.object_id = t.object_id
+    WHERE c.name IN (N'payment_method_id', N'payment_method_carried', N'payer_type_id', N'payer_type_carried', N'concession_type_id', N'concession_type_carried', N'subs_amount_gbp', N'invoiced_subtotal_gbp', N'amount_status');
 
-    SELECT v.table_name, v.column_name, v.data_type, CAST(v.type_detail AS varchar(20)) AS type_detail, v.is_nullable
+    SELECT v.table_name, v.column_name, CAST(v.data_type AS nvarchar(128)) AS data_type, CAST(v.type_detail AS varchar(20)) AS type_detail, CAST(v.is_nullable AS bit) AS is_nullable
     INTO #Expected
     FROM (VALUES
-        (N'silv_membership_events', N'payment_method_id', N'int', '', 'NO'),
-        (N'silv_membership_events', N'payment_method_carried', N'bit', '', 'NO'),
-        (N'silv_membership_events', N'payer_type_id', N'int', '', 'NO'),
-        (N'silv_membership_events', N'payer_type_carried', N'bit', '', 'NO'),
-        (N'silv_membership_events', N'concession_type_id', N'int', '', 'NO'),
-        (N'silv_membership_events', N'concession_type_carried', N'bit', '', 'NO'),
-        (N'silv_membership_events', N'subs_amount_gbp', N'decimal', '19,4', 'YES'),
-        (N'silv_membership_events', N'invoiced_subtotal_gbp', N'decimal', '19,4', 'YES'),
-        (N'silv_membership_events', N'amount_status', N'varchar', '30', 'YES'),
-        (N'fact_membership_events', N'payment_method_id', N'int', '', 'NO'),
-        (N'fact_membership_events', N'payment_method_carried', N'bit', '', 'NO'),
-        (N'fact_membership_events', N'payer_type_id', N'int', '', 'NO'),
-        (N'fact_membership_events', N'payer_type_carried', N'bit', '', 'NO'),
-        (N'fact_membership_events', N'concession_type_id', N'int', '', 'NO'),
-        (N'fact_membership_events', N'concession_type_carried', N'bit', '', 'NO'),
-        (N'fact_membership_events', N'subs_amount_gbp', N'decimal', '19,4', 'YES'),
-        (N'fact_membership_events', N'invoiced_subtotal_gbp', N'decimal', '19,4', 'YES'),
-        (N'fact_membership_events', N'amount_status', N'varchar', '30', 'YES')
+        (N'silv_membership_events', N'payment_method_id', N'int', '', 0),
+        (N'silv_membership_events', N'payment_method_carried', N'bit', '', 0),
+        (N'silv_membership_events', N'payer_type_id', N'int', '', 0),
+        (N'silv_membership_events', N'payer_type_carried', N'bit', '', 0),
+        (N'silv_membership_events', N'concession_type_id', N'int', '', 0),
+        (N'silv_membership_events', N'concession_type_carried', N'bit', '', 0),
+        (N'silv_membership_events', N'subs_amount_gbp', N'decimal', '19,4', 1),
+        (N'silv_membership_events', N'invoiced_subtotal_gbp', N'decimal', '19,4', 1),
+        (N'silv_membership_events', N'amount_status', N'varchar', '30', 1),
+        (N'fact_membership_events', N'payment_method_id', N'int', '', 0),
+        (N'fact_membership_events', N'payment_method_carried', N'bit', '', 0),
+        (N'fact_membership_events', N'payer_type_id', N'int', '', 0),
+        (N'fact_membership_events', N'payer_type_carried', N'bit', '', 0),
+        (N'fact_membership_events', N'concession_type_id', N'int', '', 0),
+        (N'fact_membership_events', N'concession_type_carried', N'bit', '', 0),
+        (N'fact_membership_events', N'subs_amount_gbp', N'decimal', '19,4', 1),
+        (N'fact_membership_events', N'invoiced_subtotal_gbp', N'decimal', '19,4', 1),
+        (N'fact_membership_events', N'amount_status', N'varchar', '30', 1)
     ) AS v(table_name, column_name, data_type, type_detail, is_nullable);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual', 'kept segment and amount columns';

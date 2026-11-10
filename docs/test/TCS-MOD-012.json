@@ -4,10 +4,10 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-012",
-    "version": 1,
+    "version": 2,
     "produced_by": "tester",
-    "produced_at": "2026-11-10T11:14:21Z",
-    "status": "rejected",
+    "produced_at": "2026-11-10T15:46:38Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,9 +15,8 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-10T12:22:13Z",
-      "gate": "test_design_review",
-      "comments": "Reopened: TC-012-012 only: check the event tables' real columns (types, NOT NULL, dropped columns), not the faked ones"
+      "approved_at": "2026-11-10T15:48:34Z",
+      "gate": "test_design_review"
     }
   },
   "module_id": "MOD-012",
@@ -179,9 +178,9 @@
       ],
       "acceptance_criterion_id": "AC-008-04",
       "category": "happy_path",
-      "description": "After the change, neither event table has subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, fee_amount_gbp, credited_amount_gbp or net_amount_gbp; both keep the nine segment and amount columns with the design's types and nullability.",
-      "preconditions": "Reads the deployed table definitions from INFORMATION_SCHEMA.COLUMNS; no rows are needed.",
-      "expected": "0 of the eight dropped columns on either table. On each of silv_membership_events and fact_membership_events: payment_method_id, payer_type_id, concession_type_id int NOT NULL; the three carried flags bit NOT NULL; subs_amount_gbp and invoiced_subtotal_gbp decimal(19,4) NULL; amount_status varchar(30) NULL.",
+      "description": "After the change, neither real event table has subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, fee_amount_gbp, credited_amount_gbp or net_amount_gbp; both keep the nine segment and amount columns with the design's types and nullability. Checked on the deployed tables, not the SetUp's fakes.",
+      "preconditions": "No rows are needed. SetUp fakes silv_membership_events and fact_membership_events, so the test reads the original tables, which FakeTable renamed and logged in tSQLt.Private_RenamedObjectLog (OriginalName, ObjectId; falling back to OBJECT_ID when not faked), through sys.columns on that ObjectId: type name, precision and scale, max_length and is_nullable.",
+      "expected": "Both original tables are found. 0 of the eight dropped columns on either table. On each of silv_membership_events and fact_membership_events: payment_method_id, payer_type_id, concession_type_id int NOT NULL; payment_method_carried, payer_type_carried, concession_type_carried bit NOT NULL; subs_amount_gbp and invoiced_subtotal_gbp decimal(19,4) NULL; amount_status varchar(30) NULL.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD012].[test TC-012-012 event tables drop the eight unsupplied amount columns and keep the nine segment and amount columns]"
     },
