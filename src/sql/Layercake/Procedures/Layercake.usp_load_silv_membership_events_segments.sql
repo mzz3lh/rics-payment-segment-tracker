@@ -1,0 +1,113 @@
+/*====================================================================
+    Layercake.usp_load_silv_membership_events_segments
+    Silver layer - silv_member_year_attributes, silv_event_amount and
+    silv_payment_events -> the RPST columns of
+    Layercake.silv_membership_events (ADR-001)
+      keys and carried flags  from the attributes row of the contact and
+                              the event's segment Campaign Year, 0 where
+                              there is none (RULE-017, RULE-018, RULE-081)
+      segment Campaign Year   own year; a Join takes its contact's first
+                              paid position year (MIN campaign_year in
+                              silv_payment_events), else its own year:
+                              the same rule as its amount Campaign Year
+                              in usp_load_silv_event_amount (RULE-032, Q-029)
+      amounts, amount_status  Join, Renewal and Readmission from
+                              silv_event_amount by event_nk; null on
+                              Change and Lapse
+    Updates only rows whose new-column values differ. Never inserts or
+    deletes events and never writes a Phase 1 column. Logged.
+====================================================================*/
+CREATE OR ALTER PROCEDURE Layercake.usp_load_silv_membership_events_segments
+    @run_id uniqueidentifier = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @run_id IS NULL SET @run_id = NEWID();
+
+    DECLARE @log_id bigint,
+            @upd    int,
+            @err    nvarchar(4000);
+
+    BEGIN TRY
+        EXEC Layercake.usp_etl_log_start @run_id, 'silver', 'silv_membership_events_segments', @log_id OUTPUT;
+
+        CREATE TABLE #target
+        (
+            event_id                int           NOT NULL PRIMARY KEY CLUSTERED,
+            payment_method_id       int           NOT NULL,
+            payment_method_carried  bit           NOT NULL,
+            payer_type_id           int           NOT NULL,
+            payer_type_carried      bit           NOT NULL,
+            concession_type_id      int           NOT NULL,
+            concession_type_carried bit           NOT NULL,
+            subs_amount_gbp         decimal(19,4) NULL,
+            invoiced_subtotal_gbp   decimal(19,4) NULL,
+            amount_status           varchar(30)   COLLATE DATABASE_DEFAULT NULL
+        );
+
+        INSERT INTO #target
+            (event_id, payment_method_id, payment_method_carried, payer_type_id, payer_type_carried,
+             concession_type_id, concession_type_carried, subs_amount_gbp, invoiced_subtotal_gbp, amount_status)
+        SELECT e.event_id,
+               ISNULL(a.payment_method_id, 0),
+               ISNULL(a.payment_method_carried, 0),
+               ISNULL(a.payer_type_id, 0),
+               ISNULL(a.payer_type_carried, 0),
+               ISNULL(a.concession_type_id, 0),
+               ISNULL(a.concession_type_carried, 0),
+               am.subs_amount_gbp,
+               am.invoiced_subtotal_gbp,
+               am.amount_status
+        FROM Layercake.silv_membership_events AS e
+        LEFT JOIN (SELECT pe.contact_no, MIN(pe.campaign_year) AS first_paid_year
+                   FROM Layercake.silv_payment_events AS pe
+                   GROUP BY pe.contact_no) AS p
+            ON  p.contact_no = e.contact_no
+            AND e.event_type = 'Join'
+        LEFT JOIN Layercake.silv_member_year_attributes AS a
+            ON  a.contact_no = e.contact_no
+            AND a.campaign_year = CASE WHEN e.event_type = 'Join' THEN COALESCE(p.first_paid_year, e.campaign_year)
+                                       ELSE e.campaign_year
+                                  END
+        LEFT JOIN Layercake.silv_event_amount AS am
+            ON  am.event_nk = e.event_nk
+            AND e.event_type IN ('Join', 'Renewal', 'Readmission');
+
+        BEGIN TRANSACTION;
+
+        -- amount_status compares as bytes, so a case-only change still lands.
+        UPDATE t
+        SET payment_method_id       = s.payment_method_id,
+            payment_method_carried  = s.payment_method_carried,
+            payer_type_id           = s.payer_type_id,
+            payer_type_carried      = s.payer_type_carried,
+            concession_type_id      = s.concession_type_id,
+            concession_type_carried = s.concession_type_carried,
+            subs_amount_gbp         = s.subs_amount_gbp,
+            invoiced_subtotal_gbp   = s.invoiced_subtotal_gbp,
+            amount_status           = s.amount_status
+        FROM Layercake.silv_membership_events AS t
+        INNER JOIN #target AS s
+            ON s.event_id = t.event_id
+        WHERE EXISTS (SELECT s.payment_method_id, s.payment_method_carried, s.payer_type_id, s.payer_type_carried,
+                             s.concession_type_id, s.concession_type_carried, s.subs_amount_gbp,
+                             s.invoiced_subtotal_gbp, CAST(s.amount_status AS varbinary(30))
+                      EXCEPT
+                      SELECT t.payment_method_id, t.payment_method_carried, t.payer_type_id, t.payer_type_carried,
+                             t.concession_type_id, t.concession_type_carried, t.subs_amount_gbp,
+                             t.invoiced_subtotal_gbp, CAST(t.amount_status AS varbinary(30)));
+        SET @upd = @@ROWCOUNT;
+
+        COMMIT TRANSACTION;
+        EXEC Layercake.usp_etl_log_end @log_id, 'Success', 0, @upd, 0;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        SET @err = CONCAT(ERROR_MESSAGE(), ' (error ', ERROR_NUMBER(), ', line ', ERROR_LINE(), ')');
+        IF @log_id IS NOT NULL
+            EXEC Layercake.usp_etl_log_end @log_id, 'Failed', 0, @upd, 0, @err;
+        THROW;
+    END CATCH;
+END;

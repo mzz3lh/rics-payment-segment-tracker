@@ -14,6 +14,8 @@
 --  RPST (MOD-007): segment keys, carried flags and amounts added by change
 --  script. Keys and flags default to 0 so Phase 1 inserts keep working;
 --  values are written by usp_load_silv_membership_events_segments.
+--  RPST (MOD-012): the eight amount columns Subs.vwSubsMemberStatuses
+--  cannot supply dropped by change script (Q-038).
 ----------------------------------------------------
 create table Layercake.silv_membership_events
 (
@@ -39,16 +41,8 @@ create table Layercake.silv_membership_events
     payer_type_carried      bit not null constraint DF_Layercake_silv_membership_events_payer_type_carried default 0,
     concession_type_id      int not null constraint DF_Layercake_silv_membership_events_concession_type_id default 0,            -- -> silv_ref_concession_type
     concession_type_carried bit not null constraint DF_Layercake_silv_membership_events_concession_type_carried default 0,
-    subs_amount             decimal(19, 4) null,        -- amounts: Join / Renewal / Readmission only
-    fee_amount              decimal(19, 4) null,
-    invoiced_subtotal       decimal(19, 4) null,
-    credited_amount         decimal(19, 4) null,
-    currency_id             int null,                   -- -> silv_ref_currency
-    subs_amount_gbp         decimal(19, 4) null,
-    fee_amount_gbp          decimal(19, 4) null,
+    subs_amount_gbp         decimal(19, 4) null,        -- amounts: Join / Renewal / Readmission only
     invoiced_subtotal_gbp   decimal(19, 4) null,
-    credited_amount_gbp     decimal(19, 4) null,
-    net_amount_gbp          decimal(19, 4) null,
     amount_status           varchar(30) null
 );
 
