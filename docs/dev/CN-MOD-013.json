@@ -1,0 +1,86 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-013",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-11T10:37:18Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-013.json",
+      "tests/tsqlt/test_MOD013.sql"
+    ]
+  },
+  "module_id": "MOD-013",
+  "branch": "agent/developer/MOD-013-retirement-comparison-query",
+  "commit": "ab463c9558c73efa34ad9508f10927ccaf2e6822",
+  "requirement_ids": [
+    "REQ-012"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_report_retirement_comparison.sql",
+      "object": "Layercake.usp_report_retirement_comparison",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-012"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD013_dev].[test a paid position with no attributes row has no retired concession]",
+    "[test_MOD013_dev].[test a paid year with no campaign year config row is counted but its derived date does not count]",
+    "[test_MOD013_dev].[test a retired item code differing only in case counts as retired]",
+    "[test_MOD013_dev].[test agreement rate rounds to one decimal one in six is 16.7 and five in six is 83.3]",
+    "[test_MOD013_dev].[test an attributes row with no paid position is not counted and no paid positions gives no rows]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0017",
+      "up_script": "src/sql/deploy/MIG-0017_MOD-013_retirement-comparison-query.up.sql",
+      "down_script": "src/sql/deploy/MIG-0017_MOD-013_retirement-comparison-query.down.sql",
+      "rollback_test": {
+        "commit": "ab463c9558c73efa34ad9508f10927ccaf2e6822",
+        "run_at": "2026-11-11T10:37:12.466498+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Grant script src/sql/grants/MOD-013.sql uses the placeholder role [<analyst_role>] (as MOD-001 does): the name of the analyst role that runs the usp_report_* procedures is not known. A human replaces it and runs the script.",
+    "A paid position whose Campaign Year has no Layercake.ref_campaign_year_config row is still counted in its year, but its derived date cannot be compared with a year end, so it does not count. The design does not cover this case. It should not happen, because every Phase 1 silver run adds any missing Campaign Year (answers.md, MOD-007 carry-forward and campaign-year config)."
+  ],
+  "notes": "Layercake.usp_report_retirement_comparison @as_of_date date = NULL (accepted and ignored, ADR-003). It returns one row per Campaign Year that has a silv_payment_events row, ordered by campaign_year, with the seven columns from ASM-004. Before the build, all 11 test_MOD013 tests failed because the procedure did not exist. Now all 11 test_MOD013 tests and all 5 test_MOD013_dev tests pass.\n\nHow the report decides each group:\n- Retired concession: the year's silv_member_year_attributes.concession_type_id joined to silv_ref_concession_type.item_code, which must be one of the six retired codes. The match uses the database collation, so it ignores case. A paid position with no attributes row has no retired concession.\n- Derived date: read from Layercake.vw_silv_derived_retirement_date (MOD-018), the same definition usp_load_silv_member_base uses. It counts only when it is on or before that year's campaign_year_end, in every group (ASM-005).\n- apuk_retirementdate and silv_member_base are not read.\n- Agreement rate: ROUND(100 * (retired_concession_and_date + neither) / paid_positions, 1), returned as decimal(5,1).\n- Every join is on a unique key, so no position is counted twice.\n\nThe dev unit tests cover: a paid position with no attributes row; a year with no config row; a case-variant retired item code; attributes rows with no paid position, which produce no rows; and rounding (16.7, 83.3).\n\nGrant: EXECUTE for [<analyst_role>]; a human runs the script.\n\nTest-first: the first run had 0 of 11 of the Tester's tests passing; the final run passed 11 of 11 and 5 unit test(s), in 4 run(s)."
+}
