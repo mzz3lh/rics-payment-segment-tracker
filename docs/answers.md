@@ -130,3 +130,6 @@ the agent's working assumption. Example:
 
 ## MOD-013 retirement comparison scope (approved by Mike by merging this PR, 2026-11-11)
 - REQ-012 stays as it is. The report compares the retired concession with the derived retirement date (RULE-055 to RULE-058), and apuk_retirementdate plays no part. No comparison of the manual apuk_retirementdate against the derived date is added.
+
+## MOD-014 top employers (approved by Mike by merging this PR, 2026-11-11)
+- Q-010: the employer view lists the top 25 employers by paid members in the last full Campaign Year. Paid members count both corporately and individually funded members, as the Tester drafted.
