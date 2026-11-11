@@ -1,0 +1,174 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-013",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-11T10:29:53Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-11T10:34:42Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-013",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-013-001",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-01",
+      "category": "happy_path",
+      "description": "Ten 2025 paid positions split 4 retired concession and derived date, 1 retired concession only, 2 derived date only, 3 neither.",
+      "preconditions": "assumes Q-018: retired concession = the year's silv_member_year_attributes.concession_type_id whose silv_ref_concession_type.item_code is one of the six retired codes; paid position = a silv_payment_events row (answers.md MOD-007). Interface per ASM-004. Standard set-up (SetUp): fakes silv_payment_events, silv_member_year_attributes, silv_ref_concession_type, ref_campaign_year_config, brnz_subs_status (read through vw_silv_derived_retirement_date) and silv_member_base; concession types 0, -1, -2, 1 No concession (no item code), 10-15 the six retired codes, 20 CONHARDSHIP, 21 CONRETIREDX, 22 CONPWRQ4; Campaign Years 2022-2026 (1 Oct to 30 Sep). Paid 2025: A1-A4 retired concession (13, 10, 15, 14) with live 'Retired Conc.' rows giving derived dates 2023-11-20, 2024-10-05, 2025-03-01, 2024-12-01; A5 retired (13) with no status row; A6, A7 concession 1 / 0 with derived dates 2024-11-15, 2022-10-20; A8-A10 concession 1, 20, 0 with no status row.",
+      "expected": "One row: campaign_year 2025, paid_positions 10, retired_concession_and_date 4, retired_concession_only 1, derived_date_only 2, neither 3, agreement_rate_pct 70.0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-001 ten 2025 paid positions split 4 1 2 3 with agreement 70.0]"
+    },
+    {
+      "id": "TC-013-002",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-01",
+      "category": "boundary",
+      "description": "A derived date on campaign_year_end counts; a derived date the day after does not, with or without a retired concession (ASM-005).",
+      "preconditions": "assumes Q-018. Standard set-up. Paid 2025: B1 retired (13), derived date 2025-09-30 (CY2025 row); B2 retired (10), derived date 2025-10-01 (CY2026 row); B3 No concession, derived date 2025-09-30; B4 No concession, derived date 2025-10-01.",
+      "expected": "One row: 2025, paid_positions 4, retired_concession_and_date 1, retired_concession_only 1, derived_date_only 1, neither 1, agreement_rate_pct 50.0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-002 derived date on the Campaign Year end counts and the day after does not]"
+    },
+    {
+      "id": "TC-013-003",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-01",
+      "category": "happy_path",
+      "description": "Several Campaign Years: one row per year with at least one paid position, each year's positions compared with that year's own campaign_year_end; a configured year without paid positions gives no row.",
+      "preconditions": "assumes Q-018. Standard set-up (config 2022-2026). C1 paid 2023 (No concession), 2024 and 2025 (13); status rows 2023 'No Conc.' 2022-10-15 and 2024 'Retired Conc.' 2023-11-20, so derived date 2023-11-20. C2 paid 2024 (10) and 2025 (No concession), no status rows.",
+      "expected": "Three rows: 2023 (1, 0, 0, 0, 1, 100.0); 2024 (2, 1, 1, 0, 0, 50.0); 2025 (2, 1, 0, 0, 1, 100.0). No row for 2022 or 2026.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-003 one row per Campaign Year with paid positions each compared with its own year end]"
+    },
+    {
+      "id": "TC-013-004",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-01",
+      "category": "boundary",
+      "description": "Agreement rate that is not a whole tenth is rounded to one decimal place (2 of 3).",
+      "preconditions": "assumes Q-018; agreement_rate_pct decimal(5,1) per ASM-004. Standard set-up. Paid 2025: E1 retired (13) with derived date 2024-11-01; E2 No concession with derived date 2024-11-02; E3 No concession, no status row.",
+      "expected": "One row: 2025, 3, 1, 0, 1, 1, agreement_rate_pct 66.7.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-004 agreement rate of two in three rounds to 66.7]"
+    },
+    {
+      "id": "TC-013-005",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-01",
+      "category": "happy_path",
+      "description": "Each of the six retired item codes (CONPWRQ1, CONPWRQ2, CONPWRQ3, CONRETIRED, CONRETIREDFL, CONRETIREDSPECIAL) counts as a retired concession (RULE-055).",
+      "preconditions": "assumes Q-018. Standard set-up. Paid 2025: F1-F6 with concession types 10-15 (one per retired code), no status rows, so no derived date.",
+      "expected": "One row: 2025, paid_positions 6, retired_concession_and_date 0, retired_concession_only 6, derived_date_only 0, neither 0, agreement_rate_pct 0.0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-005 each of the six retired item codes counts as a retired concession]"
+    },
+    {
+      "id": "TC-013-006",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-01",
+      "category": "negative",
+      "description": "Concession types outside the six retired codes are not a retired concession: another code, look-alike codes, reserved types with no item code, and No concession.",
+      "preconditions": "assumes Q-018. Standard set-up. Paid 2025: G1 CONHARDSHIP (20), G2 CONRETIREDX (21), G3 CONPWRQ4 (22), G4 Unknown (0), G5 Unrecognised (-1), G6 Not applicable (-2), G7 No concession (1); each has a live 'Retired Conc.' CY2025 row giving derived date 2024-11-10.",
+      "expected": "One row: 2025, paid_positions 7, retired_concession_and_date 0, retired_concession_only 0, derived_date_only 7, neither 0, agreement_rate_pct 0.0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-006 other concession codes and reserved types are not a retired concession]"
+    },
+    {
+      "id": "TC-013-007",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-01",
+      "category": "negative",
+      "description": "Status rows that give no derived date (soft-deleted 'Retired Conc.', 'Retired Conc.' with no Renewal Date, 'Non-Retired Conc.', 'No Conc.') leave the position without a derived date.",
+      "preconditions": "Derived date as defined by vw_silv_derived_retirement_date (RULE-099). Standard set-up. Paid 2025, all No concession: H1 CY2024 'Retired Conc.' 2023-11-01 with _is_deleted 1; H2 CY2024 'Retired Conc.' Renewal Date NULL; H3 CY2024 'Non-Retired Conc.' 2023-11-01; H4 CY2024 'No Conc.' 2023-11-01.",
+      "expected": "One row: 2025, paid_positions 4, 0, 0, 0, neither 4, agreement_rate_pct 100.0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-007 deleted undated and non-retired status rows give no derived date]"
+    },
+    {
+      "id": "TC-013-008",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-01",
+      "category": "duplicates",
+      "description": "A contact with 'Retired Conc.' rows in several Campaign Years is still one paid position in a year, not one per status row.",
+      "preconditions": "Standard set-up. D1 paid 2025 with retired concession (13); live 'Retired Conc.' rows CY2024 2023-11-20, CY2025 2024-10-05, CY2026 2025-10-03.",
+      "expected": "One row: 2025, paid_positions 1, retired_concession_and_date 1, 0, 0, 0, agreement_rate_pct 100.0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-008 a contact with several Retired Conc years counts once per paid position]"
+    },
+    {
+      "id": "TC-013-009",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-02",
+      "category": "happy_path",
+      "description": "The output is exactly the seven aggregate columns (campaign_year, paid_positions, retired_concession_and_date, retired_concession_only, derived_date_only, neither, agreement_rate_pct) with one row per Campaign Year, so no contact_no or other contact-level column or row; @as_of_date is accepted and ignored.",
+      "preconditions": "Interface per ASM-004 (INSERT ... EXEC into a seven-column table fails if any other column is returned). Standard set-up. J1 paid 2024 and 2025 (13), derived date 2023-11-20; J2 paid 2024 (No concession), no status row; J3 paid 2025 (No concession), derived date 2024-12-01. Called with @as_of_date = '2023-01-01'.",
+      "expected": "Exactly 2 rows: 2024 (2, 1, 0, 0, 1, 100.0) and 2025 (2, 1, 0, 1, 0, 50.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-009 output is the seven aggregate columns with one row per Campaign Year and no contact column]"
+    },
+    {
+      "id": "TC-013-010",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-03",
+      "category": "negative",
+      "description": "apuk_retirementdate in silv_member_base plays no part: a 2025 paid position with retirement_date 2020-01-01 but no derived date and no retired concession is 'neither'.",
+      "preconditions": "Standard set-up. silv_member_base K1 retirement_date 2020-01-01; K1 paid 2025, No concession; status row CY2025 'No Conc.' 2024-10-20 (no derived date).",
+      "expected": "One row: 2025, paid_positions 1, 0, 0, 0, neither 1, agreement_rate_pct 100.0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-010 apuk retirement date in silv_member_base with no derived date or retired concession is neither]"
+    },
+    {
+      "id": "TC-013-011",
+      "requirement_ids": [
+        "REQ-012"
+      ],
+      "acceptance_criterion_id": "AC-012-03",
+      "category": "negative",
+      "description": "Running the report changes no status (RULE-058): silv_member_base, silv_member_year_attributes and silv_payment_events are the same before and after.",
+      "preconditions": "Standard set-up. silv_member_base L1 retirement_date 2020-01-01, L2 2023-11-20; paid 2025: L1 retired (13) with no derived date, L2 No concession with 'Retired Conc.' CY2024 row 2023-11-20.",
+      "expected": "Snapshots of the three tables before and after are equal; report returns 2025 (2, 0, 1, 1, 0, 0.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD013].[test TC-013-011 running the report changes no status or source row]"
+    }
+  ]
+}
