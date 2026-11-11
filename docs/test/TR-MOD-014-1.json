@@ -1,0 +1,102 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-11T14:22:19Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-014-1",
+    "source_artefacts": [
+      "CN-MOD-014",
+      "TCS-MOD-014",
+      "tests/tsqlt/test_MOD014.sql"
+    ]
+  },
+  "module_id": "MOD-014",
+  "loop_number": 1,
+  "run": {
+    "environment": "test",
+    "commit": "93cefd698880530f4a4a4a17ab336272d0833c09",
+    "started_at": "2026-11-11T14:19:14Z",
+    "finished_at": "2026-11-11T14:22:13Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-014-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-013",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-014",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-015",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-014-016",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-013",
+      "status": "met"
+    }
+  ],
+  "regression": {
+    "ran": 427,
+    "failed": []
+  },
+  "verdict": "pass"
+}

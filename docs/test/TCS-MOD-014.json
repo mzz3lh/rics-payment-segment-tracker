@@ -1,0 +1,239 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-014",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-11T13:59:55Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-11T14:13:01Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-014",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-014-001",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-01",
+      "category": "negative",
+      "description": "No employer object is built (RULE-059): Layercake has no brnz_account, brnz_corporate_scheme, ref_employer_group or dim_employer, and no Layercake table or view (so neither silv_member_year_attributes, silv_membership_events nor fact_membership_events) has an employer_id or employer_carried column.",
+      "preconditions": "Reads the catalogue only (sys.objects, sys.columns by schema Layercake, so the originals FakeTable renames in SetUp are included). The three named tables must exist so the column check is not vacuous.",
+      "expected": "0 employer objects; 0 employer_id / employer_carried columns in Layercake; the 3 named tables exist.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-001 no employer object or employer column exists]"
+    },
+    {
+      "id": "TC-014-002",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-02",
+      "category": "happy_path",
+      "description": "AC-013-02 as written: 10 paid members in 2025, 5 Corporate (4 with a live subscription whose Scheme No matches a CE.vwCorporateSchemes row with an AccountNumber, 1 whose scheme row has a NULL AccountNumber) and 5 Individual. usp_report_employer_scheme_coverage gives 80.0 Corporate and 0.0 Individual.",
+      "preconditions": "assumes Q-027: a live subscription is a brnz_corporate_subscription row with _is_deleted 0 and sub_status and sub_user_status 'Active'. Interface per ASM-006 and answers.md (MOD-014 coverage columns): one row per Campaign Year and payer type; pct = count / paid_members x 100, decimal(5,1). Standard set-up (SetUp): fakes silv_payment_events, silv_member_year_attributes, silv_ref_payer_type and dim_payer_type (0 Unknown, -1 Unrecognised, -2 Not applicable, 1 Individual, 2 Corporate), ref_campaign_year_config 2023-2027 (1 Oct to 30 Sep), brnz_corporate_subscription, CE.vwCorporateSchemes, CE.vwContact, CE.vwAccount; paid member = silv_payment_events row, payer type from silv_member_year_attributes; Corporate members' corporate_account_ref equals their live scheme_no; called with @as_of_date 2026-03-01; any row with paid_members 0 is ignored. Here: 7002001-7002005 Corporate on CS0001-CS0005 (CS0005's scheme row AccountNumber NULL); 7002011-7002015 Individual with no subscription; no CE contact rows.",
+      "expected": "Two rows: (2025, 'Corporate', paid_members 5, scheme_link_employer 4, contact_record_employer 0, no_employer 1, scheme_link_coverage_pct 80.0, contact_record_coverage_pct 0.0) and (2025, 'Individual', 5, 0, 0, 5, 0.0, 0.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-002 ten 2025 paid members give scheme link coverage 80.0 Corporate and 0.0 Individual]"
+    },
+    {
+      "id": "TC-014-003",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-02",
+      "category": "nulls",
+      "description": "The contact-record employer is CE.vwContact.ParentCustomerId where ParentCustomerIdType is 'account'; a NULL parent or a 'contact' parent is no employer. A member with both sources counts in both columns; no_employer counts members with neither. 1 of 3 rounds to 33.3.",
+      "preconditions": "assumes Q-027 (live = 'Active'/'Active'). Contact-record source per ASM-006 (3). Standard set-up. Corporate 2025: 7003001 scheme CS0101 (AccountNumber A2001) and contact parent account A3001; 7003002 scheme CS0102 (A2002) only; 7003003 scheme CS0109 (no CE scheme row) and contact parent account A3003; 7003004 scheme CS0105 (AccountNumber NULL) and contact row with ParentCustomerId NULL. Individual 2025: 7003011 contact parent account A3004; 7003012 contact parent of type 'contact'; 7003013 no contact row.",
+      "expected": "(2025, 'Corporate', 4, 2, 2, 1, 50.0, 50.0) and (2025, 'Individual', 3, 0, 1, 2, 0.0, 33.3).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-003 contact record employer counts only for an account parent and overlaps the scheme link]"
+    },
+    {
+      "id": "TC-014-004",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-02",
+      "category": "negative",
+      "description": "Only a live corporate subscription for the same Campaign Year gives a scheme link: an inactive Sub Status, an inactive Sub User Status, a soft-deleted row and a subscription for another year all give none, even though their schemes have an AccountNumber.",
+      "preconditions": "assumes Q-027 (live = 'Active'/'Active'). Standard set-up. Individual 2025 with corporate_account_ref NULL: 7004001 CS0201 'Inactive'/'Active'; 7004002 CS0202 'Active'/'Inactive'; 7004003 CS0203 Active/Active _is_deleted 1; 7004004 CS0204 Active/Active for 2024. Control: 7004011 Corporate 2025 on live CS0205. All five schemes have CE rows with AccountNumbers.",
+      "expected": "(2025, 'Corporate', 1, 1, 0, 0, 100.0, 0.0) and (2025, 'Individual', 4, 0, 0, 4, 0.0, 0.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-004 a subscription that is not live for the year gives no scheme link]"
+    },
+    {
+      "id": "TC-014-005",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-02",
+      "category": "duplicates",
+      "description": "A member is counted once per contact-year: a scheme with several CE.vwCorporateSchemes rows (one per subscription user) and a contact with two live subscriptions in the year do not inflate paid_members or scheme_link_employer.",
+      "preconditions": "assumes Q-027. Standard set-up. 7005001 Corporate 2025 with live CS0301 and CS0302 and a contact-record parent account A5001; 7005002 Corporate 2025 with live CS0301. CE.vwCorporateSchemes has CS0301 twice (users 7005001, 7005002, AccountNumber A5001) and CS0302 once (A5002).",
+      "expected": "One row: (2025, 'Corporate', 2, 2, 1, 0, 100.0, 50.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-005 repeated scheme rows and two live subscriptions count a member once]"
+    },
+    {
+      "id": "TC-014-006",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-02",
+      "category": "happy_path",
+      "description": "Coverage is reported per Campaign Year and payer type: a member paid in two years appears in each year's row; payer type 0 Unknown has its own row (ASM-006 (4)); a contact-year with an attributes row but no paid position is not counted.",
+      "preconditions": "assumes Q-027. Standard set-up. 7006001 Corporate paid 2024 and 2025, live CS0401 both years (AccountNumber A6001). 7006002 Unknown (payer 0) paid 2025, contact parent account A6002. 7006003 Individual attributes row for 2025 and a contact parent account, but no silv_payment_events row.",
+      "expected": "Three rows: (2024, 'Corporate', 1, 1, 0, 0, 100.0, 0.0), (2025, 'Corporate', 1, 1, 0, 0, 100.0, 0.0), (2025, 'Unknown', 1, 0, 1, 0, 0.0, 100.0). No Individual row with paid members.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-006 coverage has a row per Campaign Year and payer type with Unknown on its own and unpaid years left out]"
+    },
+    {
+      "id": "TC-014-007",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-03",
+      "category": "happy_path",
+      "description": "AC-013-03 as written: of the 2025 paid members with an employer from both sources, 3 name the same firm and 1 a different firm; usp_report_employer_source_agreement gives 75.0. Members with only one source are not in both_sources.",
+      "preconditions": "assumes Q-027. Interface per ASM-006: campaign_year, both_sources, same_firm, different_firm, agreement_rate_pct (decimal(5,1)); same firm = CE.vwContact.ParentCustomerId equals CE.vwCorporateSchemes.apuk_onbehalfoforganisationid; counted per contact-year by Campaign Year; any row with both_sources 0 is ignored. Standard set-up. Corporate 2025: 7007001-7007003 scheme org equals contact parent; 7007004 scheme org A7004, contact parent A7009; 7007005 scheme only. Individual 7007011 contact parent only.",
+      "expected": "One row: (2025, both_sources 4, same_firm 3, different_firm 1, agreement_rate_pct 75.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-007 three same firm and one different firm give agreement 75.0]"
+    },
+    {
+      "id": "TC-014-008",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-03",
+      "category": "negative",
+      "description": "Agreement compares account GUIDs, not names: two different accounts that share the name 'Acme Surveyors' disagree; one account named 'Beta LLP' on the scheme and 'Beta Ltd' on the contact record agrees.",
+      "preconditions": "assumes Q-027. GUID comparison per ASM-006 (3). Standard set-up. 7008001 Corporate 2025: scheme org ...8061 'Acme Surveyors', contact parent ...8062 'Acme Surveyors'. 7008002 Corporate 2025: scheme org ...8063 'Beta LLP', contact parent ...8063 'Beta Ltd'.",
+      "expected": "One row: (2025, 2, 1, 1, 50.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-008 agreement compares account ids not firm names]"
+    },
+    {
+      "id": "TC-014-009",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-03",
+      "category": "boundary",
+      "description": "Agreement is per contact-year by Campaign Year: a member paid with both sources in 2024 and 2025 counts in each year; 2 of 3 rounds to 66.7.",
+      "preconditions": "assumes Q-027. Standard set-up. 7009001 Corporate paid 2024 and 2025, live CS0701 both years, same firm. 7009002 Corporate 2024 same firm. 7009003 Corporate 2024, scheme firm A9003, contact parent A9009.",
+      "expected": "Two rows: (2024, 3, 2, 1, 66.7) and (2025, 1, 1, 0, 100.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-009 agreement is counted per contact year by Campaign Year and two in three rounds to 66.7]"
+    },
+    {
+      "id": "TC-014-010",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-04",
+      "category": "happy_path",
+      "description": "Each of the three reports returns exactly its aggregate columns (INSERT ... EXEC into a table of that shape fails if any other column is returned), one row per Campaign Year and payer type, per Campaign Year, or per firm, and no returned text value is a contact number (RULE-064).",
+      "preconditions": "assumes Q-027. Column lists per ASM-006 and answers.md: coverage (campaign_year, payer_type_name, paid_members, scheme_link_employer, contact_record_employer, no_employer, scheme_link_coverage_pct, contact_record_coverage_pct); agreement (campaign_year, both_sources, same_firm, different_firm, agreement_rate_pct); top employers (employer_account_number, employer_name, corporate_paid_members, individual_paid_members, paid_members). Standard set-up. 7010001 and 7010002 Corporate 2025 on live CS1001 (two CE scheme rows, firm D8001 'Delta Partners'), both with contact parent D8001; 7010011 Individual 2025 with contact parent D8001.",
+      "expected": "Coverage: (2025, 'Corporate', 2, 2, 2, 0, 100.0, 100.0) and (2025, 'Individual', 1, 0, 1, 0, 0.0, 100.0). Agreement: (2025, 2, 2, 0, 100.0). Top employers: ('D8001', 'Delta Partners', 2, 1, 3). No payer_type_name, employer_account_number or employer_name equals any contact_no.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-010 the three reports return only aggregate columns and no contact number]"
+    },
+    {
+      "id": "TC-014-011",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-04",
+      "category": "happy_path",
+      "description": "usp_report_top_employers counts last-full-year paid members per firm (RULE-061, RULE-062): a Corporate member under its scheme-link firm (AccountNumber / AccountName from CE.vwCorporateSchemes) even when its contact record names another firm; a Corporate member with no scheme link under its contact-record firm in the corporate column; an Individual member under its contact-record firm (CE.vwAccount AccountNumber / name). Unknown payer type, members with no firm, and other years are left out, so corporate + individual = paid_members.",
+      "preconditions": "assumes Q-027. Rules per answers.md (MOD-014 top employers, coverage columns and top-employers details; Q-010 answered: top 25, both funding types). Standard set-up; @as_of_date 2026-03-01, so the last full Campaign Year is 2025. 2025: 7011001 and 7011002 Corporate on CS1101 (A100 'Alpha Partners'), 7011001's contact parent is C300 'Gamma Estates'; 7011003 Corporate on CS1109 (no CE scheme row), contact parent B200 'Beta Surveyors'; 7011004 Corporate on CS1108 (no CE scheme row), no contact row; 7011011 Individual parent A100; 7011012, 7011013 Individual parent B200; 7011021 Unknown parent A100. 7011014 Individual parent B200 paid 2024 only; 7011015 Individual parent B200 paid 2026 only.",
+      "expected": "Two rows: ('A100', 'Alpha Partners', corporate 2, individual 1, paid 3) and ('B200', 'Beta Surveyors', 1, 2, 3). No C300 row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-011 top employers count corporate under the scheme firm and individual under the contact record firm]"
+    },
+    {
+      "id": "TC-014-012",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-04",
+      "category": "boundary",
+      "description": "The list keeps the 25 firms with the most paid members: with 26 firms, the one with fewest paid members is dropped even though its account number sorts first.",
+      "preconditions": "Top 25 per answers.md (Q-010). Standard set-up; @as_of_date 2026-03-01. 25 firms E001-E025 with 2 Individual 2025 paid members each (contact-record parent accounts) and firm E000 with 1.",
+      "expected": "25 rows; no E000 row; every row corporate 0, individual 2, paid 2; total paid_members 50.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-012 top employers keep the 25 firms with most paid members]"
+    },
+    {
+      "id": "TC-014-013",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-04",
+      "category": "boundary",
+      "description": "A tie at 25th place is broken by employer_account_number, so the list has exactly 25 rows and the same firms on every run.",
+      "preconditions": "Tie-break per answers.md (MOD-014 top-employers details). The direction of the account-number tie-break is not stated, so which of the tied firms is listed is not asserted. Standard set-up; @as_of_date 2026-03-01. Firms G101-G124 with 3 Individual 2025 paid members each; H001, H002, H003 with 1 each. The report is run twice.",
+      "expected": "25 rows: all 24 G firms with paid 3 and exactly one H firm with paid 1; the second run returns the same rows as the first.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-013 a tie at 25th place still gives exactly 25 firms and the same list on every run]"
+    },
+    {
+      "id": "TC-014-014",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-04",
+      "category": "boundary",
+      "description": "The last full Campaign Year is the ref_campaign_year_config year before the one covering @as_of_date (ASM-006 (1)): 2025-09-30 is in CY2025, so 2024 is reported; 2025-10-01 is in CY2026, so 2025 is reported.",
+      "preconditions": "Standard set-up (CY2025 2024-10-01 to 2025-09-30, CY2026 2025-10-01 to 2026-09-30). Firm J100 'Juniper LLP' (contact-record parent): 7014001 Individual paid 2024; 7014002, 7014003 Individual paid 2025.",
+      "expected": "As of 2025-09-30: ('J100', 'Juniper LLP', 0, 1, 1). As of 2025-10-01: ('J100', 'Juniper LLP', 0, 2, 2).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-014 the last full Campaign Year is the one before the year covering the as-of date]"
+    },
+    {
+      "id": "TC-014-015",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-04",
+      "category": "duplicates",
+      "description": "A member counts once under its firm: repeated CE.vwCorporateSchemes rows for a scheme and two live subscriptions to schemes of the same firm do not inflate the firm's count.",
+      "preconditions": "assumes Q-027. Standard set-up; @as_of_date 2026-03-01. 7015001 Corporate 2025 with live CS1501 and CS1502; 7015002 Corporate 2025 with live CS1501. CE.vwCorporateSchemes: CS1501 twice and CS1502 once, all firm K100 'Kestrel Group'.",
+      "expected": "One row: ('K100', 'Kestrel Group', corporate 2, individual 0, paid 2).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-015 top employers count a member once despite repeated scheme rows and two live subscriptions]"
+    },
+    {
+      "id": "TC-014-016",
+      "requirement_ids": [
+        "REQ-013"
+      ],
+      "acceptance_criterion_id": "AC-013-05",
+      "category": "reconciliation",
+      "description": "The figures the employer data quality note reports agree across the reports: scheme coverage gives coverage by Campaign Year and payer type with Unknown as its own row, which is the number left out of the top-employers list, and the top-employers counts equal the Corporate and Individual members with a firm.",
+      "preconditions": "assumes Q-027. The note's text and recommendation are written by the Technical Writer (DU-MOD-014) and checked at the documentation review, not by tSQLt; this condition covers the figures it draws on (answers.md: Unknown left out of top employers and reported in the note; ASM-006: Unknown its own coverage row). The agreement rate it reports is covered by TC-014-007. Standard set-up; @as_of_date 2026-03-01. Firm L100 'Lark Partners': 7016001 Corporate 2025 on live CS1601 (L100); 7016011 Individual 2025, contact parent L100; 7016021 and 7016022 Unknown 2025, contact parent L100.",
+      "expected": "Coverage: (2025, 'Corporate', 1, 1, 0, 0, 100.0, 0.0), (2025, 'Individual', 1, 0, 1, 0, 0.0, 100.0), (2025, 'Unknown', 2, 0, 2, 0, 0.0, 100.0). Top employers: ('L100', 'Lark Partners', 1, 1, 2), so the 2 Unknown members are left out.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD014].[test TC-014-016 Unknown payer type is its own coverage row and is left out of top employers]"
+    }
+  ]
+}
