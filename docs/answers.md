@@ -133,3 +133,10 @@ the agent's working assumption. Example:
 
 ## MOD-014 top employers (approved by Mike by merging this PR, 2026-11-11)
 - Q-010: the employer view lists the top 25 employers by paid members in the last full Campaign Year. Paid members count both corporately and individually funded members, as the Tester drafted.
+
+## MOD-014 coverage columns and top-employers details (approved by Mike by merging this PR, 2026-11-11)
+- Coverage columns of usp_report_scheme_coverage: scheme_link_coverage_pct = scheme_link_employer / paid_members × 100 and contact_record_coverage_pct = contact_record_employer / paid_members × 100, decimal(5,1). These are the "both coverage percentages" in ASM-006.
+- usp_report_top_employers: a corporately funded member counts under its scheme-link firm (number and name from CE.vwCorporateSchemes AccountNumber / AccountName); an individually funded member counts under its contact-record firm (CE.vwContact.ParentCustomerId to CE.vwAccount AccountNumber / name).
+- A corporately funded member with no scheme link but with a contact-record firm counts under that firm, in the corporate column.
+- Payer type 0 Unknown is left out of the top-employers list, so corporate plus individual equals paid_members; how many were left out is reported in the employer data quality note.
+- Ties at 25th place are broken by employer_account_number, so the list always has exactly 25 rows and the same ones on every run.
