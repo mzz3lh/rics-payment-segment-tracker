@@ -119,9 +119,33 @@ What is already known about the two sources before the real-data run:
 - A scheme link gives an employer only where the scheme's CRM row has an account number, and only for a subscription that is live for the Campaign Year, which rests on the assumption that 'Active' means live (Q-027, see above).
 - Whether the parent account on the CRM contact record is filled in on real records has not yet been checked (see above).
 
-The recommendation, to build the employer segment or to report the findings only, is to be agreed with Damian once the real-data figures are in, as the business requirement sets out (BR-001 Story 5, D6). It is still to be confirmed.
+How to run: after the corporate subscription load, the member-year attributes load and the Phase 1 run have run on real data, run each report with no parameters (all three take an optional @as_of_date, which only the top-employers report uses), for example:
 
-<!-- evidence: docs/specs/SPEC-001.json#AC-013-05; docs/specs/SPEC-001.json#an employer data quality note with a recommendation to build or not; docs/design/MP-001.json#carries the employer data quality note; docs/test/TR-MOD-014-1.json#"verdict": "pass"; docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Mike runs them on real data; docs/dev/CN-MOD-014.json#The coverage report's Unknown row gives the number left out; docs/answers.md#how many were left out is reported in the employer data quality note; docs/answers.md#scheme_link_coverage_pct = scheme_link_employer / paid_members × 100; docs/design/DES-001.json#Layercake.usp_report_employer_scheme_coverage; docs/design/DES-001.json#Layercake.usp_report_employer_source_agreement; docs/design/DES-001.json#Layercake.usp_report_top_employers; docs/test/TCS-MOD-014.json#TC-014-016; docs/test/TCS-MOD-014.json#The figures the employer data quality note reports agree across the reports; docs/specs/SPEC-001.json#RULE-060; docs/test/TCS-MOD-014.json#TC-014-004; docs/specs/SPEC-001.json#Q-027; docs/dev/CN-MOD-014.json#whether ParentCustomerId is filled on real data needs checking when Mike runs the reports; docs/requirements/BR-001-payment-segments-tracker.md#D6 Feasibility note and build decision. Findings and the employer data quality note agreed with Damian, with a decision: build the segment, or report the findings only. -->
+```sql
+exec Layercake.usp_report_employer_scheme_coverage;
+exec Layercake.usp_report_employer_source_agreement;
+exec Layercake.usp_report_top_employers;
+```
+
+Results on real data (to be filled in from the reports):
+
+Coverage by Campaign Year and payer type (usp_report_employer_scheme_coverage):
+
+| Campaign Year | Payer type | Paid members | Scheme link coverage % | Contact record coverage % | No employer |
+|---|---|---|---|---|---|
+| | | | | | |
+
+Agreement between the two sources (usp_report_employer_source_agreement):
+
+| Campaign Year | Members with both sources | Same firm | Different firm | Agreement rate % |
+|---|---|---|---|---|
+| | | | | |
+
+Paid members left out of the top-employers list (payer type Unknown, last full Campaign Year): ____
+
+Recommendation (build the employer segment, or report the findings only): To be decided by Mike after running the reports on real data.
+
+<!-- evidence: docs/specs/SPEC-001.json#AC-013-05; docs/specs/SPEC-001.json#an employer data quality note with a recommendation to build or not; docs/design/MP-001.json#carries the employer data quality note; docs/test/TR-MOD-014-1.json#"verdict": "pass"; docs/design/adr/ADR-003-delivery-of-the-count-only-profiling-and-findings-queries.md#Mike runs them on real data; docs/dev/CN-MOD-014.json#The coverage report's Unknown row gives the number left out; docs/answers.md#how many were left out is reported in the employer data quality note; docs/answers.md#scheme_link_coverage_pct = scheme_link_employer / paid_members × 100; docs/design/DES-001.json#Layercake.usp_report_employer_scheme_coverage; docs/design/DES-001.json#Layercake.usp_report_employer_source_agreement; docs/design/DES-001.json#Layercake.usp_report_top_employers; docs/test/TCS-MOD-014.json#TC-014-016; docs/test/TCS-MOD-014.json#The figures the employer data quality note reports agree across the reports; docs/specs/SPEC-001.json#RULE-060; docs/test/TCS-MOD-014.json#TC-014-004; docs/specs/SPEC-001.json#Q-027; docs/dev/CN-MOD-014.json#whether ParentCustomerId is filled on real data needs checking when Mike runs the reports; docs/answers.md#MOD-014 employer data quality note -->
 
 ## Recommended next steps
 
@@ -132,7 +156,7 @@ The recommendation, to build the employer segment or to report the findings only
 5. Run both profiles on real data and use the results to answer Q-021 and Q-027. The Q-021 answer also confirms, or changes, which transaction rows the line load lands, where the concessions come from and how the readmission fee check finds a fee line.
 6. After the first line-type mapping load on real data, have Damian map the item codes left 'unmapped' by hand (see Known limitations) before the fee-only test and the readmission fee check (MOD-011) are relied on.
 7. Once the member-year attributes load and a Phase 1 run after MIG-0013 have run on real data, have Mike run the retirement comparison and a person look at examples of disagreements, and answer Q-018: which concession types count as retired, and which population the comparison should cover.
-8. Once the corporate subscription load, the member-year attributes load and the Phase 1 run have run on real data, have Mike run the three employer reports, check that the parent account on the CRM contact record is filled in, and complete the employer data quality note with Damian, including the recommendation to build the employer segment or report the findings only.
+8. Once the corporate subscription load, the member-year attributes load and the Phase 1 run have run on real data, have Mike run the three employer reports, check that the parent account on the CRM contact record is filled in, fill in the employer data quality note's tables, and decide the recommendation to build the employer segment or report the findings only.
 9. Answer Q-001, Q-002, Q-006, Q-011, Q-012 and Q-019, and confirm the Q-036 tie-breaks, on which the member-year attributes, the segments on the events, the segment anomalies, the pairing of events with invoices and the invoice anomalies rest.
 10. Answer Q-005 and Q-029, on which the event amounts and a Join's segments rest, and Q-017, which standard rate a concession member's amount is compared with.
 11. Answer Q-015, whether a Mixed payment method is needed.
