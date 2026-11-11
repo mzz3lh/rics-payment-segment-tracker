@@ -1,0 +1,72 @@
+CREATE OR ALTER PROCEDURE Layercake.usp_report_retirement_comparison
+    @as_of_date date = NULL
+AS
+/*
+    Count-only comparison of the retired concession with the derived retirement date
+    (REQ-012, RULE-055 to RULE-058), one row per Campaign Year that has a paid position.
+    - Paid position: a Layercake.silv_payment_events row (contact_no, campaign_year).
+    - Retired concession: the year's silv_member_year_attributes.concession_type_id has one
+      of the six retired item codes used by Subs.usp_Refresh_SubsInvoices (Q-018). A year
+      with no attributes row has no retired concession.
+    - Derived date: Layercake.vw_silv_derived_retirement_date (the same definition the member
+      base load uses, ADR-005), counted only when on or before that year's campaign_year_end,
+      in every group (ASM-005). A year with no ref_campaign_year_config row has no year end,
+      so its date does not count.
+    apuk_retirementdate (silv_member_base) plays no part (RULE-058). Aggregates only (RULE-057).
+    @as_of_date is accepted and ignored: every report takes one (ADR-003).
+*/
+BEGIN
+    SET NOCOUNT ON;
+
+    WITH positions AS (
+        SELECT
+            pe.campaign_year,
+            CASE
+                WHEN ct.item_code IN (
+                    N'CONPWRQ1', N'CONPWRQ2', N'CONPWRQ3',
+                    N'CONRETIRED', N'CONRETIREDFL', N'CONRETIREDSPECIAL'
+                ) THEN 1
+                ELSE 0
+            END AS has_retired_concession,
+            CASE
+                WHEN dr.derived_retirement_date <= cy.campaign_year_end THEN 1
+                ELSE 0
+            END AS has_derived_date
+        FROM Layercake.silv_payment_events AS pe
+        LEFT JOIN Layercake.silv_member_year_attributes AS ya
+            ON ya.contact_no = pe.contact_no
+            AND ya.campaign_year = pe.campaign_year
+        LEFT JOIN Layercake.silv_ref_concession_type AS ct
+            ON ct.id = ya.concession_type_id
+        LEFT JOIN Layercake.ref_campaign_year_config AS cy
+            ON cy.campaign_year = pe.campaign_year
+        LEFT JOIN Layercake.vw_silv_derived_retirement_date AS dr
+            ON dr.contact_no = pe.contact_no
+    ),
+
+    year_counts AS (
+        SELECT
+            p.campaign_year,
+            COUNT(*) AS paid_positions,
+            SUM(p.has_retired_concession * p.has_derived_date) AS retired_concession_and_date,
+            SUM(p.has_retired_concession * (1 - p.has_derived_date)) AS retired_concession_only,
+            SUM((1 - p.has_retired_concession) * p.has_derived_date) AS derived_date_only,
+            SUM((1 - p.has_retired_concession) * (1 - p.has_derived_date)) AS neither
+        FROM positions AS p
+        GROUP BY p.campaign_year
+    )
+
+    SELECT
+        yc.campaign_year,
+        yc.paid_positions,
+        yc.retired_concession_and_date,
+        yc.retired_concession_only,
+        yc.derived_date_only,
+        yc.neither,
+        CAST(
+            ROUND(100.0 * (yc.retired_concession_and_date + yc.neither) / yc.paid_positions, 1)
+            AS decimal(5, 1)
+        ) AS agreement_rate_pct
+    FROM year_counts AS yc
+    ORDER BY yc.campaign_year;
+END;
