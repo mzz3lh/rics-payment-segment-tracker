@@ -140,3 +140,7 @@ the agent's working assumption. Example:
 - A corporately funded member with no scheme link but with a contact-record firm counts under that firm, in the corporate column.
 - Payer type 0 Unknown is left out of the top-employers list, so corporate plus individual equals paid_members; how many were left out is reported in the employer data quality note.
 - Ties at 25th place are broken by employer_account_number, so the list always has exactly 25 rows and the same ones on every run.
+
+## MOD-014 employer data quality note (approved by Mike by merging this PR, 2026-11-11)
+- AC-013-05: the reports have only run on synthetic data, and agents never run anything against production, so the handover carries the employer data quality note as a template, as REQ-012 does. The template names the three reports (Layercake.usp_report_employer_scheme_coverage, Layercake.usp_report_employer_source_agreement and Layercake.usp_report_top_employers), says how to run them, and has blank tables for coverage by Campaign Year and payer type, the agreement rate between the two employer sources, and how many Unknown payer type members the top-employers list leaves out. The recommendation reads "To be decided by Mike after running the reports on real data."
+- AC-013-05 is met by the template. Running the reports on real data, filling in the tables and making the build / don't-build recommendation for the employer segment is a human step at handover (MOD-016), and the handover lists it.
