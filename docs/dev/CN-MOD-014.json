@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-014",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-11T14:18:20Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-014.json",
+      "tests/tsqlt/test_MOD014.sql"
+    ]
+  },
+  "module_id": "MOD-014",
+  "branch": "agent/developer/MOD-014-employer-findings-queries",
+  "commit": "93cefd698880530f4a4a4a17ab336272d0833c09",
+  "requirement_ids": [
+    "REQ-013"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_report_employer_scheme_coverage.sql",
+      "object": "Layercake.usp_report_employer_scheme_coverage",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-013"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_report_employer_source_agreement.sql",
+      "object": "Layercake.usp_report_employer_source_agreement",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-013"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_report_top_employers.sql",
+      "object": "Layercake.usp_report_top_employers",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-013"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD014_dev].[test agreement is same firm when any scheme firm equals the contact parent and ignores a scheme row with no AccountNumber]",
+    "[test_MOD014_dev].[test agreement returns no row for a year with no member holding both sources]",
+    "[test_MOD014_dev].[test coverage counts a paid year with no attributes row as Unknown and a scheme link for an Individual]",
+    "[test_MOD014_dev].[test top employers break a tie at 25th place by the lowest account number and leave out Unrecognised]",
+    "[test_MOD014_dev].[test top employers fail when no Campaign Year covers the as-of date]",
+    "[test_MOD014_dev].[test top employers fail when no Campaign Year precedes the one covering the as-of date]",
+    "[test_MOD014_dev].[test top employers take the lowest scheme_no firm and the lowest contact firm and count an Individual under its contact firm]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0018",
+      "up_script": "src/sql/deploy/MIG-0018_MOD-014_employer-findings-queries.up.sql",
+      "down_script": "src/sql/deploy/MIG-0018_MOD-014_employer-findings-queries.down.sql",
+      "rollback_test": {
+        "commit": "93cefd698880530f4a4a4a17ab336272d0833c09",
+        "run_at": "2026-11-11T14:18:13.652385+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "The grant script src/sql/grants/MOD-014.sql uses the placeholder role [<analyst_role>], as MOD-001 and MOD-013 do: the analyst role's name is not known. A human replaces it and runs the script.",
+    "usp_report_top_employers: where a Corporate member has live subscriptions to schemes of more than one firm, the member is counted once, under the scheme with the lowest scheme_no (then the lowest AccountNumber). This follows the lowest-scheme_no rule for corporate_account_ref (Q-036). Where a contact has more than one contact-record firm, the lowest AccountNumber wins. When the two sources carry different names for the same account number, the firm's name is the highest of those names (MAX). The spec does not state these choices, and test_MOD014_dev tests them.",
+    "usp_report_employer_source_agreement: a member with more than one scheme firm or contact firm in a year counts as 'same firm' when any pair of account GUIDs is equal. A scheme row counts as a source only when it has an AccountNumber, the same scheme link the coverage report counts (RULE-060). Years where no member has both sources return no row, so the rate never divides by zero. Not stated in the spec; my choice.",
+    "usp_report_top_employers raises error 50014 when ref_campaign_year_config has no year covering @as_of_date, or no earlier year. It does not return an empty list. The coverage and agreement reports accept @as_of_date but ignore it, as usp_report_retirement_comparison does (ADR-003), and report every Campaign Year.",
+    "usp_report_employer_scheme_coverage checks the scheme link for every payer type, not only Corporate, so an Individual member with a live subscription is counted under scheme_link_employer. A paid year with no silv_member_year_attributes row is reported under payer type 0 Unknown."
+  ],
+  "notes": "MOD-014 builds three count-only procedures, each with @as_of_date date = NULL: usp_report_employer_scheme_coverage, usp_report_employer_source_agreement and usp_report_top_employers (MIG-0018). It creates no table, view or column. Before any code was written, 1 of the 16 Tester tests passed (TC-014-001) and 15 failed because the procedures did not exist. Now all 16 pass, plus 7 dev unit tests. Round-trip and check pass; the sqlfluff findings are advisory. A paid member is a silv_payment_events row. A live subscription is _is_deleted 0 with 'Active'/'Active' (Q-027). The contact-record employer is CE.vwContact.ParentCustomerId of type 'account'. Top employers covers payer types 1 and 2 only. The coverage report's Unknown row gives the number left out, which the Technical Writer's employer data quality note uses (AC-013-05). In dev the CE stand-ins hold no data, so whether ParentCustomerId is filled on real data needs checking when Mike runs the reports.\n\nTest-first: the first run had 1 of 16 of the Tester's tests passing; the final run passed 16 of 16 and 7 unit test(s), in 3 run(s)."
+}
