@@ -1,0 +1,375 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-012",
+    "version": 2,
+    "produced_by": "tester",
+    "produced_at": "2026-11-10T15:46:38Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-11-10T15:48:34Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-012",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-012-001",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-01",
+      "category": "happy_path",
+      "description": "C1's Join (CY2023, first paid position 2023), Change and Renewal (CY2024) and Lapse (CY2025) take the six keys and flags from the attributes row of their segment Campaign Year.",
+      "preconditions": "assumes Q-006: 2025 is carried from 2024. Standard set-up for every test: SetUp fakes silv_membership_events, fact_membership_events, silv_member_year_attributes, silv_event_amount (all with defaults), silv_payment_events, dim_payment_method, dim_payer_type, dim_concession_type (seeded with the reserved ids 0, -1, -2 and payment methods DD 1, Card 2, Bank transfer 3, Cheque 4, Corporate 5; payer types Individual 1, Corporate 2; concessions No concession 1, Retired 2, Exceptional Hardship 3), etl_run_log (identity, defaults) and etl_progress_log. A Join's amount Campaign Year is set consistently in silv_event_amount.amount_campaign_year and silv_payment_events. Here: attributes C1 2023 (DD 1, carried 0, payer 1, conc 1), 2024 (Card 2, 0), 2025 (Card 2, carried 1, payer 1 carried 1, conc 0), 2026 (Card, carried 1); payment events C1 2023 and 2024; events 101 JR:C1, 102 CH:C1:2024, 103 RN:C1:2024, 104 LP:C1:2025, all keys 0; amount rows for 101 (year 2023) and 103 (2024).",
+      "expected": "After usp_load_silv_membership_events_segments: 101 (pm 1, 0, payer 1, 0, conc 1, 0); 102 and 103 (2, 0, 1, 0, 1, 0); 104 (2, 1, 1, 1, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-001 C1 events take payment method and flags from their segment year attributes]"
+    },
+    {
+      "id": "TC-012-002",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-006",
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-005-02",
+      "category": "nulls",
+      "description": "An event with no attributes row for its own contact and segment year gets 0 for every key and flag, replacing stale values; rows for the contact's other year or another contact in the same year do not apply.",
+      "preconditions": "Standard set-up (TC-012-001). Attributes N1 2024 (DD) and N2 2025 (Card). Event 201 RN:N1:2025 holding stale values (pm 2 carried 1, payer 1 carried 1, conc 2 carried 1); event 202 CH:N3:2025 with no attributes for N3.",
+      "expected": "Both events: payment_method_id 0, payer_type_id 0, concession_type_id 0 and all three carried flags 0, none NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-002 event with no attributes row for its contact and year gets 0 keys and 0 flags]"
+    },
+    {
+      "id": "TC-012-003",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-02",
+      "category": "reconciliation",
+      "description": "After the silver and gold loads, no event in either table has a null payment_method_id and every value resolves to dim_payment_method, covering a method, Corporate, no attributes row (0), pre-2022 (-2) and Unrecognised (-1).",
+      "preconditions": "Standard set-up (TC-012-001). Attributes D1 2025 DD 1, D2 2025 Corporate 5, D4 2021 -2, D5 2025 -1; events 301 to 305 (D3's Change has no attributes row); fact rows mirror the silver events with defaults.",
+      "expected": "0 null or orphan payment_method_id in silver and in gold. Gold values: 301 1, 302 5, 303 0, 304 -2, 305 -1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-003 no null payment method and every value resolves to dim_payment_method in silver and gold]"
+    },
+    {
+      "id": "TC-012-004",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-03",
+      "category": "reconciliation",
+      "description": "Counts of events by payment_method_id are the same in fact_membership_events as in silv_membership_events after both loads.",
+      "preconditions": "Standard set-up (TC-012-001). Attributes E1 and E2 2025 DD 1, E3 2025 Card 2, E4 2025 Card carried 1; events 401 to 406 (two DD Renewals, a Card Renewal and Change for E3, a Lapse for E4, a Renewal for E5 with no attributes); fact rows mirror silver.",
+      "expected": "Silver and gold both give pm 0: 1, pm 1: 2, pm 2: 3.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-004 gold counts by payment method equal silver counts]"
+    },
+    {
+      "id": "TC-012-005",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-04",
+      "category": "happy_path",
+      "description": "C7 joins in CY2023 (attributes Card) with first paid position in 2024 (attributes Direct Debit). The Join takes its segments from 2024, its amount Campaign Year, not its own year or a later one.",
+      "preconditions": "Standard set-up (TC-012-001). Attributes C7 2023 (Card 2, payer 0, conc 0), 2024 (DD 1, payer 1, conc 1), 2025 (Bank transfer 3, conc 3); payment events C7 2024 and 2025; event 501 JR:C7 (CY2023); amount row for 501 with amount_campaign_year 2024.",
+      "expected": "501: payment_method_id 1 (Direct Debit), carried 0, payer_type_id 1, carried 0, concession_type_id 1, carried 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-005 C7 join takes Direct Debit from its first paid position year not its own year]"
+    },
+    {
+      "id": "TC-012-006",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-05",
+      "category": "happy_path",
+      "description": "C1's 2024 Renewal has payment_method_carried 0 and its 2025 Lapse payment_method_carried 1, in silver and in gold.",
+      "preconditions": "assumes Q-006: 2025 carries 2024's Card. Standard set-up (TC-012-001). Attributes C1 2023 to 2025 as TC-012-001; events 103 RN:C1:2024 and 104 LP:C1:2025; fact rows mirror silver. Both loads run.",
+      "expected": "Silver and gold: 103 (Card 2, carried 0); 104 (Card 2, carried 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-006 C1 renewal carried 0 and lapse carried 1 in silver and gold]"
+    },
+    {
+      "id": "TC-012-007",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-06",
+      "category": "happy_path",
+      "description": "Each of the three carried flags on an event equals the same flag on its attributes row (flags set differently per column so a swap shows), in silver and gold, and none is null.",
+      "preconditions": "Standard set-up (TC-012-001). Attributes F1 2025 flags (pm 1, payer 0, conc 1), F2 2025 flags (0, 1, 0); events 701 RN:F1, 702 CH:F1, 703 RN:F2, 704 CH:F3 (no attributes); fact rows mirror silver. Both loads run.",
+      "expected": "Silver and gold: 701 and 702 (1, 0, 1); 703 (0, 1, 0); 704 (0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-007 each carried flag on events equals the same flag on the attributes row in silver and gold]"
+    },
+    {
+      "id": "TC-012-008",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-07",
+      "category": "boundary",
+      "description": "C13 joins in CY2024 and has no paid position in any year (another contact has one). The Join takes its own year's Card, not the next year's.",
+      "preconditions": "assumes Q-029: a Join with no paid position uses its own Campaign Year. Standard set-up (TC-012-001). Attributes C13 2024 (Card 2, payer 0, conc 1), 2025 (DD 1 carried 1); payment event only for C99 (2023); event 801 JR:C13 CY2024; amount row with amount_campaign_year 2024.",
+      "expected": "801: payment_method_id 2 (Card), carried 0, payer_type_id 0, carried 0, concession_type_id 1, carried 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-008 C13 join with no paid position takes Card from its own campaign year]"
+    },
+    {
+      "id": "TC-012-009",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-08",
+      "category": "happy_path",
+      "description": "P1's 2026 attributes row is Corporate carried 1; P1's 2026 Lapse carries Corporate with payer_type_carried 1, and the 2025 Renewal Corporate with 0, in silver and gold.",
+      "preconditions": "assumes Q-006. Standard set-up (TC-012-001). Attributes P1 2025 (Corporate 5, payer Corporate 2, carried 0, SCH-001), 2026 (payer Corporate 2, carried 1); events 901 RN:P1:2025, 902 LP:P1:2026; fact rows mirror silver. Both loads run.",
+      "expected": "Silver and gold: 901 (payer_type_id 2, carried 0); 902 (payer_type_id 2, carried 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-009 P1 2026 lapse carries Corporate with payer_type_carried 1 in silver and gold]"
+    },
+    {
+      "id": "TC-012-010",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-09",
+      "category": "reconciliation",
+      "description": "No event in silver or gold has a null payer_type_id, and every value resolves to dim_payer_type: Individual, Corporate, no attributes row (0) and pre-2022 (-2).",
+      "preconditions": "Standard set-up (TC-012-001). Attributes G1 2025 Individual 1, G2 2025 Corporate 2, G4 2021 -2; events 1001 to 1004 (G3 Change has no attributes); fact rows mirror silver. Both loads run.",
+      "expected": "0 null or orphan payer_type_id in silver and gold. Gold values: 1001 1, 1002 2, 1003 0, 1004 -2.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-010 no null payer type and every value resolves to dim_payer_type in silver and gold]"
+    },
+    {
+      "id": "TC-012-011",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-15",
+      "category": "boundary",
+      "description": "P9's CY2021 Renewal takes payer type -2 Not applicable from the 2021 attributes row, not the 2022 row.",
+      "preconditions": "assumes Q-011: years before 2022 are Not applicable. Standard set-up (TC-012-001). Attributes P9 2021 (-2, -2, -2, flags 0) and 2022 (Card, Individual, No concession); event 1101 RN:P9:2021; amount row 'Before invoice data'.",
+      "expected": "1101: payment_method_id -2, payer_type_id -2, payer_type_carried 0, concession_type_id -2.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-011 P9 2021 renewal has payer type Not applicable]"
+    },
+    {
+      "id": "TC-012-012",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-04",
+      "category": "happy_path",
+      "description": "After the change, neither real event table has subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, fee_amount_gbp, credited_amount_gbp or net_amount_gbp; both keep the nine segment and amount columns with the design's types and nullability. Checked on the deployed tables, not the SetUp's fakes.",
+      "preconditions": "No rows are needed. SetUp fakes silv_membership_events and fact_membership_events, so the test reads the original tables, which FakeTable renamed and logged in tSQLt.Private_RenamedObjectLog (OriginalName, ObjectId; falling back to OBJECT_ID when not faked), through sys.columns on that ObjectId: type name, precision and scale, max_length and is_nullable.",
+      "expected": "Both original tables are found. 0 of the eight dropped columns on either table. On each of silv_membership_events and fact_membership_events: payment_method_id, payer_type_id, concession_type_id int NOT NULL; payment_method_carried, payer_type_carried, concession_type_carried bit NOT NULL; subs_amount_gbp and invoiced_subtotal_gbp decimal(19,4) NULL; amount_status varchar(30) NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-012 event tables drop the eight unsupplied amount columns and keep the nine segment and amount columns]"
+    },
+    {
+      "id": "TC-012-013",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-07",
+      "category": "negative",
+      "description": "Change and Lapse events get null subs_amount_gbp, invoiced_subtotal_gbp and amount_status in silver and gold, replacing stale values, while the same contact-year's Renewal carries its amount.",
+      "preconditions": "Standard set-up (TC-012-001). Attributes L1 2025; events 1301 RN:L1:2025, 1302 CH:L1:2025 and 1303 LP:L1:2025, the Change and Lapse holding stale 100.00 / 100.00 / 'Invoiced'; amount row for 1301 only (450.00, 'Invoiced'); fact rows mirror silver. Both loads run.",
+      "expected": "Silver and gold: 1301 (450.0000, 450.0000, 'Invoiced'); 1302 and 1303 (NULL, NULL, NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-013 change and lapse events have null amounts and amount_status in silver and gold]"
+    },
+    {
+      "id": "TC-012-014",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-11",
+      "category": "happy_path",
+      "description": "Design: Join, Renewal and Readmission take subs_amount_gbp, invoiced_subtotal_gbp and amount_status from silv_event_amount by event_nk, including nulls and 0.00; an amount row for an event that does not exist adds no event.",
+      "preconditions": "Standard set-up (TC-012-001). Events 1401 RN:R1, 1402 RA:R1, 1403 RN:F1, 1404 RN:N8 (stale 999.00 'Invoiced'), 1405 RN:B1:2021, 1406 JR:J3 (amount year 2025, payment event J3 2025). Amount rows: 1401 NULL 'Counted on another event', 1402 900.00 'Invoiced', 1403 0.00 'Full Concession', 1404 NULL 'No invoice', 1405 NULL 'Before invoice data', 1406 200.00 'Invoiced', and RN:GONE:2025 (event 1499, not in the events table).",
+      "expected": "Exactly six events: 1401 (NULL, NULL, 'Counted on another event'); 1402 (900.0000, 900.0000, 'Invoiced'); 1403 (0.0000, 0.0000, 'Full Concession'); 1404 (NULL, NULL, 'No invoice'); 1405 (NULL, NULL, 'Before invoice data'); 1406 (200.0000, 200.0000, 'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-014 join renewal and readmission take amounts and amount_status from silv_event_amount by event_nk]"
+    },
+    {
+      "id": "TC-012-015",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-11",
+      "category": "reconciliation",
+      "description": "Across R1, R2 and R3, the sums of subs_amount_gbp and invoiced_subtotal_gbp and the counts by amount_status are equal in fact_membership_events and silv_membership_events, and both tables keep their event row count.",
+      "preconditions": "Standard set-up (TC-012-001). Events 1501 to 1506 (R1 Renewal and Readmission, R2 Renewal and Readmission, R3 Renewal and Change); amount rows R1 RN NULL 'Counted on another event', R1 RA 900.00, R2 RN NULL 'Counted on another event', R2 RA 450.00, R3 RN 820.00; fact rows mirror silver. Both loads run.",
+      "expected": "Silver and gold: SUM(subs_amount_gbp) 2170.0000, SUM(invoiced_subtotal_gbp) 2170.0000, 6 rows each; counts 'Invoiced' 3, 'Counted on another event' 2, NULL 1 in both.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-015 R1 R2 R3 amount sums and amount_status counts agree in silver and gold]"
+    },
+    {
+      "id": "TC-012-016",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-13",
+      "category": "happy_path",
+      "description": "R1's 2025 attributes row is Card (from INV-2, the later invoice), so both R1 2025 events, the Renewal and the Readmission, carry Card in silver and gold.",
+      "preconditions": "assumes Q-012: the latest eligible invoice sets the contact-year's segments. Standard set-up (TC-012-001). Attributes R1 2025 (Card 2, carried 0, segment invoice 160102); events 1601 RN:R1:2025 and 1602 RA:R1:2025 with their amount rows; fact rows mirror silver. Both loads run.",
+      "expected": "Silver and gold: 1601 and 1602 both payment_method_id 2, carried 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-016 R1 renewal and readmission both carry Card from the 2025 attributes row in silver and gold]"
+    },
+    {
+      "id": "TC-012-017",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-01",
+      "category": "happy_path",
+      "description": "K1's 2025 attributes row has Retired (2) carried 0; K1's 2025 Renewal and Change carry it, and the 2026 Lapse carries the carried-forward Retired with flag 1, in silver and gold.",
+      "preconditions": "Standard set-up (TC-012-001). Attributes K1 2025 (conc 2, carried 0), 2026 (conc 2, carried 1); events 1701 RN:K1:2025, 1702 CH:K1:2025, 1703 LP:K1:2026; amount row for 1701; fact rows mirror silver. Both loads run.",
+      "expected": "Silver and gold: 1701 (2, 0), 1702 (2, 0), 1703 (2, 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-017 K1 2025 events carry Retired concession carried 0 in silver and gold]"
+    },
+    {
+      "id": "TC-012-018",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-08",
+      "category": "reconciliation",
+      "description": "No event in silver or gold has a null concession_type_id, and every value resolves to dim_concession_type: No concession, Retired, Exceptional Hardship, no attributes row (0), pre-2022 (-2) and Unrecognised (-1).",
+      "preconditions": "Standard set-up (TC-012-001). Attributes M1 2025 conc 1, M2 2, M3 3, M5 2021 -2, M6 2025 -1; events 1801 to 1806 (M4 Change has no attributes); fact rows mirror silver. Both loads run.",
+      "expected": "0 null or orphan concession_type_id in silver and gold. Gold values: 1801 1, 1802 2, 1803 3, 1804 0, 1805 -2, 1806 -1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-018 no null concession type and every value resolves to dim_concession_type in silver and gold]"
+    },
+    {
+      "id": "TC-012-019",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-11",
+      "category": "boundary",
+      "description": "K9's CY2021 Renewal takes concession -2 Not applicable from the 2021 attributes row, not the 2022 row (Retired).",
+      "preconditions": "assumes Q-011. Standard set-up (TC-012-001). Attributes K9 2021 (-2, -2, -2, flags 0) and 2022 (conc Retired 2); event 1901 RN:K9:2021; amount row 'Before invoice data'.",
+      "expected": "1901: concession_type_id -2, concession_type_carried 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-019 K9 2021 renewal has concession type Not applicable]"
+    },
+    {
+      "id": "TC-012-020",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-06",
+      "category": "idempotency",
+      "description": "Design: the silver load updates only rows whose new-column values differ, so a second run on unchanged data changes nothing and logs 0 updated.",
+      "preconditions": "Standard set-up (TC-012-001). Data as TC-012-007 (events 2001 to 2004) plus amount rows for the two Renewals (450.00 and 380.00). The load runs twice. Layer and step name are not asserted: the design does not state them.",
+      "expected": "silv_membership_events identical in every column after both runs. etl_run_log rows in order: ('Success', inserted 0 or NULL, updated 3, deleted 0 or NULL) and ('Success', 0, 0, 0); event 2004, already 0, is not counted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-020 silver rerun on unchanged data changes nothing and logs 0 updated]"
+    },
+    {
+      "id": "TC-012-021",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-01",
+      "category": "negative",
+      "description": "Design: the silver load never inserts or deletes events and never touches Phase 1 columns; it updates only rows that differ, and logs Success with its count.",
+      "preconditions": "Standard set-up (TC-012-001). Event 2101 already holds the values its attributes and amount rows give; 2102 (membership_status_id 2) holds stale zeros; 2103 (a Change) holds stale amounts. Attributes also exist for H9, which has no event.",
+      "expected": "Phase 1 columns and row set unchanged (3 events, no H9 event). New columns: 2101 (2, 0, 1, 0, 1, 0, 450.0000, 450.0000, 'Invoiced'); 2102 (1, 0, 1, 0, 3, 0, 300.0000, 300.0000, 'Invoiced'); 2103 (4, 1, 1, 1, 0, 0, NULL, NULL, NULL). One etl_run_log row: 'Success', updated 2, inserted and deleted 0 or NULL, finished_at set, error_message NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-021 silver load updates only differing rows and never inserts deletes or touches Phase 1 columns]"
+    },
+    {
+      "id": "TC-012-022",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-01",
+      "category": "negative",
+      "description": "Error path (design: try/catch with XACT_ABORT, error logged through usp_etl_log_end, re-raised): a write the target rejects re-raises, logs Failed and leaves silv_membership_events unchanged, including another row's pending update.",
+      "preconditions": "Runs without the tSQLt transaction. Standard set-up (TC-012-001). The load's sources have the same types as its target, so no source value can overflow; a test-only CHECK on the faked silv_membership_events rejects payment_method_id 99 instead. Attributes X1 2025 Card 2 and XERR 2025 payment method 99; events 2201 RN:X1:2025 and 2202 RN:XERR:2025, both 0.",
+      "expected": "Error 547 reaches the caller. silv_membership_events identical in every column to before (2201 still 0). etl_run_log holds one row, status 'Failed', with a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-022 silver write the target rejects re-raises logs Failed and changes nothing]"
+    },
+    {
+      "id": "TC-012-023",
+      "requirement_ids": [
+        "REQ-005"
+      ],
+      "acceptance_criterion_id": "AC-005-03",
+      "category": "negative",
+      "description": "Design: the gold load copies only the nine new columns by event_id and updates only rows that differ; membership_status_id and the other Phase 1 fact columns keep the Phase 1 gold values even where silver differs.",
+      "preconditions": "Standard set-up (TC-012-001). Silver 2301 (membership_status_id 2, Corporate 5, payer 2, conc 2, 380.00 'Invoiced') and 2302 (DD values, 450.00). Fact 2301 has membership_status_id 1 and stale zeros; fact 2302 already equals silver.",
+      "expected": "Fact Phase 1 columns and row set unchanged (2301 still membership_status_id 1). New columns equal silver: 2301 (5, 0, 2, 0, 2, 0, 380.0000, 380.0000, 'Invoiced'), 2302 (1, 0, 1, 0, 1, 0, 450.0000, 450.0000, 'Invoiced'). etl_run_log: 'Success', updated 1, inserted and deleted 0 or NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-023 gold load copies only the new columns and updates only differing rows]"
+    },
+    {
+      "id": "TC-012-024",
+      "requirement_ids": [
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-008-11",
+      "category": "idempotency",
+      "description": "A second gold load on unchanged silver changes nothing and logs 0 updated.",
+      "preconditions": "Standard set-up (TC-012-001). Silver 2401 (Renewal, Card, 450.00 'Invoiced') and 2402 (Lapse, Card carried 1); fact rows hold zeros. The gold load runs twice.",
+      "expected": "fact_membership_events identical in every column after both runs. etl_run_log rows in order: ('Success', 0, 2, 0) and ('Success', 0, 0, 0), inserted and deleted read as 0 where NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-024 gold rerun on unchanged data changes nothing and logs 0 updated]"
+    },
+    {
+      "id": "TC-012-025",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-008"
+      ],
+      "acceptance_criterion_id": "AC-005-03",
+      "category": "negative",
+      "description": "Design: a failed silver-to-gold check (counts by payment_method_id, counts by amount_status, amount sums) fails the gold load. Silver holds an event that gold lacks, so the counts cannot agree; the error reaches the caller, the run is logged Failed and the fact is unchanged.",
+      "preconditions": "Runs without the tSQLt transaction. Standard set-up (TC-012-001). Silver 2501 (Card, 450.00) and 2502 (DD, 300.00); fact holds only 2501 with zeros. The error number is not asserted, because the design does not state it, but a missing object, column or parameter (201, 207, 208, 2812) does not count. Fact unchanged follows the design's error handling (try/catch with XACT_ABORT, rolled back, re-raised).",
+      "expected": "An error reaches the caller. fact_membership_events identical in every column to before (2501 still zeros, no 2502 row). etl_run_log holds one row, status 'Failed', with a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-025 gold check failure when silver and gold row sets differ re-raises logs Failed and changes nothing]"
+    },
+    {
+      "id": "TC-012-026",
+      "requirement_ids": [
+        "REQ-005",
+        "REQ-006",
+        "REQ-008",
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-008-11",
+      "category": "happy_path",
+      "description": "The gold load copies all nine new columns from silver by event_id, including carried flags of 1, a null amount and 0.00, replacing stale gold values.",
+      "preconditions": "Standard set-up (TC-012-001). Silver 2601 RA:Z1 (5, 1, 2, 1, 2, 1, 425.50, 425.50, 'Invoiced'), 2602 RN:Z1 (same keys, NULL, NULL, 'Counted on another event'), 2603 RN:Z2 (3, 0, 1, 0, 3, 0, 0.00, 0.00, 'Fully credited'). Fact rows hold zeros, and 2602 a stale 100.00 'Invoiced'.",
+      "expected": "Fact: 2601 (5, 1, 2, 1, 2, 1, 425.5000, 425.5000, 'Invoiced'); 2602 (5, 1, 2, 1, 2, 1, NULL, NULL, 'Counted on another event'); 2603 (3, 0, 1, 0, 3, 0, 0.0000, 0.0000, 'Fully credited').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD012].[test TC-012-026 gold copies all nine new column values from silver by event_id]"
+    }
+  ]
+}

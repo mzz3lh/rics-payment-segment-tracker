@@ -14,6 +14,8 @@
     RPST (MOD-007): segment keys, carried flags and amount measures added
     by change script, copied from silver by
     usp_load_fact_membership_events_segments.
+    RPST (MOD-012): the eight amount columns Subs.vwSubsMemberStatuses
+    cannot supply dropped by change script (Q-038).
 ====================================================================*/
 
 create table Layercake.fact_membership_events
@@ -40,15 +42,7 @@ create table Layercake.fact_membership_events
     payer_type_carried      bit not null constraint DF_Layercake_fact_membership_events_payer_type_carried default 0,
     concession_type_id      int not null constraint DF_Layercake_fact_membership_events_concession_type_id default 0,           -- -> dim_concession_type
     concession_type_carried bit not null constraint DF_Layercake_fact_membership_events_concession_type_carried default 0,
-    subs_amount             decimal(19, 4) null,    -- additive measures: Join / Renewal / Readmission only
-    fee_amount              decimal(19, 4) null,
-    invoiced_subtotal       decimal(19, 4) null,
-    credited_amount         decimal(19, 4) null,
-    currency_id             int null,               -- -> dim_currency
-    subs_amount_gbp         decimal(19, 4) null,
-    fee_amount_gbp          decimal(19, 4) null,
+    subs_amount_gbp         decimal(19, 4) null,    -- additive measures: Join / Renewal / Readmission only
     invoiced_subtotal_gbp   decimal(19, 4) null,
-    credited_amount_gbp     decimal(19, 4) null,
-    net_amount_gbp          decimal(19, 4) null,
     amount_status           varchar(30) null
 );

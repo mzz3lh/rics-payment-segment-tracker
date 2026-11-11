@@ -683,11 +683,11 @@
       ],
       "acceptance_criterion_id": "AC-001-03",
       "category": "reconciliation",
-      "description": "After the change script, silv_membership_events keeps its 16 Phase 1 columns with their types and nullability, and gains exactly the 17 designed columns.",
+      "description": "After the change scripts, silv_membership_events keeps its 16 Phase 1 columns with their types and nullability, and holds exactly the nine MOD-007 columns that MOD-012 keeps. MOD-012 drops eight of the seventeen (Q-038), so this checks the shape after MOD-012.",
       "preconditions": "Reads the deployed table's metadata (not faked).",
-      "expected": "Exactly 33 columns: the 16 Phase 1 columns as before (event_nk nvarchar(220), contact_no nvarchar(200), campaign_quarter char(2), source_enr_id nullable, the rest not null); payment_method_id, payer_type_id, concession_type_id int not null; the three *_carried bit not null; subs_amount, fee_amount, invoiced_subtotal, credited_amount and the five GBP/net amounts decimal(19,4) null; currency_id int null; amount_status varchar(30) null.",
+      "expected": "Exactly 25 columns: the 16 Phase 1 columns as before (event_nk nvarchar(220), contact_no nvarchar(200), campaign_quarter char(2), source_enr_id nullable, the rest not null); payment_method_id, payer_type_id, concession_type_id int not null; the three *_carried bit not null; subs_amount_gbp and invoiced_subtotal_gbp decimal(19,4) null; amount_status varchar(30) null. None of subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, fee_amount_gbp, credited_amount_gbp, net_amount_gbp.",
       "framework": "tsqlt",
-      "test_ref": "[test_MOD007].[test TC-007-051 silv_membership_events keeps Phase 1 columns and gains the seventeen columns]"
+      "test_ref": "[test_MOD007].[test TC-007-051 silv_membership_events keeps Phase 1 columns and the nine columns left after MOD-012]"
     },
     {
       "id": "TC-007-052",
@@ -696,11 +696,11 @@
       ],
       "acceptance_criterion_id": "AC-001-03",
       "category": "reconciliation",
-      "description": "After the change script, fact_membership_events keeps its 15 Phase 1 columns and gains the same 17 columns with the same types and nullability.",
+      "description": "After the change scripts, fact_membership_events keeps its 15 Phase 1 columns and holds the same nine columns as in TC-007-051. MOD-012 drops eight of the seventeen (Q-038), so this checks the shape after MOD-012.",
       "preconditions": "Reads the deployed table's metadata (not faked).",
-      "expected": "Exactly 32 columns: the 15 Phase 1 columns as before (all not null; contact_no nvarchar(200), campaign_quarter char(2), date_id int) plus the 17 new columns as in TC-007-051.",
+      "expected": "Exactly 24 columns: the 15 Phase 1 columns as before (all not null; contact_no nvarchar(200), campaign_quarter char(2), date_id int) plus the nine columns as in TC-007-051.",
       "framework": "tsqlt",
-      "test_ref": "[test_MOD007].[test TC-007-052 fact_membership_events keeps Phase 1 columns and gains the seventeen columns]"
+      "test_ref": "[test_MOD007].[test TC-007-052 fact_membership_events keeps Phase 1 columns and the nine columns left after MOD-012]"
     },
     {
       "id": "TC-007-053",
@@ -709,9 +709,9 @@
       ],
       "acceptance_criterion_id": "AC-001-03",
       "category": "nulls",
-      "description": "A row inserted the way the Phase 1 event load does (Phase 1 columns only) still inserts, with keys and flags defaulting to 0 and amounts, currency and amount_status NULL. So Phase 1 loads keep working unchanged.",
+      "description": "A row inserted the way the Phase 1 event load does (Phase 1 columns only) still inserts, with keys and flags defaulting to 0 and the amounts and amount_status NULL. So Phase 1 loads keep working unchanged. MOD-012 drops eight of the seventeen (Q-038), so this checks the shape after MOD-012.",
       "preconditions": "silv_membership_events faked with @Defaults = 1 so the change script's defaults apply. One insert of event 21 naming only the 16 Phase 1 columns. The new columns are read through dynamic SQL, because they do not exist before the build.",
-      "expected": "Event 21: payment_method_id, payment_method_carried, payer_type_id, payer_type_carried, concession_type_id, concession_type_carried all 0; the ten amount columns, currency_id and amount_status NULL.",
+      "expected": "Event 21: payment_method_id, payment_method_carried, payer_type_id, payer_type_carried, concession_type_id, concession_type_carried all 0; subs_amount_gbp, invoiced_subtotal_gbp and amount_status NULL.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD007].[test TC-007-053 Phase 1 shaped insert into silv_membership_events gets 0 keys and null amounts]"
     },
@@ -722,9 +722,9 @@
       ],
       "acceptance_criterion_id": "AC-001-03",
       "category": "nulls",
-      "description": "A row inserted the way the Phase 1 fact load does still inserts into fact_membership_events, with keys and flags 0 and amounts NULL.",
+      "description": "A row inserted the way the Phase 1 fact load does still inserts into fact_membership_events, with keys and flags 0 and amounts NULL. MOD-012 drops eight of the seventeen (Q-038), so this checks the shape after MOD-012.",
       "preconditions": "fact_membership_events faked with @Defaults = 1. One insert of event 21 naming only the 15 Phase 1 columns. New columns read through dynamic SQL.",
-      "expected": "Event 21: the six keys and flags 0; the ten amount columns, currency_id and amount_status NULL.",
+      "expected": "Event 21: the six keys and flags 0; subs_amount_gbp, invoiced_subtotal_gbp and amount_status NULL.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD007].[test TC-007-054 Phase 1 shaped insert into fact_membership_events gets 0 keys and null amounts]"
     },
