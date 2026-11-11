@@ -25,3 +25,11 @@ The Product Owner's answers to questions the agents deferred (`po.py run --po-an
 **Basis:** src/sql/Layercake/Procedures/Layercake.usp_load_silv_membership_events.sql Join/RPQ insert (lines ~290-345), #join_cy/#lapse_cy and @pay_floor_cy (~620-665), Readmission insert (~700-790), Renewal insert (~810-905), diff-sync (~907-955); src/sql/Layercake/Procedures/Layercake.usp_etl_log_start.sql line 14; usp_etl_log_end.sql line 16; usp_etl_log_progress.sql lines 24, 32; src/sql/Layercake/Tables/Layercake.silv_payment_events.sql (columns, PK contact_no+campaign_year); src/sql/Layercake/Tables/Layercake.silv_member_base.sql lines 68-84 (not-null rpq_variant_id, country_id, gender_id); src/sql/Layercake/Tables/Layercake.silv_membership_events.sql line 20 (event_id identity); src/sql/baseline/03_SeedData/seed-reference-data.sql membership grade and status seed ids; docs/specs/SPEC-001.json AC-017-01, AC-017-04, AC-017-05, AC-017-07; docs/design/MP-001.json MOD-018 scope; docs/answers.md Revenue and retirement sources: retirement date readers (Q-048)
 **Confidence:** high
 **Draft changed:** yes, docs/test/TCS-MOD-018.json was redone
+
+## ASM-004 · MOD-013 tester design tests · unreviewed
+**Question:** DES-001 does not define the interface of Layercake.usp_report_retirement_comparison. What are its parameters, result set and columns?
+**Why it matters:** The test conditions and suite for MOD-013 call the report and assert its columns, so they need a fixed interface.
+**Answer:** One optional parameter, @as_of_date date = NULL, which this report ignores (ADR-003: every report takes one). One result set: one row per Campaign Year with at least one paid position, ordered by campaign_year. Columns: campaign_year int, paid_positions int, retired_concession_and_date int, retired_concession_only int, derived_date_only int, neither int, agreement_rate_pct decimal(5,1), where 70.0 means 70.0%. No contact-level columns.
+**Basis:** docs/specs/SPEC-001.json REQ-012 and its acceptance criteria (the 4/1/2/3 split and 70.0%), RULE-055 to RULE-058; docs/design/DES-001.json usp_report_retirement_comparison and ADR-003
+**Confidence:** high
+**Draft changed:** yes, docs/test/TCS-MOD-013.json is redone with this interface

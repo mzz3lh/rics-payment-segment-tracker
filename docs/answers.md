@@ -127,3 +127,6 @@ the agent's working assumption. Example:
 
 ## MOD-011 free-readmission window (approved by Mike by merging this PR, 2026-11-10)
 - Q-023 / Q-032: the free-readmission window is the Campaign Year's second quarter, 1 January to 31 March for a Campaign Year starting 1 October, the same quarter as Phase 1's campaign_quarter Q2 (ADR-004 Option A). The calendar 1 April to 30 June wording in SPEC-001 RULE-092, its assumption and AC-009-05 was wrong and is corrected; AC-009-05's free Readmission is now dated 2025-02-14.
+
+## MOD-013 retirement comparison scope (approved by Mike by merging this PR, 2026-11-11)
+- REQ-012 stays as it is. The report compares the retired concession with the derived retirement date (RULE-055 to RULE-058), and apuk_retirementdate plays no part. No comparison of the manual apuk_retirementdate against the derived date is added.
