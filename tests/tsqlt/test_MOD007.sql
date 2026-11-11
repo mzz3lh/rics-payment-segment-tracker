@@ -1653,7 +1653,7 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE test_MOD007.[test TC-007-051 silv_membership_events keeps Phase 1 columns and gains the seventeen columns]
+CREATE PROCEDURE test_MOD007.[test TC-007-051 silv_membership_events keeps Phase 1 columns and the nine columns left after MOD-012]
 AS
 BEGIN
     SELECT c.name COLLATE DATABASE_DEFAULT AS column_name,
@@ -1678,17 +1678,15 @@ BEGIN
                  ('payment_method_id', 'int', 0), ('payment_method_carried', 'bit', 0),
                  ('payer_type_id', 'int', 0), ('payer_type_carried', 'bit', 0),
                  ('concession_type_id', 'int', 0), ('concession_type_carried', 'bit', 0),
-                 ('subs_amount', 'decimal(19,4)', 1), ('fee_amount', 'decimal(19,4)', 1), ('invoiced_subtotal', 'decimal(19,4)', 1),
-                 ('credited_amount', 'decimal(19,4)', 1), ('currency_id', 'int', 1), ('subs_amount_gbp', 'decimal(19,4)', 1),
-                 ('fee_amount_gbp', 'decimal(19,4)', 1), ('invoiced_subtotal_gbp', 'decimal(19,4)', 1),
-                 ('credited_amount_gbp', 'decimal(19,4)', 1), ('net_amount_gbp', 'decimal(19,4)', 1),
+                 ('subs_amount_gbp', 'decimal(19,4)', 1),
+                 ('invoiced_subtotal_gbp', 'decimal(19,4)', 1),
                  ('amount_status', 'varchar(30)', 1)) AS v(column_name, data_type, is_nullable);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 END;
 GO
 
-CREATE PROCEDURE test_MOD007.[test TC-007-052 fact_membership_events keeps Phase 1 columns and gains the seventeen columns]
+CREATE PROCEDURE test_MOD007.[test TC-007-052 fact_membership_events keeps Phase 1 columns and the nine columns left after MOD-012]
 AS
 BEGIN
     SELECT c.name COLLATE DATABASE_DEFAULT AS column_name,
@@ -1713,10 +1711,8 @@ BEGIN
                  ('payment_method_id', 'int', 0), ('payment_method_carried', 'bit', 0),
                  ('payer_type_id', 'int', 0), ('payer_type_carried', 'bit', 0),
                  ('concession_type_id', 'int', 0), ('concession_type_carried', 'bit', 0),
-                 ('subs_amount', 'decimal(19,4)', 1), ('fee_amount', 'decimal(19,4)', 1), ('invoiced_subtotal', 'decimal(19,4)', 1),
-                 ('credited_amount', 'decimal(19,4)', 1), ('currency_id', 'int', 1), ('subs_amount_gbp', 'decimal(19,4)', 1),
-                 ('fee_amount_gbp', 'decimal(19,4)', 1), ('invoiced_subtotal_gbp', 'decimal(19,4)', 1),
-                 ('credited_amount_gbp', 'decimal(19,4)', 1), ('net_amount_gbp', 'decimal(19,4)', 1),
+                 ('subs_amount_gbp', 'decimal(19,4)', 1),
+                 ('invoiced_subtotal_gbp', 'decimal(19,4)', 1),
                  ('amount_status', 'varchar(30)', 1)) AS v(column_name, data_type, is_nullable);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
@@ -1742,38 +1738,24 @@ BEGIN
         payer_type_carried      int NULL,
         concession_type_id      int NULL,
         concession_type_carried int NULL,
-        subs_amount             decimal(19,4) NULL,
-        fee_amount              decimal(19,4) NULL,
-        invoiced_subtotal       decimal(19,4) NULL,
-        credited_amount         decimal(19,4) NULL,
-        currency_id             int NULL,
         subs_amount_gbp         decimal(19,4) NULL,
-        fee_amount_gbp          decimal(19,4) NULL,
         invoiced_subtotal_gbp   decimal(19,4) NULL,
-        credited_amount_gbp     decimal(19,4) NULL,
-        net_amount_gbp          decimal(19,4) NULL,
         amount_status           varchar(30) COLLATE DATABASE_DEFAULT NULL
     );
 
-    -- The seventeen columns are added by this module, so they are read through dynamic SQL.
+    -- The columns are added by MOD-007 (MOD-012 dropped eight of them), so they are read through dynamic SQL.
     INSERT INTO #Actual
     EXEC sp_executesql N'
         SELECT event_id,
                CAST(payment_method_id AS int), CAST(payment_method_carried AS int),
                CAST(payer_type_id AS int), CAST(payer_type_carried AS int),
                CAST(concession_type_id AS int), CAST(concession_type_carried AS int),
-               subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id,
-               subs_amount_gbp, fee_amount_gbp, invoiced_subtotal_gbp, credited_amount_gbp, net_amount_gbp, amount_status
+               subs_amount_gbp, invoiced_subtotal_gbp, amount_status
         FROM Layercake.silv_membership_events;';
 
     SELECT 21 AS event_id, 0 AS payment_method_id, 0 AS payment_method_carried, 0 AS payer_type_id, 0 AS payer_type_carried,
            0 AS concession_type_id, 0 AS concession_type_carried,
-           CAST(NULL AS decimal(19,4)) AS subs_amount, CAST(NULL AS decimal(19,4)) AS fee_amount,
-           CAST(NULL AS decimal(19,4)) AS invoiced_subtotal, CAST(NULL AS decimal(19,4)) AS credited_amount,
-           CAST(NULL AS int) AS currency_id,
-           CAST(NULL AS decimal(19,4)) AS subs_amount_gbp, CAST(NULL AS decimal(19,4)) AS fee_amount_gbp,
-           CAST(NULL AS decimal(19,4)) AS invoiced_subtotal_gbp, CAST(NULL AS decimal(19,4)) AS credited_amount_gbp,
-           CAST(NULL AS decimal(19,4)) AS net_amount_gbp, CAST(NULL AS varchar(30)) AS amount_status
+           CAST(NULL AS decimal(19,4)) AS subs_amount_gbp, CAST(NULL AS decimal(19,4)) AS invoiced_subtotal_gbp, CAST(NULL AS varchar(30)) AS amount_status
     INTO #Expected;
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
@@ -1799,38 +1781,24 @@ BEGIN
         payer_type_carried      int NULL,
         concession_type_id      int NULL,
         concession_type_carried int NULL,
-        subs_amount             decimal(19,4) NULL,
-        fee_amount              decimal(19,4) NULL,
-        invoiced_subtotal       decimal(19,4) NULL,
-        credited_amount         decimal(19,4) NULL,
-        currency_id             int NULL,
         subs_amount_gbp         decimal(19,4) NULL,
-        fee_amount_gbp          decimal(19,4) NULL,
         invoiced_subtotal_gbp   decimal(19,4) NULL,
-        credited_amount_gbp     decimal(19,4) NULL,
-        net_amount_gbp          decimal(19,4) NULL,
         amount_status           varchar(30) COLLATE DATABASE_DEFAULT NULL
     );
 
-    -- The seventeen columns are added by this module, so they are read through dynamic SQL.
+    -- The columns are added by MOD-007 (MOD-012 dropped eight of them), so they are read through dynamic SQL.
     INSERT INTO #Actual
     EXEC sp_executesql N'
         SELECT event_id,
                CAST(payment_method_id AS int), CAST(payment_method_carried AS int),
                CAST(payer_type_id AS int), CAST(payer_type_carried AS int),
                CAST(concession_type_id AS int), CAST(concession_type_carried AS int),
-               subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id,
-               subs_amount_gbp, fee_amount_gbp, invoiced_subtotal_gbp, credited_amount_gbp, net_amount_gbp, amount_status
+               subs_amount_gbp, invoiced_subtotal_gbp, amount_status
         FROM Layercake.fact_membership_events;';
 
     SELECT 21 AS event_id, 0 AS payment_method_id, 0 AS payment_method_carried, 0 AS payer_type_id, 0 AS payer_type_carried,
            0 AS concession_type_id, 0 AS concession_type_carried,
-           CAST(NULL AS decimal(19,4)) AS subs_amount, CAST(NULL AS decimal(19,4)) AS fee_amount,
-           CAST(NULL AS decimal(19,4)) AS invoiced_subtotal, CAST(NULL AS decimal(19,4)) AS credited_amount,
-           CAST(NULL AS int) AS currency_id,
-           CAST(NULL AS decimal(19,4)) AS subs_amount_gbp, CAST(NULL AS decimal(19,4)) AS fee_amount_gbp,
-           CAST(NULL AS decimal(19,4)) AS invoiced_subtotal_gbp, CAST(NULL AS decimal(19,4)) AS credited_amount_gbp,
-           CAST(NULL AS decimal(19,4)) AS net_amount_gbp, CAST(NULL AS varchar(30)) AS amount_status
+           CAST(NULL AS decimal(19,4)) AS subs_amount_gbp, CAST(NULL AS decimal(19,4)) AS invoiced_subtotal_gbp, CAST(NULL AS varchar(30)) AS amount_status
     INTO #Expected;
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
