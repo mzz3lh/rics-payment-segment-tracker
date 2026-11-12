@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-016",
-    "version": 1,
+    "version": 2,
     "produced_by": "tester",
-    "produced_at": "2026-11-12T11:46:03Z",
+    "produced_at": "2026-11-12T13:08:16Z",
     "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
@@ -15,7 +15,7 @@
     ],
     "approval": {
       "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-12T12:31:52Z",
+      "approved_at": "2026-11-12T13:08:33Z",
       "gate": "test_design_review",
       "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
