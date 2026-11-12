@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "SPEC-001",
-    "version": 2,
+    "version": 3,
     "produced_by": "analyst",
-    "produced_at": "2026-11-09T09:06:41Z",
+    "produced_at": "2026-11-12T08:02:57Z",
     "status": "approved",
     "source_artefacts": [
       "docs/requirements/BR-001-payment-segments-tracker.md",
@@ -19,16 +19,17 @@
       "docs/sources/external/synapse_fo/synapse_fo.CUSTTRANS_RICS.sql",
       "docs/sources/external/CE/CE.vwConcessionType.sql",
       "docs/sources/external/CE/CE.vwConcession.sql",
-      "docs/amendments/AMD-001.json"
+      "docs/amendments/AMD-001.json",
+      "docs/amendments/AMD-002.json"
     ],
     "approval": {
       "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-09T09:07:00Z",
+      "approved_at": "2026-11-12T08:03:15Z",
       "gate": "spec_signoff",
       "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
   },
-  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status, and is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. This version applies amendment AMD-001 (Mike, 2026-11-06 and 2026-11-09) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
+  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status, and is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09) and AMD-002 (invoice line grain, Mike, 2026-11-11) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
   "glossary": {
     "Campaign Year": "The RICS subscription year, as held in Layercake.ref_campaign_year_config and on the invoice source (Subs.tblSubsInvoices.Campaign_Year).",
     "Eligible invoice": "A subscription invoice that may set a contact-year's segments and be matched to an event for the invoice checks (RULE-014, RULE-084). Credit notes and enrolment- or application-fee-only invoices are never eligible. A fully credited invoice is eligible only when the contact-year has no other eligible invoice.",
@@ -39,7 +40,8 @@
     "Reserved values": "Fixed ids in every segment reference table: 0 Unknown (the source has no value), -1 Unrecognised (the source has a value the mapping does not know), -2 Not applicable (no value is expected).",
     "Headline value": "invoiced_subtotal_gbp: the contact-year's invoiced amount in GBP (Subs.vwSubsMemberStatuses 'Inv Total Amount'), carried on one event per contact and amount Campaign Year (RULE-033, RULE-098).",
     "Invoice source coverage": "Campaign Year 2022 onward. Subs.usp_Refresh_SubsInvoices keeps only Campaign_Year >= 2022.",
-    "Derived retirement date": "The 'Renewal Date' of a contact's earliest Campaign Year that has a retired concession and a payment or settlement date (RULE-099). It drives Practising / Retired in place of apuk_retirementdate."
+    "Derived retirement date": "The 'Renewal Date' of a contact's earliest Campaign Year that has a retired concession and a payment or settlement date (RULE-099). It drives Practising / Retired in place of apuk_retirementdate.",
+    "Invoice line": "One row of Layercake.brnz_subs_invoice_line: one ledger distribution of an F&O customer transaction in synapse_fo.CUSTTRANS_RICS, identified by (recid, postingtype, accountdisplayvalue). One customer transaction (one recid) can have many lines, for example one per cost centre or Campaign Year (RULE-104)."
   },
   "requirements": [
     {
@@ -100,7 +102,7 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "Land the subscription invoice data that Stories 1 to 4 need, from sources already in the warehouse. Invoice-level data (payment method, currency, credits, payment status, concession flags) comes from external table Subs.tblSubsInvoices into new Layercake.brnz_subs_invoice. Line-level data (item code, line amounts, payment lines and credits) comes from external table synapse_fo.CUSTTRANS_RICS into new Layercake.brnz_subs_invoice_line. The line-type mapping, concession and readmission fee check rest on CUSTTRANS_RICS holding one row per invoice line with an item code. That is the working default and is not yet proven. A human runs the count-only grain profile in Q-021 before any build of REQ-007, REQ-009 or REQ-011 (review change 1). The Phase 1 Layercake.brnz_subs_status, which lands Subs.vwSubsMemberStatuses on ([Contact No.], [Campaign Year]), gains 'Inv Total Amount' and 'Retired Concession', which the event amount (REQ-008) and the derived retirement date (REQ-017) need. Its existing 'Member Invoice Position' and 'Renewal Date' columns are used as they are. No second bronze table is created (Q-043).",
+      "description": "Land the subscription invoice data that Stories 1 to 4 need, from sources already in the warehouse. Invoice-level data (payment method, currency, credits, payment status, concession flags) comes from external table Subs.tblSubsInvoices into new Layercake.brnz_subs_invoice. Line-level data (item code, line amounts, payment lines and credits) comes from external table synapse_fo.CUSTTRANS_RICS into new Layercake.brnz_subs_invoice_line. Profiling of real data (Q-021, 2026-11-11) shows CUSTTRANS_RICS is at ledger-distribution grain: each customer transaction (RECID) is split into one row per POSTINGTYPE and ACCOUNTDISPLAYVALUE, the ledger account string that carries main account, cost centre, country, item code and, where set, Campaign Year. brnz_subs_invoice_line lands every row in scope at that grain, not aggregated, with the ledger columns that tell a transaction's lines apart (RULE-104). Every reader takes its transaction-level columns once per transaction (RULE-105). The Phase 1 Layercake.brnz_subs_status, which lands Subs.vwSubsMemberStatuses on ([Contact No.], [Campaign Year]), gains 'Inv Total Amount' and 'Retired Concession', which the event amount (REQ-008) and the derived retirement date (REQ-017) need. Its existing 'Member Invoice Position' and 'Renewal Date' columns are used as they are. No second bronze table is created (Q-043).",
       "business_rules": [
         {
           "id": "RULE-004",
@@ -112,11 +114,19 @@
         },
         {
           "id": "RULE-077",
-          "rule": "Rows of synapse_fo.CUSTTRANS_RICS are in scope for brnz_subs_invoice_line when their ACCOUNTNUM and VOUCHER match an invoice in Subs.tblSubsInvoices (its lines of every RICINVOICETYPE), or their LASTSETTLEVOUCHER matches such a voucher (credits and payments settling it). This mirrors how Subs.usp_Refresh_SubsInvoices relates non-subscription lines and credits to an invoice (assumes Q-021)."
+          "rule": "Rows of synapse_fo.CUSTTRANS_RICS are in scope for brnz_subs_invoice_line when their ACCOUNTNUM and VOUCHER match an invoice in Subs.tblSubsInvoices (its lines of every RICINVOICETYPE), or their LASTSETTLEVOUCHER matches such a voucher (credits and payments settling it). This mirrors how Subs.usp_Refresh_SubsInvoices relates non-subscription lines and credits to an invoice."
         },
         {
           "id": "RULE-103",
           "rule": "Layercake.brnz_subs_status gains the source columns 'Inv Total Amount' and 'Retired Concession' of Subs.vwSubsMemberStatuses, landed 1:1 like its existing columns, with no transformation. Its key ([Contact No.], [Campaign Year]), its existing columns and its rows are unchanged. No second bronze table lands Subs.vwSubsMemberStatuses (Q-043)."
+        },
+        {
+          "id": "RULE-104",
+          "rule": "Layercake.brnz_subs_invoice_line holds one row per synapse_fo.CUSTTRANS_RICS row in scope (RULE-077), identified by (recid, postingtype, accountdisplayvalue). Rows are landed as they are and never aggregated. recid alone is not unique: it is the customer transaction's key, and one transaction is split into one row per POSTINGTYPE and ACCOUNTDISPLAYVALUE (Q-021). The design decides how the key is enforced."
+        },
+        {
+          "id": "RULE-105",
+          "rule": "amountcur and amountmst are the line's own amounts. settleamountcur, and CustTrans_AmountCur and CustTrans_AmountMst if they are used, are transaction-level values that repeat on every line of the same recid. Every reader of brnz_subs_invoice_line takes them once per recid and never sums them across a transaction's lines. Any count of transactions or invoices taken from brnz_subs_invoice_line counts distinct recid values, not rows (Q-021)."
         }
       ],
       "mappings": [
@@ -214,7 +224,7 @@
         {
           "source": "synapse_fo.CUSTTRANS_RICS.RECID",
           "target": "Layercake.brnz_subs_invoice_line.recid",
-          "transformation": "1:1; source row key"
+          "transformation": "1:1. The customer transaction's key (equals CUSTTRANSRECID). Not unique on its own: with postingtype and accountdisplayvalue it identifies the row (RULE-104)."
         },
         {
           "source": "synapse_fo.CUSTTRANS_RICS.ACCOUNTNUM",
@@ -260,17 +270,17 @@
         {
           "source": "synapse_fo.CUSTTRANS_RICS.AMOUNTCUR",
           "target": "Layercake.brnz_subs_invoice_line.amountcur",
-          "transformation": "1:1 (invoice currency)"
+          "transformation": "1:1 (invoice currency). The line's own amount (RULE-105)."
         },
         {
           "source": "synapse_fo.CUSTTRANS_RICS.AMOUNTMST",
           "target": "Layercake.brnz_subs_invoice_line.amountmst",
-          "transformation": "1:1 (GBP accounting currency)"
+          "transformation": "1:1 (GBP accounting currency). The line's own amount (RULE-105)."
         },
         {
           "source": "synapse_fo.CUSTTRANS_RICS.SETTLEAMOUNTCUR",
           "target": "Layercake.brnz_subs_invoice_line.settleamountcur",
-          "transformation": "1:1"
+          "transformation": "1:1. Transaction-level: repeats on every line of the same recid, so readers take it once per recid (RULE-105)."
         },
         {
           "source": "synapse_fo.CUSTTRANS_RICS.CURRENCYCODE",
@@ -308,6 +318,36 @@
           "source": "Subs.vwSubsMemberStatuses.Retired Concession",
           "target": "Layercake.brnz_subs_status.Retired Concession",
           "transformation": "1:1 (new column). The source writes 'No Invoice', 'No Conc.', 'Retired Conc.' or 'Non-Retired Conc.'."
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.POSTINGTYPE",
+          "target": "Layercake.brnz_subs_invoice_line.postingtype",
+          "transformation": "1:1. Part of the row's identity (RULE-104).",
+          "nullable": true
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.ACCOUNTDISPLAYVALUE",
+          "target": "Layercake.brnz_subs_invoice_line.accountdisplayvalue",
+          "transformation": "1:1, full source width (nvarchar(500)). The ledger account string; part of the row's identity (RULE-104).",
+          "nullable": true
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.MainAccount",
+          "target": "Layercake.brnz_subs_invoice_line.mainaccount",
+          "transformation": "1:1",
+          "nullable": true
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.CostCenter",
+          "target": "Layercake.brnz_subs_invoice_line.costcenter",
+          "transformation": "1:1",
+          "nullable": true
+        },
+        {
+          "source": "synapse_fo.CUSTTRANS_RICS.RICSCAMPAIGNYEAR",
+          "target": "Layercake.brnz_subs_invoice_line.ricscampaignyear",
+          "transformation": "1:1 (the ledger Campaign Year, where set)",
+          "nullable": true
         }
       ],
       "acceptance_criteria": [
@@ -317,7 +357,7 @@
         },
         {
           "id": "AC-002-02",
-          "criterion": "With 12 synthetic rows in synapse_fo.CUSTTRANS_RICS that meet RULE-077, the first load leaves 12 rows in Layercake.brnz_subs_invoice_line with _is_deleted = 0. Every mapped column equals the source value for the same recid."
+          "criterion": "With 12 synthetic rows in synapse_fo.CUSTTRANS_RICS that meet RULE-077, the first load leaves 12 rows in Layercake.brnz_subs_invoice_line with _is_deleted = 0. Every mapped column, including postingtype, accountdisplayvalue, mainaccount, costcenter and ricscampaignyear, equals the source value for the same (recid, postingtype, accountdisplayvalue)."
         },
         {
           "id": "AC-002-03",
@@ -333,7 +373,7 @@
         },
         {
           "id": "AC-002-06",
-          "criterion": "Subs.tblSubsInvoices holds invoice voucher V1 for account A1. synapse_fo.CUSTTRANS_RICS holds 3 rows with ACCOUNTNUM A1 and VOUCHER V1, 1 credit row with LASTSETTLEVOUCHER V1, and 2 rows with VOUCHER V9, which is not in Subs.tblSubsInvoices. brnz_subs_invoice_line then holds exactly 4 rows, none with voucher V9 (assumes Q-021)."
+          "criterion": "Subs.tblSubsInvoices holds invoice voucher V1 for account A1. synapse_fo.CUSTTRANS_RICS holds 3 rows with ACCOUNTNUM A1 and VOUCHER V1, 1 credit row with LASTSETTLEVOUCHER V1, and 2 rows with VOUCHER V9, which is not in Subs.tblSubsInvoices. brnz_subs_invoice_line then holds exactly 4 rows, none with voucher V9."
         },
         {
           "id": "AC-002-07",
@@ -342,6 +382,22 @@
         {
           "id": "AC-002-08",
           "criterion": "On the same synthetic data, the existing brnz_subs_status columns (Contact No., Campaign Year, Member Invoice Position, Renewal Date, Renewal Date Adj) hold the same values before and after the change, and the row count is unchanged."
+        },
+        {
+          "id": "AC-002-09",
+          "criterion": "Customer transaction recid 7001 (ACCOUNTNUM A1, VOUCHER V1, TRANSTYPE 2, productcode 'MRICS', MainAccount '400100') is split into 3 synthetic CUSTTRANS_RICS rows, all with POSTINGTYPE 41 and SETTLEAMOUNTCUR 500.00: ACCOUNTDISPLAYVALUE '400100-CC10-UK-MRICS-2025' (CostCenter 'CC10', RICSCAMPAIGNYEAR '2025', AMOUNTCUR 300.00), '400100-CC20-UK-MRICS-2025' ('CC20', '2025', 150.00) and '400100-CC10-UK-MRICS-2026' ('CC10', '2026', 50.00). The load logs Success and leaves exactly 3 live rows with recid 7001, one per (postingtype, accountdisplayvalue), each with the source's costcenter, ricscampaignyear and amountcur, and settleamountcur 500.00 on all 3. Their amountcur sums to 500.00."
+        },
+        {
+          "id": "AC-002-10",
+          "criterion": "A second load on the AC-002-09 data, unchanged, records 0 rows inserted and 0 updated for brnz_subs_invoice_line, and recid 7001 still has exactly 3 live rows. Changing AMOUNTCUR on the '400100-CC20-UK-MRICS-2025' row only to 160.00 and reloading records 1 row updated, and the other 2 rows of recid 7001 are unchanged."
+        },
+        {
+          "id": "AC-002-11",
+          "criterion": "A CUSTTRANS_RICS row with RICINVOICETYPE 'GEN' and POSTINGTYPE, ACCOUNTDISPLAYVALUE, MainAccount, CostCenter and RICSCAMPAIGNYEAR all null, whose ACCOUNTNUM and VOUCHER match an invoice in Subs.tblSubsInvoices, lands as exactly one live row in brnz_subs_invoice_line with those five columns null."
+        },
+        {
+          "id": "AC-002-12",
+          "criterion": "In the synthetic set, no two live rows of brnz_subs_invoice_line share (recid, postingtype, accountdisplayvalue): 0 duplicates. The number of live rows equals the number of CUSTTRANS_RICS rows in scope, and is greater than the number of distinct recid values whenever a transaction is split."
         }
       ]
     },
@@ -463,7 +519,7 @@
         },
         {
           "id": "RULE-013",
-          "rule": "Where the segment invoice has no payment mode but its payment lines do, the method is the one covering the largest settled amount. On a tie, the method of the earliest payment wins."
+          "rule": "Where the segment invoice has no payment mode but its payment lines do, the method is the one covering the largest settled amount. A payment transaction's settled amount (settleamountcur) is counted once per recid, however many lines the transaction is split into, and is never summed across its lines (RULE-105). On a tie, the method of the earliest payment wins."
         },
         {
           "id": "RULE-015",
@@ -492,7 +548,7 @@
         {
           "source": "Layercake.brnz_subs_invoice.inv_payment_method",
           "target": "Layercake.silv_member_year_attributes.payment_method_id",
-          "transformation": "RULE-012 to RULE-016, RULE-079 and RULE-080. The code is mapped through Layercake.silv_ref_payment_method.source_code, with the payment-line fallback from Layercake.brnz_subs_invoice_line.paymmode. Never null.",
+          "transformation": "RULE-012 to RULE-016, RULE-079 and RULE-080. The code is mapped through Layercake.silv_ref_payment_method.source_code, with the payment-line fallback from Layercake.brnz_subs_invoice_line.paymmode, where each payment's settleamountcur is taken once per recid (RULE-013, RULE-105). Never null.",
           "nullable": false
         },
         {
@@ -550,6 +606,14 @@
         {
           "id": "AC-004-12",
           "criterion": "Contact C12 has a first event in 2020 and a 2022 invoice with DD. The 2020 and 2021 rows have payment_method_id -2 (Not applicable) with carried 0, and the 2022 row is Direct Debit (assumes Q-011)."
+        },
+        {
+          "id": "AC-004-13",
+          "criterion": "Contact C14's 2025 invoice has no payment mode. Its payment lines are a Card payment, recid 9001 dated 2024-11-01, split into 2 lines (RICSCAMPAIGNYEAR '2025' and '2026') that each carry settleamountcur 400.00, and a DD payment, recid 9002 dated 2024-12-01, on 1 line with settleamountcur 500.00. All 3 lines have the invoice's account and LASTSETTLEVOUCHER. Card counts 400.00, not 800.00, so the 2025 row is Direct Debit."
+        },
+        {
+          "id": "AC-004-14",
+          "criterion": "Contact C15 has a 2025 subscription invoice with DD dated 2024-10-05, and a later invoice with Corporate dated 2024-12-01 whose own lines are an item code mapped to 'enrolment or application fee', split into 2 lines (two cost centres), and 1 line mapped to 'tax'. The later invoice is still fee-only and not eligible, so the 2025 row is Direct Debit."
         }
       ]
     },
@@ -834,6 +898,10 @@
         {
           "id": "AC-006-15",
           "criterion": "Contact P9 has a Renewal in Campaign Year 2021. The 2021 attributes row and the event have payer_type_id -2 (Not applicable) (assumes Q-011)."
+        },
+        {
+          "id": "AC-006-16",
+          "criterion": "Contact P10, 2025: the segment invoice is settled 225.00 by Card and 225.00 by Corporate. The Card payment (one recid) is split into 2 lines, both with the invoice's voucher as LASTSETTLEVOUCHER and settleamountcur 225.00. P10 is in a live corporate subscription for 2025 and has a paid position. Result: exactly one DOUBLE_PAYMENT row for P10 and exactly one 2025 attributes row, with payer type Corporate (assumes Q-002, Q-027)."
         }
       ]
     },
@@ -845,11 +913,11 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "Hold the mapping from invoice item code to line type in a silver reference table (Layercake.silv_ref_invoice_line_type, name proposed), so new item codes show up rather than being dropped. Create Layercake.silv_ref_currency with gold Layercake.dim_currency. The mapping depends on CUSTTRANS_RICS carrying an item code per line (Q-021). Line types serve the eligible-invoice test and the readmission fee check, not event amounts. The currency reference and dimension stay as built but describe no event amount, because events carry GBP amounts only (Q-038).",
+      "description": "Hold the mapping from invoice item code to line type in a silver reference table (Layercake.silv_ref_invoice_line_type, name proposed), so new item codes show up rather than being dropped. Create Layercake.silv_ref_currency with gold Layercake.dim_currency. The mapping takes the item code (productcode) from the invoice lines, which CUSTTRANS_RICS carries on each ledger distribution (Q-021). An item code split across several lines is still one code. Line types serve the eligible-invoice test and the readmission fee check, not event amounts. The currency reference and dimension stay as built but describe no event amount, because events carry GBP amounts only (Q-038).",
       "business_rules": [
         {
           "id": "RULE-028",
-          "rule": "The line-type mapping holds one row per item code (productcode with ricinvoicetype) and its line type: subscription, concession, readmission fee, enrolment or application fee, tax, other, or unmapped (assumes Q-021)."
+          "rule": "The line-type mapping holds one row per item code (productcode with ricinvoicetype) and its line type: subscription, concession, readmission fee, enrolment or application fee, tax, other, or unmapped."
         },
         {
           "id": "RULE-029",
@@ -903,6 +971,10 @@
         {
           "id": "AC-007-03",
           "criterion": "With subscription invoices in GBP, EUR and HKD, Layercake.silv_ref_currency holds exactly those 3 codes. Ids are unchanged after a second load, and Layercake.dim_currency has the same (id, currency_code) pairs."
+        },
+        {
+          "id": "AC-007-04",
+          "criterion": "The new item code 'NEWFEE2' with ricinvoicetype 'SUB' appears on 3 brnz_subs_invoice_line rows of one recid, split across two cost centres and two Campaign Years. After the load, silv_ref_invoice_line_type holds exactly one row for ('NEWFEE2', 'SUB'), with line type 'unmapped'."
         }
       ]
     },
@@ -1113,7 +1185,7 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "Record in Layercake.silv_data_anomaly the events with no matching invoice, the invoices with no event, data that breaks the one-invoice-per-event assumption, and Readmission events with no readmission fee. Each of these situations gets its own reason code (anomaly type). These checks match events to the invoices (brnz_subs_invoice and brnz_subs_invoice_line) and use the invoices for nothing else. The match never sets an event amount, which comes from Subs.vwSubsMemberStatuses (REQ-008; Q-042). Anomalies are limited to the Campaign Years the invoice source covers (review change 11). Anomaly type names are proposals and the design confirms them.",
+      "description": "Record in Layercake.silv_data_anomaly the events with no matching invoice, the invoices with no event, data that breaks the one-invoice-per-event assumption, and Readmission events with no readmission fee. Each of these situations gets its own reason code (anomaly type). These checks match events to the invoices (brnz_subs_invoice and brnz_subs_invoice_line) and use the invoices for nothing else. The match never sets an event amount, which comes from Subs.vwSubsMemberStatuses (REQ-008; Q-042). Invoice lines are at ledger-distribution grain (RULE-104): a readmission fee split across several lines is one fee, and an invoice is counted once, never once per line (RULE-105). Anomalies are limited to the Campaign Years the invoice source covers (review change 11). Anomaly type names are proposals and the design confirms them.",
       "business_rules": [
         {
           "id": "RULE-093",
@@ -1207,6 +1279,14 @@
         {
           "id": "AC-009-10",
           "criterion": "R2's Readmission (AC-008-14) is matched to INV-3, which has a readmission fee line of 100.00. It has no READMISSION_NO_FEE or READMISSION_FREE row, even though its event amount (450.00) leaves the fee out."
+        },
+        {
+          "id": "AC-009-11",
+          "criterion": "Contact R10's 2025 Readmission dated 2025-08-12 is matched to an invoice whose readmission fee item code RAFEE_MRICS is split into 2 lines (two cost centres, 60.00 and 40.00). R10 has no READMISSION_NO_FEE and no READMISSION_FREE row."
+        },
+        {
+          "id": "AC-009-12",
+          "criterion": "Contact R11 has one eligible 2025 invoice and no Join, Renewal or Readmission event taking amounts from 2025. The invoice's own lines are 4 brnz_subs_invoice_line rows across 2 recids. R11 has exactly one INVOICE_NO_EVENT row."
         }
       ]
     },
@@ -1338,11 +1418,11 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "Add concession_type_id and concession_type_carried to silv_member_year_attributes, carry concession_type_id onto every event and fact_membership_events, and record concession anomalies. Every event and paid member can then be segmented by concession type. Only perpetual concessions are carried forward to years with no invoice (review change 10). The concession line source depends on Q-021.",
+      "description": "Add concession_type_id and concession_type_carried to silv_member_year_attributes, carry concession_type_id onto every event and fact_membership_events, and record concession anomalies. Every event and paid member can then be segmented by concession type. Only perpetual concessions are carried forward to years with no invoice (review change 10). Concession lines are read from brnz_subs_invoice_line at its ledger-distribution grain (RULE-104): a concession item code split across several lines is one concession.",
       "business_rules": [
         {
           "id": "RULE-049",
-          "rule": "A contact-year's concession comes from its segment invoice (RULE-079): the invoice's concession lines (item code starting 'CON') matched to silv_ref_concession_type.item_code. Where the invoice carries more than one concession line, the one with the highest discount sets the value, as Subs.usp_Refresh_SubsInvoices ranks them (assumes Q-021)."
+          "rule": "A contact-year's concession comes from its segment invoice (RULE-079): the invoice's concession lines (item code starting 'CON') matched to silv_ref_concession_type.item_code. Where the invoice carries more than one concession line, the one with the highest discount sets the value, as Subs.usp_Refresh_SubsInvoices ranks them."
         },
         {
           "id": "RULE-050",
@@ -1439,6 +1519,14 @@
         {
           "id": "AC-011-11",
           "criterion": "Contact K9 has a Renewal in Campaign Year 2021. The 2021 row and the event have concession_type_id -2 (Not applicable) (assumes Q-011)."
+        },
+        {
+          "id": "AC-011-12",
+          "criterion": "Contact K10's 2025 invoice has its CONRETIRED concession split into 2 lines (two cost centres, -300.00 and -150.00). The 2025 row has the Retired concession type with concession_type_carried 0."
+        },
+        {
+          "id": "AC-011-13",
+          "criterion": "Contact K11's 2025 invoice has item code 'CONUNKNOWN2', which is not in the reference, split into 2 lines. Result: concession_type_id -1 (Unrecognised) and exactly one CONCESSION_NOT_IN_REFERENCE row for K11."
         }
       ]
     },
@@ -1793,7 +1881,6 @@
     "The standard rate for the concession cross-check is the gross subscription line on the same invoice before the concession (Q-017).",
     "Retired concessions are the six retired item codes used by Subs.usp_Refresh_SubsInvoices, and the comparison covers paid positions (Q-018).",
     "corporate_account_ref holds the live corporate subscription's Scheme No (Q-019).",
-    "synapse_fo.CUSTTRANS_RICS holds one row per invoice line with an item code (productcode), and tax appears as its own line, as Subs.usp_Refresh_SubsInvoices treats it (Q-021).",
     "A free readmission is a Readmission whose event date falls in the second quarter of its Campaign Year, 1 January to 31 March for a Campaign Year starting 1 October (Q-023).",
     "Removing silv_payment_events.payment_source breaks nothing downstream (Q-024).",
     "Acceptance in this release is on synthetic data only, with no pass threshold for real data (for example minimum payment method coverage) (Q-026).",
@@ -2002,13 +2089,14 @@
       "id": "Q-021",
       "question": "What is the grain of synapse_fo.CUSTTRANS_RICS: one row per invoice line with an item code, or one row per transaction (one total per invoice, as the Platform Schema describes synapse_fo.custtrans)? Please run the count-only profile in REQ-014 (RULE-095) and bring back the counts. Core query: WITH inv AS (SELECT ACCOUNTNUM, INVOICE, COUNT(*) AS row_cnt, COUNT(DISTINCT productcode) AS item_codes, MAX(CASE WHEN PostingType_Description LIKE '%tax%' THEN 1 ELSE 0 END) AS has_tax_row, CASE WHEN SUM(AMOUNTCUR) = MAX(CustTrans_AmountCur) THEN 1 ELSE 0 END AS lines_sum_to_total FROM synapse_fo.CUSTTRANS_RICS WHERE TRANSTYPE NOT IN (8, 24) AND INVOICE NOT LIKE '%CRE%' AND INVOICE NOT LIKE '%FTCN%' GROUP BY ACCOUNTNUM, INVOICE) SELECT row_cnt, item_codes, has_tax_row, lines_sum_to_total, COUNT(*) AS invoices FROM inv GROUP BY row_cnt, item_codes, has_tax_row, lines_sum_to_total ORDER BY invoices DESC; plus SELECT RICINVOICETYPE, PostingType_Description, COUNT(*) AS row_count FROM synapse_fo.CUSTTRANS_RICS GROUP BY RICINVOICETYPE, PostingType_Description; plus SELECT rows_per_invoice, COUNT(*) AS invoices FROM (SELECT Account_Num, Invoice, COUNT(*) AS rows_per_invoice FROM Subs.tblSubsInvoices GROUP BY Account_Num, Invoice) x GROUP BY rows_per_invoice. Rules that depend on line grain: RULE-028 to RULE-030 (line-type mapping), RULE-014 (c) (fee-only invoices), RULE-044 (readmission fee check), RULE-049 (concession from the invoice's concession line) and RULE-077 (line landing scope). Event amounts no longer depend on it (REQ-008; Q-038). If CUSTTRANS_RICS is transaction grain, those rules cannot be applied from this source. Line types would then need a different source, such as synapse_fo.CUSTINVOICETRANS (invoice lines), which is in the external catalogue. Concessions might instead come from CE.vwConcession (per contact, with apuk_subscriptionyear). That means a new bronze landing and a design change before REQ-007, REQ-009 and REQ-011 are built. (Mike, human profiling step; review 1.1)",
       "raised_by": "analyst",
-      "status": "open",
+      "status": "answered",
       "blocks": [
         "REQ-002",
         "REQ-007",
         "REQ-009",
         "REQ-011"
-      ]
+      ],
+      "answer": "Answered from real data on 2026-11-11, counts only (Mike, AMD-002). CUSTTRANS_RICS is not one row per transaction. RECID is the customer transaction's key (it equals CUSTTRANSRECID), and each transaction is split into one row per ledger distribution: one row per POSTINGTYPE and ACCOUNTDISPLAYVALUE, the ledger account string that carries main account, cost centre, country, item code (productcode) and, where set, Campaign Year (RICSCAMPAIGNYEAR). 458,563 RECIDs occur on more than one row (1,015,865 rows): 456,807 invoice transactions (TRANSTYPE 2) and 1,756 payment transactions (TRANSTYPE 8). (RECID, POSTINGTYPE, ACCOUNTDISPLAYVALUE) is unique; (RECID, POSTINGTYPE, MainAccount, productcode) is not. brnz_subs_invoice_line lands every row in scope (RULE-077 unchanged), not aggregated, keyed on (recid, postingtype, accountdisplayvalue), and also lands postingtype, accountdisplayvalue, mainaccount, costcenter and ricscampaignyear (RULE-104). How the key is enforced is the Architect's call. AMOUNTCUR and AMOUNTMST are the line's own amounts. SETTLEAMOUNTCUR, and CustTrans_AmountCur and CustTrans_AmountMst if used, repeat on every line of a transaction and are taken once per RECID, including in the payment method's settled sums (RULE-013). Transactions and invoices are counted as distinct RECIDs (RULE-105). The rules that depended on this question keep CUSTTRANS_RICS as their source, read at this grain."
     },
     {
       "id": "Q-022",
