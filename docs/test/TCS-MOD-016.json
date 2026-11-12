@@ -1,0 +1,308 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-016",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-12T11:46:03Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-12T12:31:52Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-016",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-016-001",
+      "requirement_ids": [
+        "REQ-016",
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-016-02",
+      "category": "happy_path",
+      "description": "One run of usp_run_payment_segments, from empty bronze, silver and gold targets, takes the synthetic sources all the way to the new columns of silv_membership_events. One run is enough only if the loads run in dependency order (bronze, lists, dimensions, attributes, event amounts, anomalies, silver event columns, gold fact columns).",
+      "preconditions": "assumes (question to the human deferred 2026-11-12): usp_run_payment_segments takes @run_id uniqueidentifier = NULL and @as_of_date date = NULL, passes both on (as_of_date to the attributes load), logs its own etl_run_log row (layer 'run', step 'usp_run_payment_segments') and on a failing step stops and re-raises the error. Standard SetUp (all tests): every table the run's loads read or write is faked; seeds: payment methods 0/-1/-2, 1 DD, 2 Card, 3 Bank, 4 Cheque, 5 Corporate; payer types 0/-1/-2, 1 Individual, 2 Corporate; concession types 0/-1/-2 and 1 No concession; Campaign Years 2023-2025. Sources: Subs.tblSubsInvoices 1001 C1 CY2024 DD 450, 1002 C1 CY2025 Card 475, 2001 C2 CY2025 Corporate 300, 3001 C5 CY2025 Corporate 520, 4001 C6 CY2025 DD 410 (all GBP, not credited); CUSTTRANS_RICS one SUB line per invoice of C1, C2, C5 (MRICS, FRICS) and one line V9999 for C9 not in scope; vwCorpSubscriptions C2 S-100 CY2025 Active/Active; vwConcessionType 'Retired', 100% discount, perpetual, product rcsCONRETIRED. Phase 1 state: brnz_subs_status C1 2024 450.000000, C1 2025 475.000000, C2 2025 300.000000, C5 2025 520.000000 (all 'Fully Paid'); silv_payment_events C1 2024, C1 2025, C2 2025, C5 2025; events 101 RN:C1:2024, 102 RN:C1:2025, 201 RN:C2:2025, 301 JR:C3 (Join CY2025, no paid position, no invoice), 401 LA:C4 (Lapse CY2025), 501 RN:C5:2025, each with new columns at 0 / NULL; fact rows for the same events; one Phase 1 anomaly NO_ELECTION_DATE:C4. Run with @as_of_date 2025-06-15 (current Campaign Year 2025).",
+      "expected": "silv_membership_events (event_id, payment method, carried, payer type, carried, concession, carried, subs_amount_gbp, invoiced_subtotal_gbp, amount_status): 101 (1,0,1,0,1,0,450.0000,450.0000,'Invoiced'); 102 (2,0,1,0,1,0,475.0000,475.0000,'Invoiced'); 201 (5,0,2,0,1,0,300.0000,300.0000,'Invoiced'); 301 (0,0,0,0,0,0,NULL,NULL,'No invoice'); 401 (0,0,0,0,0,0,NULL,NULL,NULL); 501 (5,0,1,0,1,0,520.0000,520.0000,'Invoiced').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-001 one run from empty targets fills the segment and amount columns of every silver event]"
+    },
+    {
+      "id": "TC-016-002",
+      "requirement_ids": [
+        "REQ-016",
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-016-02",
+      "category": "reconciliation",
+      "description": "The gold fact columns load runs last: after one run every fact_membership_events row carries the same nine new values as its silver event.",
+      "preconditions": "assumes (question deferred 2026-11-12) the run procedure interface stated in TC-016-001. Standard SetUp scenario; run with @as_of_date 2025-06-15.",
+      "expected": "fact_membership_events holds exactly the six rows of TC-016-001's expected result: 101 (1,0,1,0,1,0,450.0000,450.0000,'Invoiced'), 102 (2,...,475.0000,'Invoiced'), 201 (5,0,2,0,1,0,300.0000,...), 301 (all 0, NULL, NULL, 'No invoice'), 401 (all 0, NULL, NULL, NULL), 501 (5,0,1,0,1,0,520.0000,...).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-002 one run copies the new columns onto every gold fact]"
+    },
+    {
+      "id": "TC-016-003",
+      "requirement_ids": [
+        "REQ-016"
+      ],
+      "acceptance_criterion_id": "AC-016-02",
+      "category": "happy_path",
+      "description": "The run fills the four gold dimensions, which are empty after their migrations (answers.md, MOD-003 dim_payment_method population), after their silver lists have been loaded.",
+      "preconditions": "assumes (question deferred 2026-11-12) the run procedure interface stated in TC-016-001. Standard SetUp scenario with all four dimensions empty; run with @as_of_date 2025-06-15.",
+      "expected": "dim_payment_method: (0 Unknown), (-1 Unrecognised), (-2 Not applicable), (1 Direct Debit), (2 Card), (3 Bank transfer), (4 Cheque), (5 Corporate). dim_payer_type: (0 Unknown), (-1 Unrecognised), (-2 Not applicable), (1 Individual), (2 Corporate). dim_currency: one row 'GBP' with the same id as silv_ref_currency. dim_concession_type (name, full, perpetual), each with its silver id: Unknown 0 0, Unrecognised 0 0, Not applicable 0 0, No concession 0 0, Retired 1 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-003 one run fills the four gold dimensions from their silver lists]"
+    },
+    {
+      "id": "TC-016-004",
+      "requirement_ids": [
+        "REQ-016",
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-016-02",
+      "category": "happy_path",
+      "description": "The anomaly loads run after the attributes and event amounts in the same run, so their cases are raised from this run's values; the Phase 1 anomaly row is left as it was.",
+      "preconditions": "assumes (question deferred 2026-11-12) the run procedure interface stated in TC-016-001. Standard SetUp scenario: C5's segment invoice is Corporate with no live subscription; C3's Join has no eligible invoice; C6's invoice 4001 has no event. Run with @as_of_date 2025-06-15.",
+      "expected": "silv_data_anomaly holds exactly 4 open rows (anomaly_nk, type, contact): NO_ELECTION_DATE:C4 / NO_ELECTION_DATE / C4 with detail still 'Phase 1 test row'; EVENT_NO_INVOICE:JR:C3 / EVENT_NO_INVOICE / C3; CORPORATE_FLAG_NO_SCHEME:C5:2025 / CORPORATE_FLAG_NO_SCHEME / C5; INVOICE_NO_EVENT:4001 / INVOICE_NO_EVENT / C6.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-004 one run raises the segment and invoice anomalies and leaves the Phase 1 anomaly untouched]"
+    },
+    {
+      "id": "TC-016-005",
+      "requirement_ids": [
+        "REQ-016",
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-016-02",
+      "category": "happy_path",
+      "description": "Every new load the design lists runs once in the run and is logged under the run's run_id, and the run logs its own row. Order is not asserted here (TC-016-001 shows it through the outputs).",
+      "preconditions": "assumes (question deferred 2026-11-12) the run procedure interface stated in TC-016-001, including its own 'run' row. Standard SetUp scenario; run with a fixed @run_id and @as_of_date 2025-06-15.",
+      "expected": "etl_run_log holds exactly 18 rows, all with that run_id and status 'Success': run/usp_run_payment_segments; bronze/brnz_subs_invoice, brnz_subs_invoice_line, brnz_corporate_subscription, brnz_concession; silver/silv_ref_invoice_line_type, silv_ref_currency, silv_ref_concession_type; gold/dim_payment_method, dim_payer_type, dim_currency, dim_concession_type; silver/silv_member_year_attributes, silv_event_amount, silv_data_anomaly_segment, silv_data_anomaly_invoice, silv_membership_events_segments; gold/fact_membership_events_segments. No row has another run_id.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-005 one run logs every load as a Success step under the run id]"
+    },
+    {
+      "id": "TC-016-006",
+      "requirement_ids": [
+        "REQ-016"
+      ],
+      "acceptance_criterion_id": "AC-016-02",
+      "category": "idempotency",
+      "description": "AC-016-02: a second full run on unchanged synthetic data records 0 inserted, 0 updated and 0 deleted for every new or changed table, the silv_data_anomaly row count is unchanged, and every table the run writes is identical to the snapshot taken after the first run.",
+      "preconditions": "assumes (question deferred 2026-11-12) the run procedure interface stated in TC-016-001. Standard SetUp scenario; run twice with two run_ids and @as_of_date 2025-06-15; full-table snapshots after the first run. The changed Phase 1 loads that run inside the Phase 1 run (usp_load_brnz_subs_status, usp_load_silv_member_base) are not part of usp_run_payment_segments; their reruns are covered by the MOD-017 and MOD-018 suites in the regression run.",
+      "expected": "The second run's 17 load rows (the TC-016-005 steps except the 'run' row) are each 'Success' with rows_inserted 0, rows_updated 0, rows_deleted 0. silv_data_anomaly still holds 4 rows. brnz_subs_invoice, brnz_subs_invoice_line, brnz_corporate_subscription, brnz_concession, silv_ref_invoice_line_type, silv_ref_currency, silv_ref_concession_type, silv_member_year_attributes, silv_event_amount, silv_data_anomaly, silv_membership_events, fact_membership_events and the four dimensions equal their snapshots in every column.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-006 a second full run on unchanged data logs 0 0 0 for every load and changes nothing]"
+    },
+    {
+      "id": "TC-016-007",
+      "requirement_ids": [
+        "REQ-016"
+      ],
+      "acceptance_criterion_id": "AC-016-02",
+      "category": "negative",
+      "description": "The run stops at the first failure, which that load has already logged (DES-001). A Subs.vwCorpSubscriptions row with no Contact No fails usp_load_brnz_corporate_subscription with 515 (answers.md, MOD-004 NULL matching key); the error reaches the caller and no later load runs.",
+      "preconditions": "assumes (question deferred 2026-11-12) the run procedure interface stated in TC-016-001: it logs its own row 'Failed' with the error message and re-raises the original error. Runs outside the tSQLt transaction. Standard SetUp scenario plus a vwCorpSubscriptions row (NULL, S-200, CY2025, Active, Active). Which other bronze loads ran before the failing one is not asserted.",
+      "expected": "Error 515 reaches the caller. Among the run's etl_run_log rows, exactly two are not 'Success': bronze/brnz_corporate_subscription 'Failed' and run/usp_run_payment_segments 'Failed', both with an error_message. No silver or gold step is logged for the run. silv_member_year_attributes, silv_event_amount and dim_payment_method are empty, every event still has 0 / NULL in its new columns, and silv_data_anomaly holds only the Phase 1 row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-007 a failing load stops the run re-raises its error and no later load runs]"
+    },
+    {
+      "id": "TC-016-008",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-01",
+      "category": "negative",
+      "description": "AC-001-01, run part: usp_run_payment_segments runs after the Phase 1 run and must not change any daily count, so silv_daily_count and silv_daily_count_detail are identical before and after it.",
+      "preconditions": "assumes (question deferred 2026-11-12) the run procedure interface stated in TC-016-001. Standard SetUp scenario plus silv_daily_count rows (2024-10-15 UK election 3/2/2/0/1/0/0; 2025-06-01 UK lapse 0/1/1/0/0/0/1) and three silv_daily_count_detail rows; snapshots before the run.",
+      "expected": "Both tables equal their snapshots in every column after the run.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-008 the run leaves silv_daily_count and silv_daily_count_detail unchanged]"
+    },
+    {
+      "id": "TC-016-009",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-01",
+      "category": "reconciliation",
+      "description": "AC-001-01, retirement part (Q-046, RULE-102): on the same synthetic data, replacing apuk_retirementdate with the derived retirement date and applying the one-off daily rebuild leaves silv_daily_count unchanged on (date, region, grade) for every count, while the Practising / Retired split in silv_daily_count_detail moves.",
+      "preconditions": "The 'before' state is simulated as in MOD-018: the only Phase 1 input the change alters is the retirement date, which reaches the daily count through silv_member_profile, so the profile holds apuk 2024-03-01 for the first run and the derived 2025-01-15 for the rebuild (usp_load_silv_daily_count @RebuildFrom 2024-01-01, as the handover's one-off rebuild). Contact T5: election range from 2015-01-01, open, region UK; payment CY2025 renewal_date_adj 2024-10-10; Renewal event 2024-10-10 CY2025. Spine: 2024-06-01 (CY2024 Q3), 2025-01-14, 2025-01-15, 2025-02-01 (CY2025 Q2). Status seeds 0 N/A, 1 Practising, 2 Retired.",
+      "expected": "silv_daily_count before and after are identical: 2024-06-01 CY2024 Q3 UK election active 1, paid 0, paid_event 0, flows 0; 2025-01-14, 2025-01-15 and 2025-02-01 CY2025 Q2 UK election active 1, paid 1, paid_event 1, flows 0. Detail before: status 2 on all four dates. Detail after: 2024-06-01 status 1, 2025-01-14 status 1, 2025-01-15 status 2, 2025-02-01 status 2, active 1 each.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-009 a changed retirement date moves the daily Practising Retired split but not silv_daily_count]"
+    },
+    {
+      "id": "TC-016-010",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-02",
+      "category": "negative",
+      "description": "AC-001-02, run part: usp_run_payment_segments leaves fact_daily_member_count_detail identical.",
+      "preconditions": "assumes (question deferred 2026-11-12) the run procedure interface stated in TC-016-001. Standard SetUp scenario plus three fact_daily_member_count_detail rows; snapshot before the run.",
+      "expected": "fact_daily_member_count_detail equals its snapshot in every column after the run.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-010 the run leaves fact_daily_member_count_detail unchanged]"
+    },
+    {
+      "id": "TC-016-011",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-02",
+      "category": "reconciliation",
+      "description": "AC-001-02, retirement part: the sums of the seven measures in fact_daily_member_count_detail grouped by date_id, country_id and membership_grade_id are identical before and after the retirement date change; only the status split moves.",
+      "preconditions": "As TC-016-009 (simulated before state through silv_member_profile, T5 apuk 2024-03-01 then derived 2025-01-15, one-off rebuild from 2024-01-01), with usp_load_fact_daily_member_count_detail run after each daily load. dim_date holds the four dates (ids 20240601, 20250114, 20250115, 20250201); dim_membership_grade 0 N/A, 1 Candidate, 2 Qualified.",
+      "expected": "Sums before = sums after = (date_id, country, grade, Active, Paid, PaidEvent, Join, Renewal, Readmission, Lapse): (20240601,0,2,1,0,0,0,0,0,0), (20250114,0,2,1,1,1,0,0,0,0), (20250115,0,2,1,1,1,0,0,0,0), (20250201,0,2,1,1,1,0,0,0,0). After the change the rows are status 1 on 20240601 and 20250114 and status 2 on 20250115 and 20250201, ActiveMembers 1 each.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-011 a changed retirement date leaves fact_daily_member_count_detail sums by date country and grade unchanged]"
+    },
+    {
+      "id": "TC-016-012",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-05",
+      "category": "negative",
+      "description": "AC-001-05, run part: usp_run_payment_segments leaves silv_annual_rate_base and fact_annual_rate_base identical.",
+      "preconditions": "assumes (question deferred 2026-11-12) the run procedure interface stated in TC-016-001. Standard SetUp scenario plus two rows in each annual table (2025, grade 2, status 1 and 2); snapshots before the run.",
+      "expected": "Both tables equal their snapshots in every column after the run.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-012 the run leaves silv_annual_rate_base and fact_annual_rate_base unchanged]"
+    },
+    {
+      "id": "TC-016-013",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-05",
+      "category": "reconciliation",
+      "description": "AC-001-05, retirement part (Q-046): summed over membership_status_id, every measure of silv_annual_rate_base and fact_annual_rate_base is identical for each (campaign_year, grade_id, country_id, gender_id) before and after the retirement date change, while the Practising / Retired split moves.",
+      "preconditions": "Simulated before state as in MOD-018: silv_member_base T5 (election 2015-01-01, not lapsed, country 0, gender 0) with retirement_date 2024-03-01 (apuk), then 2025-01-15 (derived); usp_load_silv_annual_rate_base and usp_load_fact_annual_rate_base run after each. No events. Campaign Years 2023-2025 from SetUp; grade seeds 0 N/A, 1 Candidate, 2 Qualified; status seeds 0, 1, 2.",
+      "expected": "Sums over status, before and after, silver and gold: (2023,2,0,0) start 1 end 1; (2024,2,0,0) 1 1; (2025,2,0,0) 1 1; event measures 0. Split before (year, grade, status, start, end): (2023,2,1,1,1), (2024,2,1,1,0), (2024,2,2,0,1), (2025,2,2,1,1). Split after in fact_annual_rate_base: (2023,2,1,1,1), (2024,2,1,1,1), (2025,2,1,1,0), (2025,2,2,0,1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-013 a changed retirement date moves the annual Practising Retired split but not its totals]"
+    },
+    {
+      "id": "TC-016-014",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-05",
+      "category": "negative",
+      "description": "AC-001-05, column part (assumes Q-007): the deployed fact_daily_member_count_detail, fact_annual_rate_base, silv_daily_count_detail and silv_annual_rate_base keep exactly their Phase 1 column lists, in order; no segment key is added to them.",
+      "preconditions": "assumes Q-007: the daily and annual tables keep their grain and columns. Reads the deployed tables' metadata; none of the four is faked in this test.",
+      "expected": "silv_daily_count_detail: date, campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count. fact_daily_member_count_detail: id, date_id, country_id, gender_id, membership_grade_id, membership_status_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents. silv_annual_rate_base: campaign_year, grade_id, membership_status_id, country_id, gender_id, members_start, members_end, members_joined, members_readmitted, members_lapsed, members_renewed. fact_annual_rate_base: id followed by the same 11 columns.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-014 the daily and annual Phase 1 tables keep their column lists]"
+    },
+    {
+      "id": "TC-016-015",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-001-04",
+      "category": "negative",
+      "description": "AC-001-04, database part: the pipeline side of the Phase 1 difference scripts (active and paid contacts by region and grade) is built from Phase 1 tables the run must not touch. The run leaves silv_member_base, silv_member_profile, silv_member_state_ranges, silv_payment_events, brnz_subs_status and the Phase 1 columns of silv_membership_events and fact_membership_events identical.",
+      "preconditions": "assumes (question to the human deferred 2026-11-12): running active-member-difference.sql and paid-member-difference.sql themselves (SQLCMD files outside the database) is a regression and handover step, not a tSQLt test; this condition tests the tables their pipeline side compares, with the daily counts covered by TC-016-008 to TC-016-011. Also assumes the run procedure interface stated in TC-016-001. Standard SetUp scenario plus one row each in silv_member_base, silv_member_profile and silv_member_state_ranges for C1; snapshots before the run.",
+      "expected": "All five tables and the Phase 1 columns of both event tables (event_id, event_nk, type, subtype, date, source_enr_id, contact, grade, route, rpq variant, hpb, country, gender, membership_status_id, campaign_year, quarter, and date_id on the fact) equal their snapshots after the run.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-015 the run leaves the Phase 1 tables the difference scripts compare unchanged]"
+    },
+    {
+      "id": "TC-016-016",
+      "requirement_ids": [
+        "REQ-016"
+      ],
+      "acceptance_criterion_id": "AC-016-03",
+      "category": "negative",
+      "description": "AC-016-03 and RULE-076, behaviour part: a full run reads the external sources and writes nothing to them.",
+      "preconditions": "assumes (question to the human deferred 2026-11-12): migrations.py check itself is run by the Developer and recorded in the change note; this condition tests that the run changes no external object's rows. Also assumes the run procedure interface stated in TC-016-001. Standard SetUp scenario (external stand-ins faked and filled); snapshots of Subs.tblSubsInvoices, synapse_fo.CUSTTRANS_RICS, Subs.vwCorpSubscriptions and CE.vwConcessionType before the run.",
+      "expected": "All four external objects equal their snapshots after the run: 5 invoices, 5 CUSTTRANS_RICS rows, 1 corporate subscription, 1 concession type, unchanged.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-016 the run writes nothing to the external sources it reads]"
+    },
+    {
+      "id": "TC-016-017",
+      "requirement_ids": [
+        "REQ-016"
+      ],
+      "acceptance_criterion_id": "AC-016-01",
+      "category": "happy_path",
+      "description": "AC-016-01, database part: the test database built from the module's migrations holds Layercake.usp_run_payment_segments as a stored procedure and no Layercake table renamed by a rollback (*_rolledback_MIGnnnn).",
+      "preconditions": "assumes (question to the human deferred 2026-11-12): migrations.py check and roundtrip are run by the Developer for every migration and their results recorded in the change note (base standards 4); this condition checks the deployed state the Tester's run is made on. Reads catalog metadata only.",
+      "expected": "OBJECT_ID('Layercake.usp_run_payment_segments') has type 'P'. No table in schema Layercake has a name matching '%_rolledback_MIG%'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-017 the deployed database holds the run procedure and no rolled back table]"
+    },
+    {
+      "id": "TC-016-018",
+      "requirement_ids": [
+        "REQ-015"
+      ],
+      "acceptance_criterion_id": "AC-015-01",
+      "category": "happy_path",
+      "description": "AC-015-01, database part: every object the spec's mappings name (and the design names for them) exists in the deployed database with its kind, so the handover pack's data model has a real object to describe for each.",
+      "preconditions": "assumes (question to the human deferred 2026-11-12): checking that each object has a description in the handover pack is a handover review step; this condition checks the objects themselves. Tables faked in SetUp keep their name and kind.",
+      "expected": "Exactly these 24 Layercake objects exist: tables (U) brnz_subs_invoice, brnz_subs_invoice_line, brnz_subs_status, brnz_corporate_subscription, brnz_concession, silv_ref_payment_method, silv_ref_payer_type, silv_ref_invoice_line_type, silv_ref_currency, silv_ref_concession_type, silv_member_year_attributes, silv_event_amount, silv_membership_events, silv_payment_events, silv_data_anomaly, silv_member_base, dim_payment_method, dim_payer_type, dim_currency, dim_concession_type, fact_membership_events; views (V) vw_silv_derived_retirement_date, vw_silv_eligible_invoice; scalar function (FN) fn_map_payment_method.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-018 every object the spec maps exists in the database with its kind]"
+    },
+    {
+      "id": "TC-016-019",
+      "requirement_ids": [
+        "REQ-015"
+      ],
+      "acceptance_criterion_id": "AC-015-02",
+      "category": "happy_path",
+      "description": "AC-015-02, database part: the content behind to-do 7.2 #9 (payer type) and 7.2 #6 (invoiced amounts) is in gold after one run: every fact carries its payer type, resolved through dim_payer_type, and its invoiced amount.",
+      "preconditions": "assumes (question to the human deferred 2026-11-12): checking that the pack labels content for the two to-dos is a handover review step; this condition checks the data the content describes. Also assumes the run procedure interface stated in TC-016-001. Standard SetUp scenario; run with @as_of_date 2025-06-15.",
+      "expected": "(event_id, payer_type_name, invoiced_subtotal_gbp, amount_status): 101 Individual 450.0000 Invoiced; 102 Individual 475.0000 Invoiced; 201 Corporate 300.0000 Invoiced; 301 Unknown NULL 'No invoice'; 401 Unknown NULL NULL; 501 Individual 520.0000 Invoiced.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-019 payer type and invoiced amount reach every gold fact through the payer type dimension]"
+    },
+    {
+      "id": "TC-016-020",
+      "requirement_ids": [
+        "REQ-015"
+      ],
+      "acceptance_criterion_id": "AC-015-03",
+      "category": "negative",
+      "description": "AC-015-03, database part: every anomaly type the new loads write in a full run is one of the ten types the known limitations document must list, so the list is complete for what the solution raises.",
+      "preconditions": "assumes (question to the human deferred 2026-11-12): checking the known limitations document's wording is a handover review step. Also assumes the run procedure interface stated in TC-016-001. Standard SetUp scenario (raises CORPORATE_FLAG_NO_SCHEME, EVENT_NO_INVOICE and INVOICE_NO_EVENT); the Phase 1 type NO_ELECTION_DATE is left out of the check.",
+      "expected": "No anomaly row other than the Phase 1 one has a type outside CORPORATE_FLAG_NO_SCHEME, DOUBLE_PAYMENT, EVENT_NO_INVOICE, INVOICE_NO_EVENT, INVOICE_MATCHES_MULTIPLE_EVENTS, EVENT_MATCHES_MULTIPLE_INVOICES, READMISSION_FREE, READMISSION_NO_FEE, CONCESSION_NOT_IN_REFERENCE, FULL_CONCESSION_NO_CONCESSION. The types written are exactly CORPORATE_FLAG_NO_SCHEME, EVENT_NO_INVOICE and INVOICE_NO_EVENT.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-020 every anomaly type the run raises is one of the ten listed types]"
+    },
+    {
+      "id": "TC-016-021",
+      "requirement_ids": [
+        "REQ-015"
+      ],
+      "acceptance_criterion_id": "AC-015-04",
+      "category": "negative",
+      "description": "AC-015-04, database part: after a full run every Join, Renewal and Readmission carries one of the six amount_status values and every Change and Lapse carries none; subs_amount_gbp equals invoiced_subtotal_gbp on every fact (equal by design, Q-044); and the three reserved ids carry the same labels in all three gold segment dimensions.",
+      "preconditions": "assumes (question to the human deferred 2026-11-12): checking the pack's wording (headline value, the six statuses, the reserved values, how the derived retirement date is set) is a handover review step. Also assumes the run procedure interface stated in TC-016-001. Standard SetUp scenario; run with @as_of_date 2025-06-15.",
+      "expected": "No event has a missing or unlisted amount_status (Before invoice data, No invoice, Counted on another event, Full Concession, Fully credited, Invoiced) and no Change or Lapse has one. No fact has subs_amount_gbp different from invoiced_subtotal_gbp (nulls together). Reserved rows: dim_payment_method, dim_payer_type and dim_concession_type each have 0 'Unknown', -1 'Unrecognised', -2 'Not applicable' (9 rows).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD016].[test TC-016-021 amount statuses subs amount and reserved labels are as the pack describes them]"
+    }
+  ]
+}
