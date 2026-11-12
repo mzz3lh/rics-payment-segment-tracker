@@ -17,6 +17,9 @@
     Tie-breaks chosen here (not fixed by the design):
       payment lines  a method whose lines all lack a transdate sorts after
                      any dated one on the earliest-payment tie
+      payment txn    a transaction (recid) split into several lines counts
+                     once (RULE-105); its mode, date and settled amount are
+                     taken from its qualifying line with the lowest line_id
       concession     a recognised code beats an unrecognised one; among
                      recognised, highest apuk_discount then lowest line recid
 ====================================================================*/
@@ -105,6 +108,8 @@ BEGIN
 
         -- Payment lines (RULE-013, RULE-077): live lines settling the invoice on its own
         -- account with a non-blank mode; the invoice's own lines are not payment lines.
+        -- One payment transaction (recid) is split into one line per ledger distribution and
+        -- repeats its mode, date and settled amount on each, so it counts once (RULE-105).
         CREATE TABLE #payment_method_total
         (
             rec_id            bigint       NOT NULL,
@@ -121,7 +126,9 @@ BEGIN
                      Layercake.fn_map_payment_method(l.paymmode) AS payment_method_id,
                      ABS(ISNULL(l.settleamountcur, 0)) AS settled_amount,
                      l.transdate,
-                     l.recid
+                     l.recid,
+                     ROW_NUMBER() OVER (PARTITION BY s.rec_id, l.recid
+                                        ORDER BY l.line_id, l.postingtype, l.accountdisplayvalue) AS txn_line_no
               FROM #segment_invoice AS s
               INNER JOIN Layercake.brnz_subs_invoice_line AS l
                   ON  l.lastsettlevoucher = s.voucher
@@ -129,6 +136,7 @@ BEGIN
                   AND l._is_deleted = 0
               WHERE (l.voucher <> s.voucher OR l.voucher IS NULL)
                 AND LTRIM(RTRIM(l.paymmode)) <> N'') AS p
+        WHERE p.txn_line_no = 1
         GROUP BY p.rec_id, p.payment_method_id;
 
         -- Payment method: the invoice's own mode when not blank, else the payment line

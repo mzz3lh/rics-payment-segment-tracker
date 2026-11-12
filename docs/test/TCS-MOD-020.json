@@ -1,0 +1,330 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-020",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-12T09:52:36Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-12T10:04:37Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-020",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-020-001",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-13",
+      "category": "happy_path",
+      "description": "C14's 2025 invoice has no payment mode. A Card payment (recid 9001, 2024-11-01) is split into 2 lines (RICSCAMPAIGNYEAR '2025' and '2026') that each carry settleamountcur 400.00, and a DD payment (recid 9002, 2024-12-01) is on 1 line with 500.00. The Card payment counts 400.00 once, not 800.00, so DD wins.",
+      "preconditions": "Standard set-up for every test (SetUp): fakes etl_run_log (identity, defaults), silv_member_year_attributes (defaults), silv_membership_events, ref_campaign_year_config (2019 to 2027, each 1 Oct of the year before to 30 Sep), brnz_subs_invoice, brnz_subs_invoice_line, silv_ref_invoice_line_type (SUBS_MRICS/SUB subscription, CONRETIRED/SUB and CONEXCEPTIONHP/SUB concession, RAFEE_MRICS/SUB readmission fee, ENROLFEE/APP enrolment or application fee, VATUK/TAX tax), silv_ref_payment_method (0, -1, -2, 1 Direct Debit DD, 2 Card, 3 Bank transfer Bank, 4 Cheque, 5 Corporate), silv_ref_concession_type (0, -1, -2, 1 No concession, 5 Retired CONRETIRED full and perpetual, 6 Exceptional Hardship CONEXCEPTIONHP neither), brnz_concession (Retired 100, Exceptional Hardship 50), brnz_corporate_subscription, silv_payment_events, silv_event_amount and silv_data_anomaly (identity, defaults). Here: 7020101 has a 2025 Renewal and invoice 2010001 (V2010001, NULL mode, own SUBS_MRICS line). All 3 payment lines have accountnum 7020101 and lastsettlevoucher V2010001. @as_of_date 2025-06-15.",
+      "expected": "One attributes row (7020101, 2025, payment_method_id 1 Direct Debit, payment_method_carried 0, segment_invoice_rec_id 2010001).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-001 split card payment counts once so direct debit wins]"
+    },
+    {
+      "id": "TC-020-002",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-13",
+      "category": "boundary",
+      "description": "Ties are judged on per-transaction totals. 7020102: Card recid 9011 split into 3 lines of 300.00 (2024-11-01) against DD recid 9012 300.00 (2024-10-15). It is a tie at 300.00, so the earlier DD payment wins. 7020103: DD recid 9031 250.00 and Card recid 9032 split into 2 lines of 250.00, both dated 2024-11-01 10:00. Sums and dates tie, so the lower recid 9031 (DD) wins.",
+      "preconditions": "Standard set-up (TC-020-001). Both contacts have a 2025 Renewal and a 2025 invoice with a NULL mode (2010002 V2010002, 2010003 V2010003). Every payment line is on the contact's account with lastsettlevoucher = the invoice voucher. @as_of_date 2025-06-15.",
+      "expected": "(7020102, 2025, payment 1 Direct Debit, carried 0) and (7020103, 2025, payment 1 Direct Debit, carried 0). Summing per line would give Card for both.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-002 tie between per-transaction totals goes to earliest payment then lowest recid]"
+    },
+    {
+      "id": "TC-020-003",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-13",
+      "category": "reconciliation",
+      "description": "Each transaction counts once, but separate transactions of one method still add up, using absolute values. Card recid 9041 has 2 lines, each settleamountcur -200.00. Card recid 9042 has 1 line of 200.00. Both are dated 2024-11-01 09:00. DD recid 9043 is 350.00 (2024-10-01). Card totals 400.00 and beats DD's 350.00.",
+      "preconditions": "Standard set-up (TC-020-001). 7020104 has a 2025 Renewal and invoice 2010004 (V2010004, NULL mode). All lines settle V2010004 on account 7020104. @as_of_date 2025-06-15.",
+      "expected": "(7020104, 2025, payment 2 Card, carried 0). Collapsing same-method payments by amount or date would give DD.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-003 separate payments of one method still add up with absolute values]"
+    },
+    {
+      "id": "TC-020-004",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-13",
+      "category": "idempotency",
+      "description": "On the C14 data the first load logs Success. A second load on unchanged data changes no row and logs 0, 0, 0.",
+      "preconditions": "Standard set-up (TC-020-001). Data as TC-020-001 plus a 2025 Fully Paid position. The load runs twice with @as_of_date 2025-06-15.",
+      "expected": "silv_member_year_attributes is identical in every column after both loads. etl_run_log holds exactly two rows ('silver', 'silv_member_year_attributes', 'Success'): (1, 0, 0) and (0, 0, 0) inserted, updated, deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-004 rerun with split payment lines logs success and changes nothing]"
+    },
+    {
+      "id": "TC-020-005",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-13",
+      "category": "negative",
+      "description": "The changed load still follows the error path. With split payment lines in place, an as-of date that no Campaign Year covers fails the load. The error reaches the caller, the run is logged Failed and the target is unchanged.",
+      "preconditions": "Runs without the tSQLt transaction. Standard set-up (TC-020-001); the config covers 2019 to 2027. Data as TC-020-001, without the own line. The target holds (7020101, 2025, payment 2, 0, payer 1, 0, NULL, concession 1, 0, 2010001, load_id 7, created and updated 2020-01-01). @as_of_date 2030-01-15. The design does not fix the error number, so any error passes except those meaning the procedure or its objects are missing (201, 207, 208, 2812, 8144).",
+      "expected": "An error reaches the caller. silv_member_year_attributes is identical to before in every column. etl_run_log holds exactly one row ('silver', 'silv_member_year_attributes', 'Failed') with a non-NULL error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-005 failed load logs Failed re-raises and leaves the target unchanged]"
+    },
+    {
+      "id": "TC-020-006",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-14",
+      "category": "happy_path",
+      "description": "C15 has a DD subscription invoice dated 2024-10-05. A later Corporate invoice dated 2024-12-01 has an ENROLFEE/APP item split into 2 lines (cost centres CC10 30.00 and CC20 20.00) and 1 VATUK/TAX line, all one recid. The later invoice is still fee-only and not eligible.",
+      "preconditions": "Standard set-up (TC-020-001). 7020201: invoices 2020001 (DD, own SUBS_MRICS 450.00) and 2020002 (Corporate, own lines as described). 2025 Renewal. @as_of_date 2025-06-15.",
+      "expected": "(7020201, 2025, payment 1 Direct Debit, carried 0, segment_invoice_rec_id 2020001).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-006 fee-only invoice with split fee lines is still not eligible]"
+    },
+    {
+      "id": "TC-020-007",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-14",
+      "category": "boundary",
+      "description": "A later invoice whose ENROLFEE/APP item and SUBS_MRICS/SUB item are each split into 2 lines is not fee-only, so it is eligible and, as the latest, it is the segment invoice.",
+      "preconditions": "Standard set-up (TC-020-001). 7020202: invoices 2020011 (DD, 2024-10-05, SUBS_MRICS) and 2020012 (Card, 2024-12-01, 4 own lines on recid 2020112). 2025 Renewal. @as_of_date 2025-06-15.",
+      "expected": "(7020202, 2025, payment 2 Card, carried 0, segment_invoice_rec_id 2020012).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-007 split fee lines beside a split subscription line do not make an invoice fee-only]"
+    },
+    {
+      "id": "TC-020-008",
+      "requirement_ids": [
+        "REQ-004"
+      ],
+      "acceptance_criterion_id": "AC-004-14",
+      "category": "duplicates",
+      "description": "vw_silv_eligible_invoice has one row per invoice, however many lines the invoice's own transaction is split into. The fee-only invoice, also split, is left out.",
+      "preconditions": "Standard set-up (TC-020-001). 7020203: invoice 2020021 (DD, 2024-10-05) with own lines SUBS_MRICS split into 3 lines plus a VATUK/TAX line, all on recid 2020121; invoice 2020022 (Corporate, 2024-12-01) with ENROLFEE/APP split into 2 lines. The view is read directly.",
+      "expected": "Exactly one view row: (7020203, 2025, rec_id 2020021, invoice_seq 1, is_segment_invoice 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-008 eligible invoice view has one row per invoice whatever its line split]"
+    },
+    {
+      "id": "TC-020-009",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-16",
+      "category": "happy_path",
+      "description": "P10's 2025 segment invoice is settled 225.00 by Card and 225.00 by Corporate. The Card payment (recid 9301) is split into 2 lines, each with the invoice's voucher as lastsettlevoucher and settleamountcur 225.00. P10 is in a live corporate subscription for 2025 and has a paid position.",
+      "preconditions": "assumes Q-002 (on a double payment, Corporate where a live subscription exists) and Q-027 (active value 'Active'). Standard set-up (TC-020-001). 7020301: invoice 2030001 (mode 'Card', V2030001); Corporate payment recid 9302 on 1 line, 2024-12-01; subscription (SCH-010, 2025, Active, Active, live); 2025 Fully Paid position; 2025 Renewal. The attributes load runs (@as_of_date 2025-06-15), then usp_load_silv_data_anomaly_segment.",
+      "expected": "Exactly one attributes row: (7020301, 2025, payment 2 Card, payer_type_id 2 Corporate, payer_type_carried 0, corporate_account_ref 'SCH-010'). silv_data_anomaly holds exactly one row: ('DOUBLE_PAYMENT', 7020301).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-009 split card payment and corporate payment give one double payment and Corporate]"
+    },
+    {
+      "id": "TC-020-010",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-16",
+      "category": "negative",
+      "description": "A single Corporate payment split across 2 lines is not a double payment. A Card payment plus a split Corporate payment still is.",
+      "preconditions": "assumes Q-002 and Q-027. Standard set-up (TC-020-001). 7020302: invoice 2030002 with NULL mode, settled only by Corporate recid 9311 (2 lines, settleamountcur 450.00 each); live subscription SCH-011 2025; paid position. 7020303: invoice 2030003 (mode 'Card') settled by Card recid 9321 (1 line, 225.00) and Corporate recid 9322 (2 lines, 225.00 each); live subscription SCH-012 2025; paid position. Both have a 2025 Renewal. Attributes load (@as_of_date 2025-06-15), then the segment anomaly load.",
+      "expected": "Attributes: (7020302, 2025, payment 5 Corporate, payer 2 Corporate, 'SCH-011') and (7020303, 2025, payment 2 Card, payer 2 Corporate, 'SCH-012'). silv_data_anomaly holds exactly one row: ('DOUBLE_PAYMENT', 7020303). There is no row for 7020302.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-010 one payment method split across lines is not a double payment]"
+    },
+    {
+      "id": "TC-020-011",
+      "requirement_ids": [
+        "REQ-006"
+      ],
+      "acceptance_criterion_id": "AC-006-16",
+      "category": "idempotency",
+      "description": "Rerunning the attributes and segment anomaly loads on P10's split-payment data adds, changes and deletes no anomaly row.",
+      "preconditions": "assumes Q-002 and Q-027. Standard set-up (TC-020-001). Data as TC-020-009, without the own line. Attributes load then segment anomaly load, run twice.",
+      "expected": "silv_data_anomaly is identical in every column after both rounds. etl_run_log holds four rows, all 'Success': two with (1, 0, 0) from the first round and two with (0, 0, 0) from the second.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-011 rerun with split payment lines adds no anomaly row and logs 0 0 0]"
+    },
+    {
+      "id": "TC-020-012",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-04",
+      "category": "happy_path",
+      "description": "The new item code NEWFEE2 with ricinvoicetype SUB appears on 3 live lines of one recid (7401), split across cost centres CC10 and CC20 and Campaign Years 2025 and 2026. The line-type load adds it once, as 'unmapped', and leaves the seeded rows unchanged.",
+      "preconditions": "Standard set-up (TC-020-001); the mapping holds the 6 seeded rows. usp_load_silv_ref_invoice_line_type runs once.",
+      "expected": "silv_ref_invoice_line_type holds exactly 7 rows (item_code, ric_invoice_type, line_type): the 6 seeded rows unchanged plus ('NEWFEE2', 'SUB', 'unmapped').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-012 item code split across three lines of one recid adds one unmapped row]"
+    },
+    {
+      "id": "TC-020-013",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-04",
+      "category": "idempotency",
+      "description": "A second line-type load on the same split NEWFEE2 lines adds nothing.",
+      "preconditions": "Standard set-up (TC-020-001). Lines as TC-020-012. The load runs twice.",
+      "expected": "silv_ref_invoice_line_type is identical in every column after both loads. etl_run_log holds two 'Success' rows with rows_inserted 1 and 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-013 rerun of the line-type load on split lines adds nothing]"
+    },
+    {
+      "id": "TC-020-014",
+      "requirement_ids": [
+        "REQ-007"
+      ],
+      "acceptance_criterion_id": "AC-007-04",
+      "category": "duplicates",
+      "description": "The lines of one split transaction spell a new code 'NEWFEE3', 'newfee3' and 'NEWFEE3 ' (trailing space). Codes match as the collation compares them, so this is one code and gives one mapping row.",
+      "preconditions": "Standard set-up (TC-020-001). Recid 7411 has 3 live SUB lines with those spellings (answers.md, MOD-005 near-duplicate codes). Which spelling is stored is not asserted.",
+      "expected": "Exactly one mapping row matches 'NEWFEE3' (ric_invoice_type 'SUB', line_type 'unmapped'). The table holds 7 rows in total.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-014 split lines spelling one code with different case or trailing spaces add one row]"
+    },
+    {
+      "id": "TC-020-015",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-11",
+      "category": "happy_path",
+      "description": "R10's 2025 Readmission dated 2025-08-12 is matched to invoice 2040001. Its readmission fee item RAFEE_MRICS is split into 2 lines (CC10 60.00, CC20 40.00). That is one fee, so no READMISSION_NO_FEE or READMISSION_FREE row is raised. As a control, R12's Readmission on the same date is matched to an invoice with only a split SUBS_MRICS line and no fee, and does raise one.",
+      "preconditions": "Standard set-up (TC-020-001). silv_event_amount holds the match as the event amount load leaves it: (RD:7020401:2025, Readmission, 2025-08-12, amount year 2025, invoice 2040001, 'Matched') and (RD:7020402:2025, Readmission, 2025-08-12, 2025, 2040002, 'Matched'). Both invoices are eligible 2025 invoices. The window for Campaign Year 2025 is 2025-01-01 to 2025-03-31. usp_load_silv_data_anomaly_invoice runs.",
+      "expected": "silv_data_anomaly holds exactly one row: ('READMISSION_NO_FEE', 7020402). There is no row of any type for 7020401.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-015 readmission fee split across two lines is still a fee]"
+    },
+    {
+      "id": "TC-020-016",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-11",
+      "category": "boundary",
+      "description": "Inside the free-readmission window (2025-02-14) a split readmission fee still counts as a fee, so no READMISSION_FREE is raised. A control Readmission on the same date with no fee line raises READMISSION_FREE.",
+      "preconditions": "Standard set-up (TC-020-001). 7020403: invoice 2040003 with RAFEE_MRICS split into 2 lines; 7020404: invoice 2040004 with only SUBS_MRICS split into 2 lines. silv_event_amount: both are Readmissions dated 2025-02-14, amount year 2025, 'Matched' to their invoices. Invoice anomaly load runs.",
+      "expected": "silv_data_anomaly holds exactly one row: ('READMISSION_FREE', 7020404).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-016 split readmission fee in the free window raises no READMISSION_FREE]"
+    },
+    {
+      "id": "TC-020-017",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-12",
+      "category": "happy_path",
+      "description": "R11 has one eligible 2025 invoice and no Join, Renewal or Readmission taking amounts from 2025. The invoice's own lines are 4 rows across 2 recids: SUBS_MRICS split in 2 on recid 2050101, and VATUK split in 2 on recid 2050102. The invoice is counted once.",
+      "preconditions": "Standard set-up (TC-020-001). 7020501: invoice 2050001 (DD, 2024-10-10, V2050001). silv_event_amount is empty. Invoice anomaly load runs.",
+      "expected": "silv_data_anomaly holds exactly one row: ('INVOICE_NO_EVENT', 7020501).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-017 invoice with four lines across two recids gives one INVOICE_NO_EVENT]"
+    },
+    {
+      "id": "TC-020-018",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-12",
+      "category": "duplicates",
+      "description": "A surplus eligible invoice whose own transaction is split into 3 lines gives one EVENT_MATCHES_MULTIPLE_INVOICES row, not one per line.",
+      "preconditions": "assumes Q-022: with more invoices than events, the event is matched to the latest invoice. Standard set-up (TC-020-001). 7020502: invoices 2050011 (2024-10-05, SUBS_MRICS split into 3 lines on recid 2050111) and 2050012 (2024-12-01, 1 line). silv_event_amount: Renewal RN:7020502:2025 (2024-11-05, amount year 2025) 'Matched' to 2050012. Invoice anomaly load runs.",
+      "expected": "silv_data_anomaly holds exactly one row: ('EVENT_MATCHES_MULTIPLE_INVOICES', 7020502).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-018 surplus invoice with split lines gives one EVENT_MATCHES_MULTIPLE_INVOICES]"
+    },
+    {
+      "id": "TC-020-019",
+      "requirement_ids": [
+        "REQ-009"
+      ],
+      "acceptance_criterion_id": "AC-009-12",
+      "category": "idempotency",
+      "description": "A second invoice anomaly load on R11's split-line data changes no anomaly row.",
+      "preconditions": "Standard set-up (TC-020-001). Data as TC-020-017. The invoice anomaly load runs twice.",
+      "expected": "silv_data_anomaly is identical in every column after both loads. etl_run_log holds two 'Success' rows: (1, 0, 0) and (0, 0, 0) inserted, updated, deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-019 rerun of the invoice anomaly load on split lines changes nothing]"
+    },
+    {
+      "id": "TC-020-020",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-12",
+      "category": "happy_path",
+      "description": "K10's 2025 invoice has its CONRETIRED concession split into 2 lines (CC10 -300.00, CC20 -150.00). The split code is one concession.",
+      "preconditions": "Standard set-up (TC-020-001). 7020601: 2025 Renewal; invoice 2060001 (DD) with own lines SUBS_MRICS 450.00 and the 2 CONRETIRED lines, all on recid 2060101. @as_of_date 2025-06-15.",
+      "expected": "Exactly one attributes row: (7020601, 2025, concession_type_id 5 Retired, concession_type_carried 0, segment_invoice_rec_id 2060001).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-020 retired concession split across two lines sets Retired not carried]"
+    },
+    {
+      "id": "TC-020-021",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-12",
+      "category": "boundary",
+      "description": "An invoice has CONEXCEPTIONHP (discount 50) split into 2 lines and CONRETIRED (discount 100) split into 2 lines. The higher discount sets the year, and the perpetual Retired type carries into the next year, which has no invoice.",
+      "preconditions": "assumes Q-006: only perpetual concessions carry forward. Standard set-up (TC-020-001). 7020602: 2025 Renewal; invoice 2060011 (2025) with SUBS_MRICS and the 4 concession lines on recid 2060111; no 2026 invoice. @as_of_date 2026-06-15.",
+      "expected": "(7020602, 2025, concession 5 Retired, carried 0, segment 2060011) and (7020602, 2026, concession 5 Retired, carried 1, segment NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-021 split concession lines keep highest discount and perpetual carry forward]"
+    },
+    {
+      "id": "TC-020-022",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-13",
+      "category": "happy_path",
+      "description": "K11's 2025 invoice has item code CONUNKNOWN2, which is not in the reference, split into 2 lines. The year gets Unrecognised and exactly one CONCESSION_NOT_IN_REFERENCE row.",
+      "preconditions": "Standard set-up (TC-020-001). 7020701: 2025 Renewal; invoice 2070001 (DD) with SUBS_MRICS 450.00 and CONUNKNOWN2 -100.00 (CC10) and -50.00 (CC20), all on recid 2070101. Attributes load (@as_of_date 2025-06-15), then the segment anomaly load.",
+      "expected": "Attributes: (7020701, 2025, concession_type_id -1, concession_type_carried 0). silv_data_anomaly holds exactly one row: ('CONCESSION_NOT_IN_REFERENCE', 7020701).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-022 unknown concession code split across two lines gives one CONCESSION_NOT_IN_REFERENCE]"
+    },
+    {
+      "id": "TC-020-023",
+      "requirement_ids": [
+        "REQ-011"
+      ],
+      "acceptance_criterion_id": "AC-011-13",
+      "category": "duplicates",
+      "description": "CONCESSION_NOT_IN_REFERENCE is raised once per contact-year and unknown code, never per line. Two unknown codes, each split into 2 lines, give 2 rows. A known CONRETIRED code split into 2 lines gives none.",
+      "preconditions": "Standard set-up (TC-020-001). 7020702: invoice 2070002 with CONUNKNOWN3 (2 lines) and CONUNKNOWN4 (2 lines). 7020703: invoice 2070003 with CONRETIRED (2 lines), no paid position. Both have a 2025 Renewal. Attributes load (@as_of_date 2025-06-15), then the segment anomaly load.",
+      "expected": "Attributes: (7020702, 2025, concession -1, carried 0) and (7020703, 2025, concession 5, carried 0). silv_data_anomaly grouped by (anomaly_type, contact_no): exactly ('CONCESSION_NOT_IN_REFERENCE', 7020702, 2 rows). There is no row for 7020703.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD020].[test TC-020-023 one CONCESSION_NOT_IN_REFERENCE per unknown code and none for a split known code]"
+    }
+  ]
+}

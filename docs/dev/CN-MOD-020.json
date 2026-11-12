@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-020",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-12T10:08:13Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-020.json",
+      "tests/tsqlt/test_MOD020.sql"
+    ]
+  },
+  "module_id": "MOD-020",
+  "branch": "agent/developer/MOD-020-invoice-line-readers-at-the-new-grain",
+  "commit": "8fbb418b54eee08cf3890cb866d357305b1b59b2",
+  "requirement_ids": [
+    "REQ-004",
+    "REQ-006",
+    "REQ-007",
+    "REQ-009",
+    "REQ-011"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_member_year_attributes.sql",
+      "object": "Layercake.usp_load_silv_member_year_attributes",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-004",
+        "REQ-006",
+        "REQ-011"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD020_dev].[test a blank-mode line of a payment transaction does not drop its other lines]",
+    "[test_MOD020_dev].[test a payment transaction whose lines disagree takes its mode and amount from the lowest line_id]",
+    "[test_MOD020_dev].[test an event without a contact number fails the load logs Failed and leaves the target unchanged]",
+    "[test_MOD020_dev].[test correcting a split payment result logs one insert one update and one delete]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0020",
+      "up_script": "src/sql/deploy/MIG-0020_MOD-020_invoice-line-readers-at-the-new-grain.up.sql",
+      "down_script": "src/sql/deploy/MIG-0020_MOD-020_invoice-line-readers-at-the-new-grain.down.sql",
+      "rollback_test": {
+        "commit": "8fbb418b54eee08cf3890cb866d357305b1b59b2",
+        "run_at": "2026-11-12T10:08:07.872362+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Choice the design leaves open: if the qualifying lines of one payment transaction (recid) disagree on mode, date or settled amount (they repeat in the source, so they should not), the line with the lowest line_id gives the values for the whole transaction, with postingtype and accountdisplayvalue breaking any tie. Lines with a blank mode are dropped before that line is picked, so a blank line never makes a transaction disappear. Covered by test_MOD020_dev."
+  ],
+  "notes": "MOD-020 changes one rule in Layercake.usp_load_silv_member_year_attributes (RULE-013, RULE-105). In the payment-line fallback, the qualifying lines are first cut down to one row per (segment invoice, recid). Only then are the settled amounts summed per mapped method. So a split payment adds its settleamountcur once, and the earliest-payment and lowest-recid tie-breaks work on whole transactions. Nothing else in the load changed. The down script restores the MOD-007 definition, and the round-trip passes. Starting point: 21 of 23 Tester tests passed and 2 failed (TC-020-001, TC-020-002), the split-payment cases. Now all 23 Tester tests and the 4 dev tests pass. The other readers (line-type mapping, eligible-invoice view, concession choice, segment and invoice anomaly loads) passed their retests at the new grain without any change. Dev tests cover: lines of one transaction that disagree (lowest line_id wins), a blank-mode line inside a transaction, the insert, update and delete counts with created_at kept, and the error path (an event with no contact_no fails with 515, is logged Failed and leaves the target unchanged).\n\nTest-first: the first run had 21 of 23 of the Tester's tests passing; the final run passed 23 of 23 and 4 unit test(s), in 3 run(s)."
+}
