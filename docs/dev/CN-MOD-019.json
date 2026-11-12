@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-019",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-12T08:24:22Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-019.json",
+      "tests/tsqlt/test_MOD019.sql"
+    ]
+  },
+  "module_id": "MOD-019",
+  "branch": "agent/developer/MOD-019-invoice-lines-at-ledger-distribution-gra",
+  "commit": "6f9c9c8e20986bc2bccc8b39fb1a801362eff112",
+  "requirement_ids": [
+    "REQ-002"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.brnz_subs_invoice_line.sql",
+      "object": "Layercake.brnz_subs_invoice_line",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-002"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_brnz_subs_invoice_line.sql",
+      "object": "Layercake.usp_load_brnz_subs_invoice_line",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-002"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD019_dev].[test a line that both belongs to and settles the invoice lands once]",
+    "[test_MOD019_dev].[test case-only change in costcenter is landed as an update]",
+    "[test_MOD019_dev].[test identities differing only in trailing spaces fail the load and leave the target unchanged]",
+    "[test_MOD019_dev].[test restoring a soft-deleted line counts as one update and no insert]",
+    "[test_MOD019_dev].[test trailing space added to accountdisplayvalue matches the row and lands the new bytes in place]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0019",
+      "up_script": "src/sql/deploy/MIG-0019_MOD-019_invoice-lines-at-ledger-distribution-gra.up.sql",
+      "down_script": "src/sql/deploy/MIG-0019_MOD-019_invoice-lines-at-ledger-distribution-gra.down.sql",
+      "rollback_test": {
+        "commit": "6f9c9c8e20986bc2bccc8b39fb1a801362eff112",
+        "run_at": "2026-11-12T08:24:16.385804+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "ADR-006 is still 'proposed' (decision pending at the architecture gate). Built on its recommended Option A, as DES-001, MP-001 and TC-019-018 describe: line_id bigint identity as the clustered primary key, plus a unique key on (recid, postingtype, accountdisplayvalue). If another option is chosen, the table, its change script and TC-019-018 change.",
+    "The row identity is enforced by a named UNIQUE NONCLUSTERED constraint (UQ_Layercake_brnz_subs_invoice_line_recid_postingtype_accountdisplayvalue), not a CREATE UNIQUE INDEX. That keeps the change script to ALTER TABLE only. SQL Server enforces it through an unfiltered unique index with the same semantics: full width, a NULL equal to a NULL, database collation.",
+    "The down change script does more than ALTER TABLE (BASE_STANDARDS: change scripts are ALTER TABLE on that table only). The design asks for it (MP-001 MOD-019, ADR-006, DES-001 deployment): when the table holds rows, the script renames it and its constraints with the suffix _rolledback_MIG0019 and recreates it empty at its MOD-002 shape, because rows at the new grain can repeat a recid. When the table is empty, it alters the table back exactly. The round-trip covered the empty case. I ran the rows-held case in a rolled-back run_sql transaction, and it renamed the table and recreated it as expected.",
+    "DES-001's performance note says the table keeps its indexes on (accountnum, voucher) and lastsettlevoucher 'as before'. Neither the MOD-002 table nor the dev database has them, so none were added. Adding them is outside this module's scope."
+  ],
+  "notes": "Starting point: 2 of the Tester's 18 tests passed and 16 failed (no ledger columns; the load failed with a duplicate recid in staging). Now all 18 Tester tests and all 5 dev tests pass. The round-trip and checks pass; the sqlfluff findings are advisory style only.\n\nTable change (src/sql/changes/MOD-019): adds postingtype, accountdisplayvalue nvarchar(500), mainaccount, costcenter, ricscampaignyear (all nullable, at source width) and line_id bigint IDENTITY after the audit columns. It replaces the recid primary key with PK_Layercake_brnz_subs_invoice_line on line_id and adds the unique key on (recid, postingtype, accountdisplayvalue). Rows already landed get a line_id and NULL ledger columns.\n\nLoad: the staging table carries the five columns with COLLATE DATABASE_DEFAULT and an unnamed UNIQUE (recid, postingtype, accountdisplayvalue). A duplicate source identity therefore fails with error 2627 before any write: the load logs Failed and re-raises, and the target is unchanged. Duplicates are judged under the database collation, so a difference only in case or trailing spaces is the same identity, as the target's unique key judges it. Update, insert and soft delete match on the three columns, with NULL equal to NULL and strings compared under the collation. Every other column, including accountdisplayvalue itself, is compared as bytes, so a case-only or trailing-space change lands as an update in place. Restoring a soft-deleted row counts as an update. RULE-077 scope, the row-count check and the logging are unchanged.\n\nFirst run after deployment: old-grain rows are soft-deleted and the source rows are inserted at the new grain. The exception is a source row whose postingtype and accountdisplayvalue are both NULL: it matches its old row and is updated.\n\nDev tests cover: restore counted as 0 inserted / 1 updated; a trailing space in accountdisplayvalue matching and landing its bytes; a case-only change in costcenter; a row that both belongs to and settles the invoice landing once; and the error path (identities differing only in trailing spaces fail with 2627, logged Failed, target unchanged).\n\nTest-first: the first run had 2 of 18 of the Tester's tests passing; the final run passed 18 of 18 and 5 unit test(s), in 3 run(s)."
+}
