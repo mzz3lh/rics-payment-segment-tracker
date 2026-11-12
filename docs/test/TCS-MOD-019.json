@@ -1,0 +1,265 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-019",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-12T08:09:51Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-12T08:19:40Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-019",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-019-001",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-09",
+      "category": "happy_path",
+      "description": "A customer transaction split into 3 ledger distributions lands as 3 live rows, one per (postingtype, accountdisplayvalue), with the ledger columns copied 1:1, and the load logs Success.",
+      "preconditions": "Invoice A1/V1 in Subs.tblSubsInvoices. CUSTTRANS_RICS: recid 7001 (A1, V1, TRANSTYPE 2, productcode 'MRICS', MainAccount '400100', POSTINGTYPE 41, SETTLEAMOUNTCUR 500.00) on '400100-CC10-UK-MRICS-2025' (CC10, '2025', 300.00), '400100-CC20-UK-MRICS-2025' (CC20, '2025', 150.00) and '400100-CC10-UK-MRICS-2026' (CC10, '2026', 50.00). Target empty.",
+      "expected": "brnz_subs_invoice_line holds exactly those 3 rows, all _is_deleted 0, with recid 7001, postingtype 41, the source accountdisplayvalue, mainaccount '400100', costcenter, ricscampaignyear and amountcur 300.000000 / 150.000000 / 50.000000, and settleamountcur 500.000000 on all 3. etl_run_log has one row: bronze, brnz_subs_invoice_line, Success, 3 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-001 split transaction lands one live row per ledger distribution and logs Success]"
+    },
+    {
+      "id": "TC-019-002",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-09",
+      "category": "reconciliation",
+      "description": "The line amounts of a split transaction add up to the transaction amount, and the 3 rows remain one transaction (one recid); the transaction-level settled amount is not altered per line.",
+      "preconditions": "Same 3 source rows of recid 7001 as TC-019-001.",
+      "expected": "For recid 7001 live rows: 3 rows, 1 distinct recid, SUM(amountcur) 500.000000, settleamountcur 500.000000 on every row (min and max both 500.000000).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-002 split transaction line amounts sum to the transaction amount and it stays one recid]"
+    },
+    {
+      "id": "TC-019-003",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-10",
+      "category": "idempotency",
+      "description": "A second load on unchanged split lines changes nothing.",
+      "preconditions": "Same 3 source rows of recid 7001; load run twice.",
+      "expected": "The whole target after the second load is identical to the snapshot after the first (all columns, including line_id and audit columns); recid 7001 still has 3 live rows; the second etl_run_log row is Success with 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-003 rerun on unchanged split lines logs 0 inserted 0 updated 0 deleted and changes nothing]"
+    },
+    {
+      "id": "TC-019-004",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-10",
+      "category": "idempotency",
+      "description": "Changing AMOUNTCUR on one distribution of a split transaction updates that row only, in place.",
+      "preconditions": "Same 3 source rows of recid 7001, loaded once; then AMOUNTCUR on '400100-CC20-UK-MRICS-2025' set to 160.00 and the load run again.",
+      "expected": "Second etl_run_log row: Success, 0 inserted, 1 updated, 0 deleted. recid 7001 has 3 live rows with amountcur 300.000000 (CC10-2025), 160.000000 (CC20-2025), 50.000000 (CC10-2026). The CC10-2025 and CC10-2026 rows are identical to their snapshot before the reload (all columns); the CC20-2025 row keeps its line_id and _loaded_at.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-004 changed amount on one line of a split transaction updates that line only]"
+    },
+    {
+      "id": "TC-019-005",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-11",
+      "category": "nulls",
+      "description": "A GEN line with POSTINGTYPE, ACCOUNTDISPLAYVALUE, MainAccount, CostCenter and RICSCAMPAIGNYEAR all null lands as one live row with those five columns null (no defaulting).",
+      "preconditions": "Invoice A1/V1. CUSTTRANS_RICS: recid 7101, A1, V1, RICINVOICETYPE 'GEN', AMOUNTCUR 20.00, the five ledger columns null. Target empty.",
+      "expected": "Exactly one row: recid 7101, ricinvoicetype 'GEN', amountcur 20.000000, postingtype, accountdisplayvalue, mainaccount, costcenter and ricscampaignyear all NULL, _is_deleted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-005 GEN line with all five ledger columns null lands as one live row with them null]"
+    },
+    {
+      "id": "TC-019-006",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-11",
+      "category": "nulls",
+      "description": "Rows whose identity has a null postingtype and/or accountdisplayvalue are matched to themselves on a rerun (null equals null), so they are not re-inserted or soft-deleted.",
+      "preconditions": "Invoice A1/V1. CUSTTRANS_RICS: (7201, null, null, 10.00), (7202, null, 'ADV-1', 11.00), (7202, 41, 'ADV-1', 12.00), (7203, 41, null, 13.00). Load run twice.",
+      "expected": "Target after the second load is identical to the snapshot after the first and holds exactly those 4 rows, all live, with amountcur 10/11/12/13.000000. Second etl_run_log row: Success, 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-006 rerun matches null postingtype and null accountdisplayvalue to their rows and changes nothing]"
+    },
+    {
+      "id": "TC-019-007",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-12",
+      "category": "reconciliation",
+      "description": "On a mixed synthetic set, live rows equal the CUSTTRANS_RICS rows in RULE-077 scope at line grain, with no duplicate identity, and outnumber the distinct recids because transactions are split. Out-of-scope rows (voucher not an invoice; settling row on another account) are not landed.",
+      "preconditions": "Invoices A1/V1 and A2/V2. In scope: recid 7001 x3 (A1/V1), 7101 x1 GEN with null ledger columns (A1/V1), payment 9001 x2 (A1, LASTSETTLEVOUCHER V1, POSTINGTYPE 14, '120000-CC10-UK--2025' and '-2026'), 7301 x1 (A2/V2). Out of scope: 8001 x2 (A1/V9), 8101 x1 (A3, LASTSETTLEVOUCHER V1).",
+      "expected": "Live rows are exactly the 7 in-scope identities: (7001,41,'400100-CC10-UK-MRICS-2025'), (7001,41,'400100-CC20-UK-MRICS-2025'), (7001,41,'400100-CC10-UK-MRICS-2026'), (7101,null,null), (9001,14,'120000-CC10-UK--2025'), (9001,14,'120000-CC10-UK--2026'), (7301,41,'400100-CC10-UK-FRICS-2025'). 0 identities with more than one live row. 7 live rows, 4 distinct recids.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-007 live rows equal the in-scope source rows with no duplicate identity and more rows than recids]"
+    },
+    {
+      "id": "TC-019-008",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-12",
+      "category": "boundary",
+      "description": "An accountdisplayvalue at the full source width of 500 characters lands without truncation, and two rows of one recid that differ only in the 500th character are two identities.",
+      "preconditions": "Invoice A1/V1. CUSTTRANS_RICS: recid 7401, POSTINGTYPE 41, ACCOUNTDISPLAYVALUE 499 x 'A' followed by '1' (AMOUNTCUR 60.00), and 499 x 'A' followed by '2' (AMOUNTCUR 40.00).",
+      "expected": "Two live rows for recid 7401; each accountdisplayvalue is byte-for-byte the source value with DATALENGTH 1000; amountcur 60.000000 and 40.000000 respectively.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-008 500 character accountdisplayvalue lands at full width and the last character tells two rows apart]"
+    },
+    {
+      "id": "TC-019-009",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-12",
+      "category": "duplicates",
+      "description": "Two in-scope source rows with the same (recid, postingtype, accountdisplayvalue) fail the load: the error reaches the caller, the run is logged Failed and the target is unchanged (no row skipped, no partial write).",
+      "preconditions": "Target holds one live row recid 6001 (postingtype 41, '220000-CC10-UK-TAX', amountcur 10.00). Source: 6001 with amountcur 20.00 (a change that must not be written), and two rows recid 7001, 41, '400100-CC10-UK-MRICS-2025' (300.00 and 200.00). Runs outside the tSQLt transaction. The design names no error number, so any error other than a missing object or column counts.",
+      "expected": "The load raises an error. The target equals its snapshot from before the call (6001 still amountcur 10.000000, no 7001 rows). etl_run_log holds one brnz_subs_invoice_line row with status 'Failed' and a non-null error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-009 duplicate source identity fails the load logs Failed and leaves the target unchanged]"
+    },
+    {
+      "id": "TC-019-010",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-11",
+      "category": "duplicates",
+      "description": "Two source rows of the same recid with both postingtype and accountdisplayvalue null are the same identity (null equals null) and fail the load.",
+      "preconditions": "Invoice A1/V1. Source: two GEN rows recid 7201, POSTINGTYPE and ACCOUNTDISPLAYVALUE null, MainAccount '410000' and '420000'. Target empty. Runs outside the tSQLt transaction.",
+      "expected": "The load raises an error; the target stays empty; etl_run_log row status 'Failed' with a non-null error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-010 two source rows of one recid with null postingtype and null accountdisplayvalue fail the load]"
+    },
+    {
+      "id": "TC-019-011",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-12",
+      "category": "duplicates",
+      "description": "Identity strings are compared under the database collation, as the unique index compares them: two rows of one recid and postingtype whose accountdisplayvalue differs only in case are one identity and fail the load.",
+      "preconditions": "Invoice A1/V1. Source: recid 7001, POSTINGTYPE 41, '400100-CC10-UK-MRICS-2025' (300.00) and '400100-cc10-uk-mrics-2025' (200.00). Target empty. Runs outside the tSQLt transaction.",
+      "expected": "The load raises an error; the target stays empty; etl_run_log row status 'Failed' with a non-null error_message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-011 two source rows whose accountdisplayvalue differs only in case are one identity and fail the load]"
+    },
+    {
+      "id": "TC-019-012",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-10",
+      "category": "boundary",
+      "description": "A source row whose accountdisplayvalue changed only in case matches its existing bronze row under the collation: it is updated in place (bronze is 1:1, RULE-004), not inserted as a new row with the old one soft-deleted.",
+      "preconditions": "Target holds live row recid 7001, 41, '400100-CC10-UK-MRICS-2025' with every other column equal to the source. Source has the same row with ACCOUNTDISPLAYVALUE '400100-cc10-UK-MRICS-2025'.",
+      "expected": "Exactly one row in the target: recid 7001, live, accountdisplayvalue bytes equal to N'400100-cc10-UK-MRICS-2025'. etl_run_log: Success, 0 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-012 case-only change in accountdisplayvalue matches the existing row and lands the new bytes in place]"
+    },
+    {
+      "id": "TC-019-013",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-12",
+      "category": "boundary",
+      "description": "First run after the change: a row landed at the old recid grain (null ledger columns) does not match the split source rows, so it is soft-deleted and the split rows are inserted; live rows then equal the source rows in scope.",
+      "preconditions": "Target holds one live old-grain row recid 7001 (ledger columns null, amountcur 500.00). Source: the 3 split rows of recid 7001 from TC-019-001.",
+      "expected": "recid 7001 has 4 rows: the old one (postingtype and accountdisplayvalue null, amountcur 500.000000) with _is_deleted 1 and _deleted_at set, and the 3 split rows live (300/150/50.000000) with _deleted_at null. etl_run_log: Success, 3 inserted, 0 updated, 1 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-013 first run after the change soft-deletes the old recid-grain row and inserts the split rows]"
+    },
+    {
+      "id": "TC-019-014",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-11",
+      "category": "nulls",
+      "description": "First run after the change, the design's stated exception: an old-grain row whose source row also has null postingtype and accountdisplayvalue matches it and is updated in place with the new ledger columns.",
+      "preconditions": "Target holds old-grain live row recid 7101 (GEN, amountcur 20.00, ledger columns null). Source: recid 7101 with POSTINGTYPE and ACCOUNTDISPLAYVALUE null, MainAccount '410000', CostCenter 'CC10', RICSCAMPAIGNYEAR null, other values unchanged.",
+      "expected": "Exactly one row: recid 7101, postingtype null, accountdisplayvalue null, mainaccount '410000', costcenter 'CC10', ricscampaignyear null, amountcur 20.000000, _is_deleted 0. etl_run_log: Success, 0 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-014 first run after the change updates an old row whose source row has null postingtype and accountdisplayvalue]"
+    },
+    {
+      "id": "TC-019-015",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-10",
+      "category": "negative",
+      "description": "When one distribution of a split transaction disappears from the source, only that row is soft-deleted; the transaction's other rows are untouched.",
+      "preconditions": "The 3 split rows of recid 7001 loaded once; then the '400100-CC10-UK-MRICS-2026' row deleted from the source and the load run again.",
+      "expected": "recid 7001: CC10-2025 and CC20-2025 live with _deleted_at null and identical to their snapshot before the reload; CC10-2026 _is_deleted 1 with _deleted_at set. Second etl_run_log row: Success, 0 inserted, 0 updated, 1 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-015 one line gone from a split transaction is soft-deleted and the other lines are untouched]"
+    },
+    {
+      "id": "TC-019-016",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-10",
+      "category": "happy_path",
+      "description": "A soft-deleted line that reappears in the source is restored on its three-column identity rather than inserted again.",
+      "preconditions": "Target: recid 7001 '400100-CC10-UK-MRICS-2025' live (300.00) and '400100-CC10-UK-MRICS-2026' soft-deleted (_deleted_at 2026-11-01 06:00, 50.00). Source has both rows with the same values.",
+      "expected": "recid 7001 has exactly 2 rows, both live with _deleted_at null (amountcur 300.000000 and 50.000000). etl_run_log rows_inserted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-016 a soft-deleted line that reappears is restored in place on its identity]"
+    },
+    {
+      "id": "TC-019-017",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-09",
+      "category": "happy_path",
+      "description": "The changed table carries line_id and the five ledger columns with the design's types, at source width, nullable; recid stays bigint NOT NULL.",
+      "preconditions": "Reads the real Layercake.brnz_subs_invoice_line (the original FakeTable renamed) through sys.columns.",
+      "expected": "line_id bigint NOT NULL identity; recid bigint NOT NULL; postingtype int NULL; accountdisplayvalue nvarchar(500) NULL (1000 bytes); mainaccount nvarchar(20) NULL; costcenter nvarchar(30) NULL; ricscampaignyear nvarchar(10) NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-017 table has line_id and the five ledger columns at source width and nullability]"
+    },
+    {
+      "id": "TC-019-018",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "acceptance_criterion_id": "AC-002-12",
+      "category": "duplicates",
+      "description": "The database enforces the row identity: the primary key is line_id, and the only other unique key is an unfiltered unique index on (recid, postingtype, accountdisplayvalue), so null counts as equal to null and recid alone is no longer unique.",
+      "preconditions": "Reads the real table's unique indexes through sys.indexes and sys.index_columns (key columns compared as a set, ordered by name). Per DES-001 and ADR-006 Option A as recommended; ADR-006 is still pending at the architecture gate, so this test changes if another option is chosen.",
+      "expected": "Exactly two unfiltered unique indexes: the primary key on line_id, and a unique index on accountdisplayvalue, postingtype, recid.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD019].[test TC-019-018 primary key is line_id and the only other unique key is unfiltered on recid postingtype and accountdisplayvalue]"
+    }
+  ]
+}
