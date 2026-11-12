@@ -524,10 +524,12 @@ select
     p.invoice_position   as pay_invoice_position,
     p.renewal_date_adj   as pay_renewal_date_adj,
     p.payment_date       as pay_payment_date,
-    p.payment_source     as pay_payment_source
+    rpt.payer_type_name  as pay_payer_type  -- payment_source was retired by MOD-009 (Q-024); payer type lives on silv_member_year_attributes (RULE-027)
 into #pay
 from Layercake.silv_payment_events p
 join #cohort k on k.contact_no = p.contact_no
+left join Layercake.silv_member_year_attributes mya on mya.contact_no = p.contact_no and mya.campaign_year = p.campaign_year
+left join Layercake.silv_ref_payer_type rpt on rpt.id = mya.payer_type_id
 where p.campaign_year = @cy;
 
 create unique clustered index cx_pay on #pay (contact_no);
@@ -754,7 +756,7 @@ select
     py.pay_invoice_position,
     py.pay_renewal_date_adj,
     py.pay_payment_date,
-    py.pay_payment_source,
+    py.pay_payer_type,
 
     -- the EVENT paid-in chain
     cast(iif(ep.contact_no is not null, 1, 0) as bit) as has_event_paid_in,
@@ -840,7 +842,7 @@ create table #diff
     pay_invoice_position       nvarchar(64)   null,
     pay_renewal_date_adj       date           null,
     pay_payment_date           date           null,
-    pay_payment_source         nvarchar(64)   null,
+    pay_payer_type             varchar(30)    null,
     has_event_paid_in          bit            null,
     event_paid_in_type         varchar(20)    null,
     event_paid_in_event_date   date           null,
@@ -880,7 +882,7 @@ insert into #diff
  src_rows, src_paid_rows, src_paid_position, src_dedupe_winner_position, src_renewal_date,
  src_renewal_date_adj, has_bronze_subs_row, bronze_position, bronze_renewal_date_adj,
  bronze_is_deleted, has_payment_event, pay_invoice_position, pay_renewal_date_adj,
- pay_payment_date, pay_payment_source, has_event_paid_in, event_paid_in_type,
+ pay_payment_date, pay_payer_type, has_event_paid_in, event_paid_in_type,
  event_paid_in_event_date, event_paid_in_date, event_paid_in_after_cy_end,
  bronze_contact_rows, bronze_nontest_rows, has_rics_record, rics_grade, has_transactions,
  base_rows, mb_enrolment_date, mb_election_date, mb_lapsed_date, enrolment_rows,
@@ -905,7 +907,7 @@ select
     f.src_rows, f.src_paid_rows, f.src_paid_position, f.src_dedupe_winner_position, f.src_renewal_date,
     f.src_renewal_date_adj, f.has_bronze_subs_row, f.bronze_position, f.bronze_renewal_date_adj,
     f.bronze_is_deleted, f.has_payment_event, f.pay_invoice_position, f.pay_renewal_date_adj,
-    f.pay_payment_date, f.pay_payment_source, f.has_event_paid_in, f.event_paid_in_type,
+    f.pay_payment_date, f.pay_payer_type, f.has_event_paid_in, f.event_paid_in_type,
     f.event_paid_in_event_date, f.event_paid_in_date, f.event_paid_in_after_cy_end,
     f.bronze_contact_rows, f.bronze_nontest_rows, f.has_rics_record, f.rics_grade, f.has_transactions,
     f.base_rows, f.mb_enrolment_date, f.mb_election_date, f.mb_lapsed_date, f.enrolment_rows,
@@ -994,7 +996,7 @@ insert into #diff
  src_rows, src_paid_rows, src_paid_position, src_dedupe_winner_position, src_renewal_date,
  src_renewal_date_adj, has_bronze_subs_row, bronze_position, bronze_renewal_date_adj,
  bronze_is_deleted, has_payment_event, pay_invoice_position, pay_renewal_date_adj,
- pay_payment_date, pay_payment_source, has_event_paid_in, event_paid_in_type,
+ pay_payment_date, pay_payer_type, has_event_paid_in, event_paid_in_type,
  event_paid_in_event_date, event_paid_in_date, event_paid_in_after_cy_end,
  bronze_contact_rows, bronze_nontest_rows, has_rics_record, rics_grade, has_transactions,
  base_rows, mb_enrolment_date, mb_election_date, mb_lapsed_date, enrolment_rows,
@@ -1012,7 +1014,7 @@ select
     f.src_rows, f.src_paid_rows, f.src_paid_position, f.src_dedupe_winner_position, f.src_renewal_date,
     f.src_renewal_date_adj, f.has_bronze_subs_row, f.bronze_position, f.bronze_renewal_date_adj,
     f.bronze_is_deleted, f.has_payment_event, f.pay_invoice_position, f.pay_renewal_date_adj,
-    f.pay_payment_date, f.pay_payment_source, f.has_event_paid_in, f.event_paid_in_type,
+    f.pay_payment_date, f.pay_payer_type, f.has_event_paid_in, f.event_paid_in_type,
     f.event_paid_in_event_date, f.event_paid_in_date, f.event_paid_in_after_cy_end,
     f.bronze_contact_rows, f.bronze_nontest_rows, f.has_rics_record, f.rics_grade, f.has_transactions,
     f.base_rows, f.mb_enrolment_date, f.mb_election_date, f.mb_lapsed_date, f.enrolment_rows,
@@ -1046,7 +1048,7 @@ insert into #diff
  src_rows, src_paid_rows, src_paid_position, src_dedupe_winner_position, src_renewal_date,
  src_renewal_date_adj, has_bronze_subs_row, bronze_position, bronze_renewal_date_adj,
  bronze_is_deleted, has_payment_event, pay_invoice_position, pay_renewal_date_adj,
- pay_payment_date, pay_payment_source, has_event_paid_in, event_paid_in_type,
+ pay_payment_date, pay_payer_type, has_event_paid_in, event_paid_in_type,
  event_paid_in_event_date, event_paid_in_date, event_paid_in_after_cy_end,
  bronze_contact_rows, bronze_nontest_rows, has_rics_record, rics_grade, has_transactions,
  base_rows, mb_enrolment_date, mb_election_date, mb_lapsed_date, enrolment_rows,
@@ -1071,7 +1073,7 @@ select
     f.src_rows, f.src_paid_rows, f.src_paid_position, f.src_dedupe_winner_position, f.src_renewal_date,
     f.src_renewal_date_adj, f.has_bronze_subs_row, f.bronze_position, f.bronze_renewal_date_adj,
     f.bronze_is_deleted, f.has_payment_event, f.pay_invoice_position, f.pay_renewal_date_adj,
-    f.pay_payment_date, f.pay_payment_source, f.has_event_paid_in, f.event_paid_in_type,
+    f.pay_payment_date, f.pay_payer_type, f.has_event_paid_in, f.event_paid_in_type,
     f.event_paid_in_event_date, f.event_paid_in_date, f.event_paid_in_after_cy_end,
     f.bronze_contact_rows, f.bronze_nontest_rows, f.has_rics_record, f.rics_grade, f.has_transactions,
     f.base_rows, f.mb_enrolment_date, f.mb_election_date, f.mb_lapsed_date, f.enrolment_rows,
@@ -1158,7 +1160,7 @@ insert into #diff
  src_rows, src_paid_rows, src_paid_position, src_dedupe_winner_position, src_renewal_date,
  src_renewal_date_adj, has_bronze_subs_row, bronze_position, bronze_renewal_date_adj,
  bronze_is_deleted, has_payment_event, pay_invoice_position, pay_renewal_date_adj,
- pay_payment_date, pay_payment_source, has_event_paid_in, event_paid_in_type,
+ pay_payment_date, pay_payer_type, has_event_paid_in, event_paid_in_type,
  event_paid_in_event_date, event_paid_in_date, event_paid_in_after_cy_end,
  bronze_contact_rows, bronze_nontest_rows, has_rics_record, rics_grade, has_transactions,
  base_rows, mb_enrolment_date, mb_election_date, mb_lapsed_date, enrolment_rows,
@@ -1176,7 +1178,7 @@ select
     f.src_rows, f.src_paid_rows, f.src_paid_position, f.src_dedupe_winner_position, f.src_renewal_date,
     f.src_renewal_date_adj, f.has_bronze_subs_row, f.bronze_position, f.bronze_renewal_date_adj,
     f.bronze_is_deleted, f.has_payment_event, f.pay_invoice_position, f.pay_renewal_date_adj,
-    f.pay_payment_date, f.pay_payment_source, f.has_event_paid_in, f.event_paid_in_type,
+    f.pay_payment_date, f.pay_payer_type, f.has_event_paid_in, f.event_paid_in_type,
     f.event_paid_in_event_date, f.event_paid_in_date, f.event_paid_in_after_cy_end,
     f.bronze_contact_rows, f.bronze_nontest_rows, f.has_rics_record, f.rics_grade, f.has_transactions,
     f.base_rows, f.mb_enrolment_date, f.mb_election_date, f.mb_lapsed_date, f.enrolment_rows,
@@ -1505,7 +1507,7 @@ select
     d.pay_invoice_position,
     d.pay_renewal_date_adj,
     d.pay_payment_date,
-    d.pay_payment_source,
+    d.pay_payer_type,
     d.has_event_paid_in,
     d.event_paid_in_type,
     d.event_paid_in_event_date,
