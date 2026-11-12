@@ -7,17 +7,17 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-11-12T11:46:03Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-12T12:31:52Z",
+      "approved_by": "Mike",
+      "approved_at": "2026-11-12T13:07:24Z",
       "gate": "test_design_review",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+      "comments": "Reopened: TC-016-018 only: the test cannot pass whatever the code does, because #Actual.object_type keeps sys.objects.type's fixed catalog collation (Latin1_General_CI_AS_KS_WS) and tSQLt.AssertEqualsTable's UNION ALL with #Expected fails with error 451. Change only the #Actual select to CAST(RTRIM(o.type) AS nvarchar(2)) COLLATE DATABASE_DEFAULT AS object_type. The condition text, the 24 expected objects and kinds, SetUp and every other test stay unchanged."
     }
   },
   "module_id": "MOD-016",
