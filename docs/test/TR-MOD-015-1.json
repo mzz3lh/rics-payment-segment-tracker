@@ -1,0 +1,106 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-12T11:38:59Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-015-1",
+    "source_artefacts": [
+      "CN-MOD-015",
+      "TCS-MOD-015",
+      "tests/tsqlt/test_MOD015.sql"
+    ]
+  },
+  "module_id": "MOD-015",
+  "loop_number": 1,
+  "run": {
+    "environment": "test",
+    "commit": "b838d4adc465474a25a192ebf36f089c42e15560",
+    "started_at": "2026-11-12T11:35:52Z",
+    "finished_at": "2026-11-12T11:38:55Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-015-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-013",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-014",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-015",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-016",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-015-017",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-014",
+      "status": "met"
+    }
+  ],
+  "regression": {
+    "ran": 500,
+    "failed": []
+  },
+  "verdict": "pass"
+}

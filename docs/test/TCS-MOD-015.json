@@ -1,0 +1,252 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-015",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-12T10:58:45Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-12T11:31:48Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-015",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-015-001",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-01",
+      "category": "happy_path",
+      "description": "AC-014-01 as written: 8 paid positions in 2025, 6 with one of the five methods, 1 Unknown and 1 Unrecognised, give payment method coverage 75.0. The same report gives separate rows for Change and Lapse events (RULE-067).",
+      "preconditions": "Assumed interface. DES-001 gives one line per report. The Tester asked for the interface (ask_human, 2026-11-12) and the answer was deferred, so these tests use the interface proposed in that question. All four reports take @as_of_date date = NULL and return exactly one result set of aggregates. Current Campaign Year = the ref_campaign_year_config row covering @as_of_date. Last full Campaign Year = the year before that one. A paid position is a silv_payment_events row. Its payment method, payer type and concession come from silv_member_year_attributes for the same contact-year (no row = 0 Unknown). Events are read from silv_membership_events by their own campaign_year. Labels are the silv_ref_* names. Rates are count / total x 100 as decimal(5,1). A year or basis with no rows has no output row. usp_report_payment_method_coverage returns (campaign_year int, basis varchar(20) 'Paid position' or the event_type, total int, with_method int (payment_method_id > 0), coverage_pct decimal(5,1)) for campaign_year >= 2021. Standard set-up (SetUp): fakes silv_payment_events, silv_member_year_attributes, silv_membership_events, ref_campaign_year_config (2020 to 2027, 1 Oct to 30 Sep), silv_ref_payment_method (0, -1, -2, 1 Direct Debit, 2 Card, 3 Bank transfer, 4 Cheque, 5 Corporate), silv_ref_payer_type (0, -1, -2, 1 Individual, 2 Corporate) and silv_ref_concession_type (0, -1, -2, 1 No concession, 5 Retired, 6 Exceptional Hardship). Here: 2025 positions 7150101-7150108 with methods 1, 2, 3, 4, 5, 1, 0, -1. Each has a 2025 Renewal with the same method. A Change for 7150102 (Card) and a Lapse for 7150107 (0). @as_of_date 2026-03-01.",
+      "expected": "Four rows: (2025, 'Paid position', 8, 6, 75.0), (2025, 'Renewal', 8, 6, 75.0), (2025, 'Change', 1, 1, 100.0), (2025, 'Lapse', 1, 0, 0.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-001 eight 2025 paid positions with six methods give coverage 75.0 and Change and Lapse get their own rows]"
+    },
+    {
+      "id": "TC-015-002",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-01",
+      "category": "boundary",
+      "description": "Coverage by event type has one row per event type (Join, Readmission, Renewal, Change, Lapse). Coverage is rounded to one decimal place: 2 of 3 gives 66.7, not 66.6.",
+      "preconditions": "Assumed interface and standard set-up as in TC-015-001. 2024 positions: 7150201 DD, 7150202 DD, 7150203 Unknown. Events in 2024: Join 7150201 (DD), Readmission 7150202 (DD), Renewal 7150203 (0), Change 7150201 (DD), Change 7150203 (0), Lapse 7150203 (0).",
+      "expected": "(2024, 'Paid position', 3, 2, 66.7), (2024, 'Join', 1, 1, 100.0), (2024, 'Readmission', 1, 1, 100.0), (2024, 'Renewal', 1, 0, 0.0), (2024, 'Change', 2, 1, 50.0), (2024, 'Lapse', 1, 0, 0.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-002 payment method coverage has one row per event type and rounds two in three to 66.7]"
+    },
+    {
+      "id": "TC-015-003",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-01",
+      "category": "boundary",
+      "description": "Coverage is reported from Campaign Year 2021 (RULE-067), so 2020 is left out. Not applicable (-2) is not one of the five methods, so it is not covered.",
+      "preconditions": "assumes Q-011: years before 2022 hold -2 Not applicable. Assumed interface and standard set-up as in TC-015-001. 7150301 has paid positions, attributes and a Renewal in 2020 (-2), 2021 (-2) and 2022 (Card).",
+      "expected": "(2021, 'Paid position', 1, 0, 0.0), (2021, 'Renewal', 1, 0, 0.0), (2022, 'Paid position', 1, 1, 100.0), (2022, 'Renewal', 1, 1, 100.0). No 2020 row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-003 payment method coverage starts at 2021 and Not applicable is not covered]"
+    },
+    {
+      "id": "TC-015-004",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-01",
+      "category": "nulls",
+      "description": "A paid position with no attributes row for its contact-year counts in the total but is not covered. An attributes row with no paid position is not counted, and neither is the same contact's row for another year.",
+      "preconditions": "Assumed interface (no attributes row = 0 Unknown) and standard set-up as in TC-015-001. 2025 positions: 7150401 (attributes 2025 DD; a 2024 Card row with no 2024 position) and 7150402 (no attributes). 7150403 has 2025 attributes (DD) but no position. No events.",
+      "expected": "One row: (2025, 'Paid position', 2, 1, 50.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-004 a paid position with no attributes row is not covered and an attributes row with no paid position is not counted]"
+    },
+    {
+      "id": "TC-015-005",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-02",
+      "category": "happy_path",
+      "description": "AC-014-02 as written: 10 Join, Renewal and Readmission events in 2025, 9 with an invoiced_subtotal_gbp and 1 'No invoice', give coverage 90.0 and the counts by amount_status (RULE-068). An amount of 0.00 is covered.",
+      "preconditions": "Assumed interface as in TC-015-001. usp_report_invoiced_subtotal_coverage returns one row per campaign_year over Join, Renewal and Readmission events: (campaign_year, events, with_invoiced_subtotal, coverage_pct decimal(5,1), before_invoice_data, no_invoice, counted_on_another_event, full_concession, fully_credited, invoiced). Standard set-up. 2025 events: Join 450.00 'Invoiced'; Readmission 480.00 'Invoiced'; 4 Renewals 'Invoiced' (450.00, 430.00, 450.00, 450.00); 2 Renewals 0.00 'Full Concession'; 1 Renewal 0.00 'Fully credited'; 1 Renewal NULL 'No invoice'.",
+      "expected": "One row: (2025, 10, 9, 90.0, before_invoice_data 0, no_invoice 1, counted_on_another_event 0, full_concession 2, fully_credited 1, invoiced 6).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-005 ten 2025 events with nine invoiced subtotals give coverage 90.0 and amount_status counts]"
+    },
+    {
+      "id": "TC-015-006",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-02",
+      "category": "negative",
+      "description": "Change and Lapse events are not in invoiced subtotal coverage, and a year with only Change events has no row. Events with a null amount ('Counted on another event', 'Before invoice data') count as events but are not covered.",
+      "preconditions": "Assumed interface and standard set-up as in TC-015-001 and TC-015-005. 2024 events: Renewal 7150601 450.00 'Invoiced'; Readmission 7150601 NULL 'Counted on another event'; Change 7150601 and Lapse 7150602 with NULL amounts and status. A 2021 Renewal 7150603 NULL 'Before invoice data'. A 2023 Change 7150604 only.",
+      "expected": "(2021, 1, 0, 0.0, 1, 0, 0, 0, 0, 0) and (2024, 2, 1, 50.0, 0, 0, 1, 0, 0, 1). No 2023 row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-006 invoiced subtotal coverage leaves out Change and Lapse and counts null amounts as not covered]"
+    },
+    {
+      "id": "TC-015-007",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-03",
+      "category": "happy_path",
+      "description": "AC-014-03 as written: 4 Partially Paid positions in the current Campaign Year, 3 of them Direct Debit, give a Direct Debit share of 75.0 (RULE-069).",
+      "preconditions": "Assumed interface as in TC-015-001. usp_report_direct_debit_share returns one row for the current Campaign Year: (campaign_year, partially_paid_positions, direct_debit_positions, direct_debit_share_pct decimal(5,1)). Partially Paid is silv_payment_events.invoice_position 'Partially Paid'. Direct Debit is the silv_ref_payment_method row named 'Direct Debit'. Standard set-up. @as_of_date 2025-06-15 (CY2025). 2025 Partially Paid positions: 7150701-7150703 DD, 7150704 Card.",
+      "expected": "One row: (2025, 4, 3, 75.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-007 four current year Partially Paid positions three of them Direct Debit give share 75.0]"
+    },
+    {
+      "id": "TC-015-008",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-03",
+      "category": "negative",
+      "description": "The Direct Debit share counts only Partially Paid positions in the current year. Direct Debit positions that are Fully Paid, Pre-Subs Payment or Full Concession are left out. So is a Partially Paid position in an earlier year, and so is an attributes row with no position. A Partially Paid position with no attributes row counts but is not Direct Debit. 1 of 3 gives 33.3.",
+      "preconditions": "Assumed interface and standard set-up as in TC-015-001 and TC-015-007. @as_of_date 2025-06-15. 2025: 7150801 Partially Paid DD; 7150802 Partially Paid Card; 7150803 Partially Paid, no attributes; 7150804 Fully Paid DD; 7150805 Pre-Subs Payment DD; 7150806 Full Concession DD. 2024: 7150807 Partially Paid DD. 7150808 has 2025 DD attributes and no position.",
+      "expected": "One row: (2025, 3, 1, 33.3).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-008 Direct Debit share counts only current year Partially Paid positions]"
+    },
+    {
+      "id": "TC-015-009",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-03",
+      "category": "boundary",
+      "description": "The current Campaign Year is the config year that covers @as_of_date (ADR-003). 2025-09-30 is the last day of CY2025, and 2025-10-01 is the first day of CY2026.",
+      "preconditions": "Assumed interface and standard set-up as in TC-015-001 and TC-015-007. Partially Paid positions: 2025: 7150901 DD, 7150902 DD. 2026: 7150903 DD, 7150904 Cheque. The report is run as of 2025-09-30 and as of 2025-10-01.",
+      "expected": "As of 2025-09-30: (2025, 2, 2, 100.0). As of 2025-10-01: (2026, 2, 1, 50.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-009 the current Campaign Year for the Direct Debit share is the year covering the as-of date]"
+    },
+    {
+      "id": "TC-015-010",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-04",
+      "category": "happy_path",
+      "description": "AC-014-04 as written: 100 paid members in the last full Campaign Year, 16 of them Corporate, give a corporate count of 16 and a corporate share of 16.0. Paid members by payment method are also returned (RULE-070).",
+      "preconditions": "Assumed interface as in TC-015-001. usp_report_last_full_year_totals returns one long-form result set for the last full Campaign Year: (campaign_year int, measure varchar(40), category nvarchar(100) NULL, value decimal(19,4)). Measures: 'paid_members_by_payment_method' (category = method name, one row per method with paid members); 'corporate_paid_members' and 'corporate_share_pct' (category NULL, Corporate = payer type named 'Corporate'); 'invoiced_subtotal_gbp_total' and 'subs_amount_gbp_total' (category NULL); 'paid_members_by_concession_type' (category = concession type name). Standard set-up. @as_of_date 2026-03-01, so the last full year is 2025. 2025 positions 7151001-7151100: the first 16 are payer Corporate with method Corporate, the other 84 are Individual with Direct Debit. Only the three measures shown are compared.",
+      "expected": "(2025, 'corporate_paid_members', NULL, 16), (2025, 'corporate_share_pct', NULL, 16.0), (2025, 'paid_members_by_payment_method', 'Corporate', 16), (2025, 'paid_members_by_payment_method', 'Direct Debit', 84).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-010 one hundred last full year paid members with sixteen Corporate give count 16 and share 16.0]"
+    },
+    {
+      "id": "TC-015-011",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-04",
+      "category": "negative",
+      "description": "Payer type decides Corporate, not payment method. A Corporate payer paying by Direct Debit is corporate. An Individual payer with the Corporate method is not. Paid positions in other years are not counted, and neither is an attributes row with no position.",
+      "preconditions": "Assumed interface and standard set-up as in TC-015-001 and TC-015-010. @as_of_date 2026-03-01. 2025 positions: 7151101 (Corporate method, Corporate payer), 7151102 (DD, Corporate payer), 7151103 (Corporate method, Individual payer), 7151104 (Unknown method and payer). 7151105 Corporate in 2024 only. 7151106 Corporate in 2026 only. 7151107 has 2025 Corporate attributes and no position.",
+      "expected": "(2025, 'corporate_paid_members', NULL, 2), (2025, 'corporate_share_pct', NULL, 50.0), (2025, 'paid_members_by_payment_method', 'Corporate', 2), (2025, 'paid_members_by_payment_method', 'Direct Debit', 1), (2025, 'paid_members_by_payment_method', 'Unknown', 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-011 corporate count uses payer type and only last full year paid positions]"
+    },
+    {
+      "id": "TC-015-012",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-04",
+      "category": "boundary",
+      "description": "The last full Campaign Year is the year before the one covering @as_of_date. As of 2025-09-30 that is 2024. As of 2025-10-01 it is 2025.",
+      "preconditions": "Assumed interface and standard set-up as in TC-015-001 and TC-015-010. 2024: 7151201 Corporate, 7151202 Individual. 2025: 7151203 Corporate, 7151204-7151206 Individual. Only corporate_paid_members and corporate_share_pct are compared.",
+      "expected": "As of 2025-09-30: (2024, 'corporate_paid_members', NULL, 1) and (2024, 'corporate_share_pct', NULL, 50.0). As of 2025-10-01: (2025, 'corporate_paid_members', NULL, 1) and (2025, 'corporate_share_pct', NULL, 25.0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-012 the last full Campaign Year is the year before the one covering the as-of date]"
+    },
+    {
+      "id": "TC-015-013",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-05",
+      "category": "happy_path",
+      "description": "AC-014-05 as written: last-full-year Renewals with amounts 450.00, 450.00 and 430.00 give a subs_amount_gbp total of 1330.00 and an invoiced_subtotal_gbp total of 1330.00. The 430.00 came from an EUR invoice, but the events hold it in GBP (Inv Total Amount), so the report sums the event columns as they are.",
+      "preconditions": "assumes Q-044 (ASM-001): subs_amount_gbp equals invoiced_subtotal_gbp on every event. Assumed interface as in TC-015-001 and TC-015-010: totals are sums over the last full year's Join, Renewal and Readmission events in silv_membership_events. Standard set-up. @as_of_date 2026-03-01. 2025 Renewals 7151301 450.00, 7151302 450.00, 7151303 430.00 (both columns), each with a 2025 paid position. Only the two total measures are compared.",
+      "expected": "(2025, 'invoiced_subtotal_gbp_total', NULL, 1330.0000) and (2025, 'subs_amount_gbp_total', NULL, 1330.0000).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-013 last full year Renewals of 450.00 450.00 and 430.00 total 1330.00 for both amount columns]"
+    },
+    {
+      "id": "TC-015-014",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-05",
+      "category": "reconciliation",
+      "description": "Each total sums its own column over the last full year's Join, Renewal and Readmission events. Null amounts ('Counted on another event') and 0.00 (Full Concession) add nothing. Events in other years are left out. The Join's subs_amount_gbp is set to differ from its invoiced_subtotal_gbp, so a report that sums one column twice is caught.",
+      "preconditions": "Assumed interface and standard set-up as in TC-015-001 and TC-015-010. @as_of_date 2026-03-01. 2025 events, giving invoiced / subs: Join 7151401 200.00 / 180.00; Readmission 7151402 300.00 / 300.00; Renewal 7151402 NULL / NULL 'Counted on another event'; Renewal 7151403 0.00 / 0.00 'Full Concession'; Change 7151401 NULL. Also a 2024 Renewal 999.00 and a 2026 Renewal 888.00. Only the two total measures are compared.",
+      "expected": "(2025, 'invoiced_subtotal_gbp_total', NULL, 500.0000) and (2025, 'subs_amount_gbp_total', NULL, 480.0000).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-014 amount totals sum each column over last full year join renewal and readmission events only]"
+    },
+    {
+      "id": "TC-015-015",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-04",
+      "category": "happy_path",
+      "description": "RULE-070: the last-full-year totals count paid members by concession type, with the type names from silv_ref_concession_type. A paid position with no attributes row counts as Unknown. Other years are left out.",
+      "preconditions": "Assumed interface (no attributes row = 0 Unknown) and standard set-up as in TC-015-001 and TC-015-010. @as_of_date 2026-03-01. 2025 positions: 7151501-7151503 No concession; 7151504 and 7151505 Retired; 7151506 Exceptional Hardship; 7151507 no attributes row. 7151508 is Exceptional Hardship in 2024 only. Only paid_members_by_concession_type is compared.",
+      "expected": "(2025, 'paid_members_by_concession_type', 'No concession', 3), ('Retired', 2), ('Exceptional Hardship', 1), ('Unknown', 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-015 last full year paid members are counted by concession type with no attributes row as Unknown]"
+    },
+    {
+      "id": "TC-015-016",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-06",
+      "category": "negative",
+      "description": "RULE-066: each of the four reports returns exactly its aggregate columns. INSERT ... EXEC into a table of that shape fails if any other column, such as contact_no, is returned, and the full result is compared. No returned text value is a contact number.",
+      "preconditions": "Assumed column lists as in TC-015-001, TC-015-005, TC-015-007 and TC-015-010. Standard set-up. @as_of_date 2026-03-01. Positions: 7151601 2025 (Corporate method, Corporate payer); 7151602 2025 (DD, Individual) and 2026 Partially Paid (DD). Both have No concession. 2025 Renewals: 7151601 450.00 and 7151602 380.00, both 'Invoiced'.",
+      "expected": "Payment method coverage: (2025, 'Paid position', 2, 2, 100.0), (2025, 'Renewal', 2, 2, 100.0), (2026, 'Paid position', 1, 1, 100.0). Invoiced coverage: (2025, 2, 2, 100.0, 0, 0, 0, 0, 0, 2). Direct Debit share: (2026, 1, 1, 100.0). Totals for 2025: by payment method Corporate 1 and Direct Debit 1; corporate_paid_members 1; corporate_share_pct 50.0; invoiced_subtotal_gbp_total 830.00; subs_amount_gbp_total 830.00; No concession 2. 0 text values equal 7151601 or 7151602.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-016 the four reports return only their aggregate columns and no contact number]"
+    },
+    {
+      "id": "TC-015-017",
+      "requirement_ids": [
+        "REQ-014"
+      ],
+      "acceptance_criterion_id": "AC-014-01",
+      "category": "idempotency",
+      "description": "ADR-003: the reports are read-only. Running each of the four twice on the same data gives the same results, and the tables they read are unchanged afterwards.",
+      "preconditions": "Assumed interface and standard set-up as in TC-015-001. @as_of_date 2026-03-01. Positions: 7151701 2025 Partially Paid (DD); 7151702 2025 (Corporate, Retired) and 2026 Partially Paid (DD). Events: 2025 Renewals 7151701 450.00 'Invoiced' and 7151702 0.00 'Full Concession'; 2026 Lapse 7151701. Snapshots of silv_payment_events, silv_member_year_attributes and silv_membership_events are taken before the runs and after them.",
+      "expected": "Row counts 4 (payment method coverage), 1 (invoiced coverage), 1 (Direct Debit share) and 8 (totals). Each report's second run equals its first. All three source tables are identical before and after.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD015].[test TC-015-017 running the reports twice returns the same results and changes no table]"
+    }
+  ]
+}

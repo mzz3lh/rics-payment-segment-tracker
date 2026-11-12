@@ -1,0 +1,113 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-015",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-12T11:35:21Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-015.json",
+      "tests/tsqlt/test_MOD015.sql"
+    ]
+  },
+  "module_id": "MOD-015",
+  "branch": "agent/developer/MOD-015-coverage-and-totals-queries",
+  "commit": "b838d4adc465474a25a192ebf36f089c42e15560",
+  "requirement_ids": [
+    "REQ-014"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_report_payment_method_coverage.sql",
+      "object": "Layercake.usp_report_payment_method_coverage",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_report_invoiced_subtotal_coverage.sql",
+      "object": "Layercake.usp_report_invoiced_subtotal_coverage",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_report_direct_debit_share.sql",
+      "object": "Layercake.usp_report_direct_debit_share",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_report_last_full_year_totals.sql",
+      "object": "Layercake.usp_report_last_full_year_totals",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-014"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD015_dev].[test Direct Debit share counts a Partially Paid position with no attributes row as not Direct Debit]",
+    "[test_MOD015_dev].[test Direct Debit share fails with 50014 when no Campaign Year covers the as-of date]",
+    "[test_MOD015_dev].[test Direct Debit share with no Partially Paid positions returns the year with 0 0 and a NULL share]",
+    "[test_MOD015_dev].[test invoiced subtotal coverage counts an event with no amount_status in events but in no status column]",
+    "[test_MOD015_dev].[test last full year totals fails with 50014 when the covering year has no earlier year]",
+    "[test_MOD015_dev].[test last full year totals lists reserved Not applicable and no attributes row as their own categories]",
+    "[test_MOD015_dev].[test last full year totals with no paid members and no events returns the four single measures]",
+    "[test_MOD015_dev].[test payment method coverage ignores the as-of date and leaves out events before 2021]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0021",
+      "up_script": "src/sql/deploy/MIG-0021_MOD-015_coverage-and-totals-queries.up.sql",
+      "down_script": "src/sql/deploy/MIG-0021_MOD-015_coverage-and-totals-queries.down.sql",
+      "rollback_test": {
+        "commit": "b838d4adc465474a25a192ebf36f089c42e15560",
+        "run_at": "2026-11-12T11:35:15.358884+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Grant script src/sql/grants/MOD-015.sql uses the placeholder role [<analyst_role>] (as MOD-014 does), because the analyst role's name is not known. A human replaces it and runs the script.",
+    "DES-001 does not define the four reports' interface. They are built to the interface in ASM-007 (Product Owner answer, unreviewed): one @as_of_date parameter, one aggregate result set each, and the columns, bases and measures stated there."
+  ],
+  "notes": "Four count-only report procedures in MIG-0021 (REQ-014, RULE-066 to RULE-070). There are no loads, no tables and no audit logging. Starting point: all 17 tests in test_MOD015 failed (procedures missing). Now 17/17 pass, plus 8 dev unit tests.\nChoices the Tester's suite does not pin down (each covered by a test_MOD015_dev test):\n- Both coverage reports accept @as_of_date and ignore it (including NULL). Payment method coverage drops event rows before 2021 as well as paid positions.\n- Invoiced subtotal coverage counts an event with NULL amount_status in `events` but in none of the six status columns.\n- Direct Debit share: Direct Debit is payment method id 1, matched by id. Corporate in the totals is payer type id 2. Both are fixed by the seeds. A Partially Paid position with no attributes row counts in the denominator, as not Direct Debit. With no Partially Paid positions the report still returns one row: (year, 0, 0, NULL).\n- Missing config year: direct_debit_share fails with THROW 50014 when no Campaign Year covers the date, and last_full_year_totals does the same when there is no earlier year. 50014 is the number usp_report_top_employers already uses (50015 is taken by the bootstrap).\n- Last full year totals with no paid members and no events: corporate_paid_members is 0, while corporate_share_pct and both amount totals are NULL.\n- Per-category rows include the reserved categories (Unknown, Not applicable). They are grouped by name and joined to the silv_ref_* lists.\nRound-trip and check pass. The sqlfluff findings are advisory style points only.\n\nTest-first: the first run had 0 of 17 of the Tester's tests passing; the final run passed 17 of 17 and 8 unit test(s), in 3 run(s)."
+}
