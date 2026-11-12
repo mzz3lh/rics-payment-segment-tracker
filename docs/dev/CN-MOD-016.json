@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-016",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-12T13:10:13Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-016.json",
+      "tests/tsqlt/test_MOD016.sql"
+    ]
+  },
+  "module_id": "MOD-016",
+  "branch": "agent/developer/MOD-016-run-sequence-regression-and-handover-com",
+  "commit": "ef9ae1eb11b8a078792177d6fba3e455a60c66b6",
+  "requirement_ids": [
+    "REQ-001",
+    "REQ-015",
+    "REQ-016"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_run_payment_segments.sql",
+      "object": "Layercake.usp_run_payment_segments",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-001",
+        "REQ-016"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD016_dev].[test a failing attributes load keeps the earlier loads committed and a rerun recovers]",
+    "[test_MOD016_dev].[test a run without a run id logs all 18 steps under one generated run id and its own row has no counts]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0022",
+      "up_script": "src/sql/deploy/MIG-0022_MOD-016_run-sequence-regression-and-handover-com.up.sql",
+      "down_script": "src/sql/deploy/MIG-0022_MOD-016_run-sequence-regression-and-handover-com.down.sql",
+      "rollback_test": {
+        "commit": "ef9ae1eb11b8a078792177d6fba3e455a60c66b6",
+        "run_at": "2026-11-12T13:10:07.922840+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "AC-001-04: the Phase 1 difference scripts (reference/phase1/Scripts/Reconciliation/active-member-difference.sql and paid-member-difference.sql) are SQLCMD files. They are not among the files the Developer can read, and no tool here runs SQLCMD, so their RS-1 verdicts are not recorded in this note. As ASM-009 allows, running both against a database loaded with the synthetic data, after the Phase 1 run and usp_run_payment_segments, and confirming both read PASS, is a listed handover step for a human. TC-016-015 and TC-016-008 to TC-016-011 cover the tables the scripts compare."
+  ],
+  "notes": "MOD-016 builds MIG-0022 with one object, Layercake.usp_run_payment_segments @run_id uniqueidentifier = NULL, @as_of_date date = NULL, built to the interface in ASM-008. A NULL run_id becomes NEWID() and every step logs under that one run_id. @as_of_date goes only to usp_load_silv_member_year_attributes. The procedure logs its own 'run' / 'usp_run_payment_segments' row with no row counts. It runs the 17 loads in DES-001 order: 4 bronze, 3 silver lists, 4 gold dimensions, attributes, event amounts, segment then invoice anomalies, silver event columns, then gold fact columns.\n\nIt opens no transaction of its own, so each load commits on its own as in Phase 1. On the first failure, CATCH rolls back any open transaction and logs the run row 'Failed' with the message, number and line. A bare THROW then passes the original error to the caller, and no later step runs. Recovery is to run the procedure again. No Phase 1 object is changed, no grants are needed, and a human schedules the run after the Phase 1 run.\n\nResults: the Tester's suite passes 21/21 and the 2 dev tests pass. The dev tests cover the 18 log rows under one generated run_id, and a failing attributes load (50001) that leaves the earlier loads committed, with a rerun that recovers. The round-trip passes and check passes; the sqlfluff findings are advisory style points.\n\nHandover steps for a human:\n(1) Schedule the run after the Phase 1 run.\n(2) Run the two Phase 1 difference scripts (see deviations).\n(3) After the first silver run with the derived retirement date, run the one-off Layercake.usp_load_silver @RebuildFrom (or @FullRebuild = 1) so past daily counts take the new Practising / Retired split (ASM-002).\n(4) Map the 'unmapped' line-type codes by hand after the first real load (Q-034).\n(5) Run the employer reports on real data and complete the employer data quality note (MOD-014).\n\nTest-first: the first run had 21 of 21 of the Tester's tests passing; the final run passed 21 of 21 and 2 unit test(s), in 1 run(s)."
+}
