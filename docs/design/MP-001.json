@@ -4,17 +4,18 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "MP-001",
-    "version": 2,
+    "version": 3,
     "produced_by": "technical_architect",
-    "produced_at": "2026-11-09T12:04:09Z",
+    "produced_at": "2026-11-12T08:09:09Z",
     "status": "approved",
     "source_artefacts": [
       "docs/design/DES-001.json",
-      "docs/amendments/AMD-001.json"
+      "docs/amendments/AMD-001.json",
+      "docs/amendments/AMD-002.json"
     ],
     "approval": {
       "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-09T12:04:29Z",
+      "approved_at": "2026-11-12T08:09:25Z",
       "gate": "architecture_validation",
       "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
@@ -465,7 +466,7 @@
     {
       "id": "MOD-015",
       "title": "Coverage and totals queries",
-      "sequence": 17,
+      "sequence": 19,
       "scope": "Builds the four count-only report procedures (payment method coverage, invoiced_subtotal_gbp coverage with amount_status counts, Direct Debit share, last full year totals including the invoiced_subtotal_gbp and subs_amount_gbp totals), each with an as-of date parameter (ADR-003). Aggregates only.",
       "requirement_ids": [
         "REQ-014"
@@ -494,7 +495,7 @@
     {
       "id": "MOD-016",
       "title": "Run sequence, regression and handover completion",
-      "sequence": 18,
+      "sequence": 20,
       "scope": "Builds usp_run_payment_segments, which runs every new load in dependency order after the Phase 1 run. Proves end to end on synthetic data that Phase 1 counts by date, region and grade are unchanged and that results differ only in the Practising / Retired split (Q-046), that a second full run changes nothing, and that every migration passes check and roundtrip. Its documentation update completes the handover and Platform Schema content, including the derived retirement date and the one-off daily rebuild after the first run. Changes no Phase 1 object; a human schedules the run (Q-031).",
       "requirement_ids": [
         "REQ-001",
@@ -518,7 +519,9 @@
         "MOD-014",
         "MOD-015",
         "MOD-017",
-        "MOD-018"
+        "MOD-018",
+        "MOD-019",
+        "MOD-020"
       ],
       "acceptance_criteria": [
         "AC-001-01",
@@ -583,6 +586,70 @@
         "Layercake.vw_silv_derived_retirement_date",
         "Layercake.usp_load_silv_member_base",
         "Layercake.usp_load_silv_membership_events"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-019",
+      "title": "Invoice lines at ledger-distribution grain",
+      "sequence": 17,
+      "scope": "Changes the MOD-002 Layercake.brnz_subs_invoice_line through a change script. It adds the five source columns postingtype int, accountdisplayvalue nvarchar(500), mainaccount nvarchar(20), costcenter nvarchar(30) and ricscampaignyear nvarchar(10), all nullable, and the line_id bigint identity. It replaces the recid primary key with a primary key on line_id and a unique index on (recid, postingtype, accountdisplayvalue) (ADR-006). It changes Layercake.usp_load_brnz_subs_invoice_line to land those columns 1:1 and to match on the three-column identity, with null equal to null. RULE-077 scope, soft delete, the row-count check and logging are unchanged, and a duplicate identity in the source fails the load. The down script renames the table to brnz_subs_invoice_line_rolledback_MIGnnnn when it holds rows, recreates it at its MOD-002 shape and restores the MOD-002 procedure. It changes no reader.",
+      "requirement_ids": [
+        "REQ-002"
+      ],
+      "depends_on": [
+        "MOD-002"
+      ],
+      "acceptance_criteria": [
+        "AC-002-09",
+        "AC-002-10",
+        "AC-002-11",
+        "AC-002-12"
+      ],
+      "objects": [
+        "Layercake.brnz_subs_invoice_line",
+        "Layercake.usp_load_brnz_subs_invoice_line"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-020",
+      "title": "Invoice line readers at the new grain",
+      "sequence": 18,
+      "scope": "Changes the MOD-007 Layercake.usp_load_silv_member_year_attributes in one rule only. In the payment-line fallback (RULE-013, RULE-105), each payment transaction (recid) counts once: its mode, date and settled amount are taken once per recid and never summed across its lines. The down script restores the MOD-007 definition. It also retests, at the new grain, the readers that need no change: the line-type mapping load, vw_silv_eligible_invoice's fee-only test, the concession choice, the segment anomaly load (DOUBLE_PAYMENT, CONCESSION_NOT_IN_REFERENCE) and the invoice anomaly load (readmission fee check, INVOICE_NO_EVENT). It changes none of them. If one of their tests fails, that is a design defect to raise, not a change to make in this module.",
+      "requirement_ids": [
+        "REQ-004",
+        "REQ-006",
+        "REQ-007",
+        "REQ-009",
+        "REQ-011"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006",
+        "MOD-007",
+        "MOD-008",
+        "MOD-010",
+        "MOD-011",
+        "MOD-019"
+      ],
+      "acceptance_criteria": [
+        "AC-004-13",
+        "AC-004-14",
+        "AC-006-16",
+        "AC-007-04",
+        "AC-009-11",
+        "AC-009-12",
+        "AC-011-12",
+        "AC-011-13"
+      ],
+      "objects": [
+        "Layercake.usp_load_silv_member_year_attributes"
       ],
       "status": "planned",
       "build_tool": "migrations"
