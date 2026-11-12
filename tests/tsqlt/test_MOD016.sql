@@ -996,7 +996,7 @@ GO
 CREATE PROCEDURE test_MOD016.[test TC-016-018 every object the spec maps exists in the database with its kind]
 AS
 BEGIN
-    SELECT o.name AS object_name, CAST(RTRIM(o.type) AS nvarchar(2)) AS object_type
+    SELECT o.name AS object_name, CAST(RTRIM(o.type) AS nvarchar(2)) COLLATE DATABASE_DEFAULT AS object_type
     INTO #Actual
     FROM sys.objects AS o
     INNER JOIN sys.schemas AS s
