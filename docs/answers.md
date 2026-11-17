@@ -174,3 +174,9 @@ the agent's working assumption. Example:
 - Layercake.usp_run_payment_segments stays callable on its own for a segment-only rerun.
 - The segment loads already apply only differences across all history, so they need no rebuild change. The adjustment history covers the daily count measures only, not changes to segment columns on events.
 - The handover runbook (docs/handover/04-runbook.md) and the Phase 1 reconciliation scripts are checked against the new run.
+
+## Daily load accuracy: spec sign-off (approved by Mike by merging this PR, 2026-11-17)
+- Q-049: "written at" and T use the database server's local time (SYSDATETIME(), as Layercake.etl_run_log does). A change written exactly at T is part of the figure at T, so only changes written strictly after T are subtracted.
+- Q-050: for a date first loaded after T, the "as known at" view or function returns its first-load figures, following "today's stored figure minus the changes written after T" literally. No first-load time is tracked to hide them.
+- Q-051: the adjustments review view keeps the cell's grain columns, with one row per cell, run and measure whose change is not zero. It does not sum to date level, so changes that cancel out across cells (for example Practising -1, Retired +1) stay visible.
+- SPEC-001 v4, AC-020-01 to AC-020-03: grade 'Qualified' in cells X, Y and Z means the silver grade 'election'. silv_daily_count_detail and silv_daily_count hold the grades 'enrolment', 'election' and 'lapse'; 'Qualified' is the gold dim_membership_grade name. Tests and design use 'election' for these cells.
