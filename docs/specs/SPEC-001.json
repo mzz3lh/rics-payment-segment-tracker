@@ -4,10 +4,10 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "SPEC-001",
-    "version": 3,
+    "version": 4,
     "produced_by": "analyst",
-    "produced_at": "2026-11-12T08:02:57Z",
-    "status": "approved",
+    "produced_at": "2026-11-17T20:34:09Z",
+    "status": "for_review",
     "source_artefacts": [
       "docs/requirements/BR-001-payment-segments-tracker.md",
       "docs/reviews/SPEC-001-review-1.md",
@@ -20,16 +20,11 @@
       "docs/sources/external/CE/CE.vwConcessionType.sql",
       "docs/sources/external/CE/CE.vwConcession.sql",
       "docs/amendments/AMD-001.json",
-      "docs/amendments/AMD-002.json"
-    ],
-    "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-12T08:03:15Z",
-      "gate": "spec_signoff",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
-    }
+      "docs/amendments/AMD-002.json",
+      "docs/amendments/AMD-003.json"
+    ]
   },
-  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status, and is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09) and AMD-002 (invoice line grain, Mike, 2026-11-11) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
+  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status. It is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. The daily load keeps every past daily count in line with the current silver data on every run, from 2020-10-01, with no manual step. It records each change to a past or repeated day in an adjustment history that gives the figures as known at any time. One call of Layercake.usp_run_daily_load also runs the payment and invoice segment loads. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09), AMD-002 (invoice line grain, Mike, 2026-11-11) and AMD-003 (daily load accuracy, Mike, 2026-11-17) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
   "glossary": {
     "Campaign Year": "The RICS subscription year, as held in Layercake.ref_campaign_year_config and on the invoice source (Subs.tblSubsInvoices.Campaign_Year).",
     "Eligible invoice": "A subscription invoice that may set a contact-year's segments and be matched to an event for the invoice checks (RULE-014, RULE-084). Credit notes and enrolment- or application-fee-only invoices are never eligible. A fully credited invoice is eligible only when the contact-year has no other eligible invoice.",
@@ -41,7 +36,11 @@
     "Headline value": "invoiced_subtotal_gbp: the contact-year's invoiced amount in GBP (Subs.vwSubsMemberStatuses 'Inv Total Amount'), carried on one event per contact and amount Campaign Year (RULE-033, RULE-098).",
     "Invoice source coverage": "Campaign Year 2022 onward. Subs.usp_Refresh_SubsInvoices keeps only Campaign_Year >= 2022.",
     "Derived retirement date": "The 'Renewal Date' of a contact's earliest Campaign Year that has a retired concession and a payment or settlement date (RULE-099). It drives Practising / Retired in place of apuk_retirementdate.",
-    "Invoice line": "One row of Layercake.brnz_subs_invoice_line: one ledger distribution of an F&O customer transaction in synapse_fo.CUSTTRANS_RICS, identified by (recid, postingtype, accountdisplayvalue). One customer transaction (one recid) can have many lines, for example one per cost centre or Campaign Year (RULE-104)."
+    "Invoice line": "One row of Layercake.brnz_subs_invoice_line: one ledger distribution of an F&O customer transaction in synapse_fo.CUSTTRANS_RICS, identified by (recid, postingtype, accountdisplayvalue). One customer transaction (one recid) can have many lines, for example one per cost centre or Campaign Year (RULE-104).",
+    "Daily count cell": "One row of Layercake.silv_daily_count_detail: a [date] with its region, country_id, gender_id, grade and membership_status_id.",
+    "Seven daily measures": "active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count on silv_daily_count_detail and silv_daily_count.",
+    "Adjustment": "A change to a daily count cell's figures on a date that was already loaded, recorded once per run that made it as new minus old for each of the seven daily measures (REQ-019). The first load of a date is not an adjustment.",
+    "As known at": "The figure for a date as it stood at a time T: today's stored figure minus the adjustments written after T (REQ-020)."
   },
   "requirements": [
     {
@@ -1800,7 +1799,7 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "apuk_retirementdate is entered by hand and is not always trustworthy. Each contact therefore gets a derived retirement date: the payment date of their first invoice that carries a retired concession, taken from Subs.vwSubsMemberStatuses as landed in Layercake.brnz_subs_status (REQ-002). It replaces apuk_retirementdate (Layercake.silv_member_base.retirement_date) everywhere that date drives Practising / Retired: events, annual rates and daily counts (Mike, AMD-001, 2026-11-06; supersedes Q-009). As a result, Phase 1 results split by membership status change, and no other Phase 1 result does (Q-046). The design names the object that holds the derived date.",
+      "description": "apuk_retirementdate is entered by hand and is not always trustworthy. Each contact therefore gets a derived retirement date: the payment date of their first invoice that carries a retired concession, taken from Subs.vwSubsMemberStatuses as landed in Layercake.brnz_subs_status (REQ-002). It replaces apuk_retirementdate (Layercake.silv_member_base.retirement_date) everywhere that date drives Practising / Retired: events, annual rates and daily counts (Mike, AMD-001, 2026-11-06; supersedes Q-009). As a result, Phase 1 results split by membership status change, and no other Phase 1 result does (Q-046). Past daily counts take the new split on the next daily run, with no one-off rebuild (REQ-018, AMD-003). The design names the object that holds the derived date.",
       "business_rules": [
         {
           "id": "RULE-099",
@@ -1863,6 +1862,369 @@
           "criterion": "On the synthetic set, compare silv_membership_events and fact_membership_events before and after the change, leaving out the new segment and amount columns. The only differences are in membership_status_id. Every event whose membership_status_id changed belongs to a contact whose derived retirement date differs from silv_member_base.retirement_date."
         }
       ]
+    },
+    {
+      "id": "REQ-018",
+      "title": "Past daily counts kept in line with silver on every run",
+      "type": "functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Today Layercake.usp_load_silv_daily_count derives a past date once and never again unless someone runs usp_load_silver @RebuildFrom or @FullRebuild, while the silver it reads is re-derived on every run, so stored daily history drifts away from it (Mike, AMD-003, 2026-11-17). From this change, every run of Layercake.usp_run_daily_load brings every date whose stored daily counts no longer match the current silver data back into line, in the same run, with no manual step. This covers silv_daily_count_detail and silv_daily_count (and so fact_daily_member_count_detail, which already follows silver), all seven daily measures and every cause, including changes to events alone that log no pending rebuild today. The horizon is the whole date spine from 2020-10-01. How changed dates are found is the design's decision. A run takes longer on days when a change reaches far back, and that is accepted.",
+      "business_rules": [
+        {
+          "id": "RULE-106",
+          "rule": "Every run of Layercake.usp_run_daily_load corrects, in that run, every date from 2020-10-01 to the run date whose stored figures in Layercake.silv_daily_count_detail or Layercake.silv_daily_count differ from what the current silver data gives. This applies to all seven daily measures, whatever the cause of the difference, and needs no manual step."
+        },
+        {
+          "id": "RULE-107",
+          "rule": "After any completed run, silv_daily_count_detail and silv_daily_count are identical to what Layercake.usp_load_silver @FullRebuild = 1 produces on the same data. fact_daily_member_count_detail follows silver as it does today."
+        },
+        {
+          "id": "RULE-108",
+          "rule": "Closed Campaign Years are not frozen: a date in any Campaign Year from 2020-10-01 is corrected the same way."
+        },
+        {
+          "id": "RULE-109",
+          "rule": "The first run after this change is deployed corrects the drift accumulated so far. It replaces the one-off usp_load_silver @RebuildFrom after deployment, so no person runs a rebuild as a deployment or handover step."
+        },
+        {
+          "id": "RULE-110",
+          "rule": "usp_load_silver @RebuildFrom and @FullRebuild stay available as manual tools. Nothing depends on a person applying Layercake.etl_daily_count_pending_rebuild. Whether that table stays as a diagnostic or is retired is the design's decision."
+        },
+        {
+          "id": "RULE-111",
+          "rule": "A run that fails part way re-raises the error to the caller, as today. The next run completes the correction with no manual cleanup."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "derived",
+          "target": "Layercake.silv_daily_count_detail and Layercake.silv_daily_count (the seven daily measures, every date from 2020-10-01 to the run date)",
+          "transformation": "The Phase 1 daily count derivation, with its logic unchanged, applied on every run to every date whose stored figures differ from what the current silver data gives (RULE-106, RULE-107)."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-018-01",
+          "criterion": "A first usp_run_daily_load loads dates 2024-10-01 to 2025-03-31 of the synthetic set. A Renewal for contact D1 dated 2025-01-10 (Campaign Year 2025) is then added to the source data, and usp_run_daily_load runs again with no manual step. In silv_daily_count_detail, event_renewal_count in D1's cell on 2025-01-10 is 1 higher than after the first run, and event_renewal_count is unchanged on every other date."
+        },
+        {
+          "id": "AC-018-02",
+          "criterion": "After the second run in AC-018-01, silv_daily_count_detail and silv_daily_count equal the result of Layercake.usp_load_silver @FullRebuild = 1 on the same data. Matching on [date] and every grain column for every date from 2020-10-01 to the run date: 0 rows differ in any of the seven daily measures, 0 rows are missing and 0 are extra."
+        },
+        {
+          "id": "AC-018-03",
+          "criterion": "Contact T5 (AC-017-06) has derived retirement date 2025-01-15, and dates 2024-10-01 to 2025-03-31 are loaded. The 'Renewal Date' on T5's 'Retired Conc.' brnz_subs_status row changes to 2024-12-01, and usp_run_daily_load runs with no @RebuildFrom or @FullRebuild. In silv_daily_count_detail, T5 is counted under Practising on 2024-11-30 and under Retired on 2024-12-01 and 2025-01-14, where it was Practising before the run."
+        },
+        {
+          "id": "AC-018-04",
+          "criterion": "A Lapse for contact D3 dated 2021-03-15 (Campaign Year 2021, closed) and a Join for contact D4 dated 2020-10-01 are added to the source data after those dates were loaded. After the next usp_run_daily_load, event_lapse_count in D3's cell on 2021-03-15 and event_join_count in D4's cell on 2020-10-01 are each 1 higher, and AC-018-02's comparison shows 0 differences."
+        },
+        {
+          "id": "AC-018-05",
+          "criterion": "A source change is made that alters only Layercake.silv_membership_events for dates already loaded (no change to silv_member_state_ranges, silv_payment_events or silv_member_profile). The next usp_run_daily_load, with no manual step and whether or not any pending-rebuild row is logged, leaves AC-018-02's comparison with 0 differences."
+        },
+        {
+          "id": "AC-018-06",
+          "criterion": "The Phase 1 procedures load the synthetic set as they do before this change. Changes are then made to the source data that reach back to 2022-11-01, 2023-06-15 and 2025-01-10, and no @RebuildFrom is run. The first usp_run_daily_load after deployment, with no manual step, leaves AC-018-02's comparison with 0 differences."
+        },
+        {
+          "id": "AC-018-07",
+          "criterion": "A run is made to fail with an error after it has corrected some, but not all, of the changed past dates. usp_run_daily_load re-raises the error to the caller and its run row in Layercake.etl_run_log has status 'Failed'. The next run, with no manual cleanup, ends with status 'Success' and leaves AC-018-02's comparison with 0 differences."
+        },
+        {
+          "id": "AC-018-08",
+          "criterion": "After the second run in AC-018-01, Layercake.fact_daily_member_count_detail summed by date (ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents) equals silv_daily_count_detail summed by date (active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count): 0 differences, including RenewalEvents for 2025-01-10."
+        },
+        {
+          "id": "AC-018-09",
+          "criterion": "Layercake.usp_load_silver @RebuildFrom = '2025-01-01', and separately @FullRebuild = 1, still run and log 'Success', and each leaves AC-018-02's comparison with 0 differences."
+        },
+        {
+          "id": "AC-018-10",
+          "criterion": "docs/handover/04-runbook.md has no step asking a person to run usp_load_silver @RebuildFrom or @FullRebuild, or to apply rows of etl_daily_count_pending_rebuild, after deployment or as part of the daily routine. It describes @RebuildFrom and @FullRebuild as optional manual tools."
+        }
+      ]
+    },
+    {
+      "id": "REQ-019",
+      "title": "Adjustment history of daily counts",
+      "type": "data",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Mike wants a history of adjustments kept in an easy format, so that the numbers on a particular day can be worked out when needed (AMD-003, 2026-11-17). A new Layercake table (name set by the design) keeps one row for each daily count cell whose numbers changed, for each run that changed it, at the grain of silv_daily_count_detail. Each row holds the run, when it was written, the date and grain columns, and the change (new minus old) for each of the seven daily measures. The catch-up done by the first run after deployment is recorded like any other run, so the size of the drift up to now can be read from it. The history covers the daily count measures only. It is kept indefinitely.",
+      "business_rules": [
+        {
+          "id": "RULE-112",
+          "rule": "The adjustment history holds one row per daily count cell ([date], region, country_id, gender_id, grade, membership_status_id) per run that changed any of the cell's seven daily measures. Each row holds the run_id, the time it was written, the date and grain columns, and new minus old for active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count. A measure the run did not change holds 0. A cell whose seven measures are all unchanged gets no row."
+        },
+        {
+          "id": "RULE-113",
+          "rule": "Where a cell has no row in silv_daily_count_detail before or after the change, its figures on that side count as 0."
+        },
+        {
+          "id": "RULE-114",
+          "rule": "The first load of a date that has never been loaded is not an adjustment and writes no row. Repeat loads of today (today is rebuilt on every run) are adjustments like any other and write rows for the cells they change."
+        },
+        {
+          "id": "RULE-115",
+          "rule": "Every change to stored daily counts is recorded, whichever path makes it: the scheduled usp_run_daily_load, including the first run after deployment, or a manual usp_load_silver @RebuildFrom or @FullRebuild. The row carries the run_id of that run or call."
+        },
+        {
+          "id": "RULE-116",
+          "rule": "The history holds every committed change and never holds a change that was rolled back. For every cell and measure, the figure stored after any run equals the figure stored before it plus the sum of the adjustment rows that run wrote."
+        },
+        {
+          "id": "RULE-117",
+          "rule": "The adjustment history is kept indefinitely. Nothing purges it."
+        },
+        {
+          "id": "RULE-118",
+          "rule": "The history covers the seven daily measures of silv_daily_count_detail only. Changes to segment columns on events, and to the annual rate base, write no adjustment row."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.etl_run_log.run_id",
+          "target": "Daily count adjustment history (Layercake table named by the design).run_id",
+          "transformation": "The run_id of the usp_run_daily_load run, or of the usp_load_silver @RebuildFrom / @FullRebuild call, that made the change.",
+          "nullable": false
+        },
+        {
+          "source": "derived",
+          "target": "Daily count adjustment history.written_at",
+          "transformation": "The time the row was written. Server local time via SYSDATETIME() (assumes Q-049).",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.date",
+          "target": "Daily count adjustment history.date",
+          "transformation": "Copy of the changed cell's date.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.region",
+          "target": "Daily count adjustment history.region",
+          "transformation": "Copy of the changed cell's grain column.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.country_id",
+          "target": "Daily count adjustment history.country_id",
+          "transformation": "Copy of the changed cell's grain column.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.gender_id",
+          "target": "Daily count adjustment history.gender_id",
+          "transformation": "Copy of the changed cell's grain column.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.grade",
+          "target": "Daily count adjustment history.grade",
+          "transformation": "Copy of the changed cell's grain column.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.membership_status_id",
+          "target": "Daily count adjustment history.membership_status_id",
+          "transformation": "Copy of the changed cell's grain column.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count",
+          "target": "Daily count adjustment history: one change column per measure",
+          "transformation": "New value minus old value for the run (RULE-112, RULE-113). 0 where the measure did not change.",
+          "nullable": false
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-019-01",
+          "criterion": "The second run in AC-018-01 writes exactly one adjustment row for D1's cell on 2025-01-10, with that run's run_id and an event_renewal_count change of +1. Across all rows that run wrote, for every cell and measure, the change equals the figure stored after the run minus the figure stored before it: 0 mismatches. No row has all seven changes equal to 0."
+        },
+        {
+          "id": "AC-019-02",
+          "criterion": "The first usp_run_daily_load on a database where no date has been loaded writes 0 adjustment rows."
+        },
+        {
+          "id": "AC-019-03",
+          "criterion": "Two usp_run_daily_load runs are made on the same day, and between them a Join for contact D5 dated that day is added to the source data. The first run writes no adjustment row for that date's first load. The second run writes an adjustment row for D5's cell on that date with an event_join_count change of +1."
+        },
+        {
+          "id": "AC-019-04",
+          "criterion": "A second usp_run_daily_load on the same day with no source change writes 0 adjustment rows and changes no row of silv_daily_count_detail or silv_daily_count."
+        },
+        {
+          "id": "AC-019-05",
+          "criterion": "With the source change from AC-018-01 made but no daily run yet, Layercake.usp_load_silver @RebuildFrom = '2025-01-01' writes adjustment rows with that call's run_id, including D1's cell on 2025-01-10 with an event_renewal_count change of +1. A following @FullRebuild = 1 on unchanged data writes 0 adjustment rows."
+        },
+        {
+          "id": "AC-019-06",
+          "criterion": "For the failed run in AC-018-07, for every cell and measure, the figure stored before the failed run plus the sum of the adjustment rows written under its run_id equals the figure stored after it: 0 mismatches. After the next run, the same holds across both runs together."
+        },
+        {
+          "id": "AC-019-07",
+          "criterion": "The first run after deployment in AC-018-06 writes adjustment rows for cells on 2022-11-01, 2023-06-15 and 2025-01-10. Their changes equal the figures stored after that run minus the figures the Phase 1 procedures had stored: 0 mismatches."
+        },
+        {
+          "id": "AC-019-08",
+          "criterion": "A source change that alters only a segment column on events (for example a contact-year's payment method from Card to Direct Debit), and no daily count, writes 0 adjustment rows on the next run."
+        },
+        {
+          "id": "AC-019-09",
+          "criterion": "The adjustment rows written by the first run in a sequence of four runs that each change some count are all still present, unchanged, after the fourth run."
+        },
+        {
+          "id": "AC-019-10",
+          "criterion": "In the synthetic set, no adjustment row has a null run_id, written_at, date, grain column or change column, and no two rows share run_id, [date], region, country_id, gender_id, grade and membership_status_id."
+        }
+      ]
+    },
+    {
+      "id": "REQ-020",
+      "title": "Daily counts as known at any time, and adjustments review",
+      "type": "reporting",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "The figure for any date, as it stood at time T, is today's stored figure minus the adjustments written after T (Mike, AMD-003, 2026-11-17). A view or function in Layercake gives these figures for a date range and a time T, at the silv_daily_count grain and at the detail grain, so nobody has to write the subtraction by hand. A second view lists the adjustments by date, run and measure for review. The history starts with the first run after deployment, so for a time T before that run the figures are those stored just before it. Object names and the interface are set by the design.",
+      "business_rules": [
+        {
+          "id": "RULE-119",
+          "rule": "The figure for a date, cell and measure as it stood at time T is the figure stored today in silv_daily_count_detail minus the sum of that cell's adjustment changes written after T (assumes Q-049 for the clock and the boundary at T). A cell with no stored row today counts as 0 before the subtraction, so a cell removed after T still shows its figure at T."
+        },
+        {
+          "id": "RULE-120",
+          "rule": "A Layercake view or function returns the figures as known at T for a date range (from and to dates inclusive) and a time T, for all seven daily measures. It works at the detail grain ([date], region, country_id, gender_id, grade, membership_status_id) and at the silv_daily_count grain ([date], region, grade). At the silv_daily_count grain the figures are the detail-grain figures summed over country_id, gender_id and membership_status_id."
+        },
+        {
+          "id": "RULE-121",
+          "rule": "For a date first loaded after T, the figures returned are its first-load figures, following RULE-119 literally (assumes Q-050)."
+        },
+        {
+          "id": "RULE-122",
+          "rule": "A second Layercake view lists the adjustments for review by date, run and measure: one row per cell, run and measure with a non-zero change, with the cell's grain columns, the run_id, the time written, the measure name and the change (assumes Q-051)."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.silv_daily_count_detail.active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count",
+          "target": "As-known-at view or function (Layercake, named by the design), detail grain and silv_daily_count grain",
+          "transformation": "Stored figure minus the sum of the adjustment history's change for the same cell and measure written after T (RULE-119 to RULE-121); summed over country_id, gender_id and membership_status_id for the silv_daily_count grain."
+        },
+        {
+          "source": "Daily count adjustment history (REQ-019): run_id, written_at, date, grain columns, change columns",
+          "target": "Adjustments review view (Layercake, named by the design)",
+          "transformation": "One row per adjustment row and measure whose change is not 0 (RULE-122, assumes Q-051)."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-020-01",
+          "criterion": "Cell X is 2025-01-10, region 'UK', country_id 1, gender_id 1, grade 'Qualified', membership_status_id 1. Run R1, written 2026-11-01 06:00, first loads it with active_count 10. Run R2, written 2026-11-02 06:00, changes it to 12 (adjustment +2), and run R3, written 2026-11-03 06:00, changes it to 11 (adjustment -1). For cell X, active_count as known at 2026-11-01 12:00 is 10, at 2026-11-02 12:00 it is 12, and at 2026-11-03 12:00 it is 11. The other six measures equal the stored figures at all three times."
+        },
+        {
+          "id": "AC-020-02",
+          "criterion": "For cell X in AC-020-01, active_count as known at exactly 2026-11-02 06:00, R2's written time, is 12 (assumes Q-049)."
+        },
+        {
+          "id": "AC-020-03",
+          "criterion": "Cell Y has the same date, region and grade as cell X but gender_id 2, with active_count 5 stored and no adjustments. X and Y are the only cells for (2025-01-10, 'UK', 'Qualified'). At the silv_daily_count grain, active_count as known at 2026-11-02 12:00 is 17. As known at 2026-11-03 12:00 it is 16, equal to the stored silv_daily_count active_count."
+        },
+        {
+          "id": "AC-020-04",
+          "criterion": "Cell Z (2025-01-10, 'UK', country_id 1, gender_id 1, 'Qualified', membership_status_id 2) is first loaded by R1 with active_count 1, and R3 changes it to 0 (adjustment -1), with or without a stored row afterwards. As known at 2026-11-02 12:00, cell Z has active_count 1."
+        },
+        {
+          "id": "AC-020-05",
+          "criterion": "Date 2025-01-20 is first loaded by R3 with active_count 7 in cell W and has no adjustments. A query for 2025-01-20 as known at 2026-11-02 12:00 returns active_count 7 for cell W (assumes Q-050)."
+        },
+        {
+          "id": "AC-020-06",
+          "criterion": "A query for the range 2025-01-10 to 2025-01-10 returns rows dated 2025-01-10 only, including cells X and Y, and no rows for 2025-01-20."
+        },
+        {
+          "id": "AC-020-07",
+          "criterion": "For cell X, the adjustments review view lists exactly 2 rows: R2's run_id, active_count, +2, written 2026-11-02 06:00; and R3's run_id, active_count, -1, written 2026-11-03 06:00. Each row carries cell X's date and grain columns. No row is listed for the six measures whose change is 0 (assumes Q-051)."
+        },
+        {
+          "id": "AC-020-08",
+          "criterion": "For the run in AC-018-03, the adjustments review view lists, for 2024-12-01 and that run's run_id, an active_count row of -1 under T5's Practising cell and an active_count row of +1 under T5's Retired cell (assumes Q-051)."
+        },
+        {
+          "id": "AC-020-09",
+          "criterion": "On the synthetic set after the runs in AC-018-01 to AC-018-07, with T after the latest adjustment, the figures as known at T equal silv_daily_count_detail at the detail grain and silv_daily_count at the silv_daily_count grain: 0 differences."
+        }
+      ]
+    },
+    {
+      "id": "REQ-021",
+      "title": "Payment and invoice segments in the normal daily load",
+      "type": "functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Mike wants the normal daily load procedure to populate everything, including the payment and invoice segmentation (AMD-003, 2026-11-17). Layercake.usp_run_daily_load runs everything Layercake.usp_run_payment_segments runs today, under the same run_id. One call then populates Phase 1 and the payment method, payer type, concession and invoice segments, and nobody schedules a second procedure. The segment loads already apply only differences across all history, so they need no rebuild change.",
+      "business_rules": [
+        {
+          "id": "RULE-123",
+          "rule": "Layercake.usp_run_daily_load runs every load that Layercake.usp_run_payment_segments runs, under the daily run's run_id."
+        },
+        {
+          "id": "RULE-124",
+          "rule": "The segment loads run after the Phase 1 loads they read and write onto (silv_membership_events and fact_membership_events, ADR-001), so the run ends with every segment column populated. The exact order is the design's decision."
+        },
+        {
+          "id": "RULE-125",
+          "rule": "A failure in any load, Phase 1 or segment, fails the daily run and is re-raised to the scheduler, as today. Loads that committed before it stay committed, and running usp_run_daily_load again recovers."
+        },
+        {
+          "id": "RULE-126",
+          "rule": "Layercake.usp_run_payment_segments stays callable on its own for a segment-only rerun."
+        },
+        {
+          "id": "RULE-127",
+          "rule": "The handover runbook (docs/handover/04-runbook.md) and the Phase 1 reconciliation scripts are checked against the new run."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-021-01",
+          "criterion": "After one call of usp_run_daily_load on the synthetic set, with no call of usp_run_payment_segments, Layercake.etl_run_log holds a 'Success' row for every (layer, step_name) that usp_run_payment_segments logs for its loads, all with the same run_id as the Phase 1 step rows of that call."
+        },
+        {
+          "id": "AC-021-02",
+          "criterion": "On the same synthetic data, one call of usp_run_daily_load leaves silv_member_year_attributes, the segment and amount columns of silv_membership_events and fact_membership_events, and silv_data_anomaly identical to the result of the Phase 1 run followed by a separate usp_run_payment_segments: 0 differing rows."
+        },
+        {
+          "id": "AC-021-03",
+          "criterion": "A 2026 Lapse for contact P1 (AC-006-08) that is new to the source data is in silv_membership_events and fact_membership_events after one call of usp_run_daily_load, carrying payer type Corporate with payer_type_carried 1, not the 0 default (assumes Q-006)."
+        },
+        {
+          "id": "AC-021-04",
+          "criterion": "With a Subs.vwCorpSubscriptions row whose 'Contact No' is NULL, usp_run_daily_load fails and re-raises error 515 to the caller, and its run row in etl_run_log has status 'Failed'. The Phase 1 loads that finished before the failure keep their 'Success' rows and their data. After the row is corrected, the next usp_run_daily_load ends 'Success' and AC-021-02's comparison shows 0 differences."
+        },
+        {
+          "id": "AC-021-05",
+          "criterion": "After a usp_run_daily_load, a call of usp_run_payment_segments on its own on unchanged data logs 'Success' and records 0 rows inserted, 0 updated and 0 deleted for each of its loads."
+        },
+        {
+          "id": "AC-021-06",
+          "criterion": "reference/phase1/Scripts/Reconciliation/active-member-difference.sql and reference/phase1/Scripts/Reconciliation/paid-member-difference.sql both read PASS after one call of usp_run_daily_load on the test database loaded with the synthetic data."
+        },
+        {
+          "id": "AC-021-07",
+          "criterion": "docs/handover/04-runbook.md names Layercake.usp_run_daily_load as the only procedure to schedule, describes usp_run_payment_segments as an optional segment-only rerun, and has no step that schedules usp_run_payment_segments after the Phase 1 run."
+        }
+      ]
     }
   ],
   "assumptions": [
@@ -1886,7 +2248,10 @@
     "Acceptance in this release is on synthetic data only, with no pass threshold for real data (for example minimum payment method coverage) (Q-026).",
     "The Layercake column names used in this spec (for example silv_membership_events.event_date, contact_no, campaign_year and event_type; silv_data_anomaly columns; the Phase 1 paid position) are taken from the v1 draft and the Phase 1 baseline (Q-028).",
     "A Join whose contact has no paid position in any year takes its segments and its amount, and is matched to an invoice, in the Join's own Campaign Year (Q-029).",
-    "subs_amount_gbp and invoiced_subtotal_gbp hold the same value on every event, because the view supplies a single invoiced amount (Q-044, answered by Product Owner assumption ASM-001)."
+    "subs_amount_gbp and invoiced_subtotal_gbp hold the same value on every event, because the view supplies a single invoiced amount (Q-044, answered by Product Owner assumption ASM-001).",
+    "The time an adjustment is written and the time T of an 'as known at' query use the database server's local time (SYSDATETIME(), as Layercake.etl_run_log does). Only adjustments written strictly after T are subtracted, so a change written exactly at T is part of the figure at T (Q-049).",
+    "An 'as known at T' query returns its first-load figures for a date first loaded after T, following the formula 'today's stored figure minus the changes written after T' literally (Q-050).",
+    "The adjustments review view has one row per cell, run and measure with a non-zero change, keeping the cell's grain columns and the time written, so changes that cancel out across cells stay visible (Q-051)."
   ],
   "out_of_scope": [
     "Power BI work: semantic model, DAX and report pages.",
@@ -1899,7 +2264,11 @@
     "apuk_dualmembership: plays no part in this release (Q-025).",
     "Real-data steps, which are done by a human: profiling, reconciliation to Finance figures and spreadsheets, Finance and Corporate team reviews, and traces of real contacts. The agents provide count-only queries.",
     "Editing the Platform Schema document itself. The handover pack supplies its content and a human updates it.",
-    "Any change to objects other systems own (Subs, synapse_fo, synapse_ce, CE and other external schemas)."
+    "Any change to objects other systems own (Subs, synapse_fo, synapse_ce, CE and other external schemas).",
+    "The P01/P03 timing difference: the bronze load runs before Subs.usp_Refresh_SubsMemberStatuses. Mike accepts it for now (AMD-003).",
+    "Any rebuild change to the annual rate base tables (silv_annual_rate_base, fact_annual_rate_base), which are re-derived in full on every run (AMD-003).",
+    "Adjustment history for anything other than the seven daily measures, including changes to segment columns on events (AMD-003).",
+    "Any rebuild change to the payment and invoice segment loads, which already apply only differences across all history (AMD-003)."
   ],
   "open_questions": [
     {
@@ -2277,6 +2646,34 @@
       "answer": "The event with the lowest event_id carries the amount. The others carry null amounts and amount_status 'Counted on another event' (Mike, 2026-11-09).",
       "blocks": [
         "REQ-008"
+      ]
+    },
+    {
+      "id": "Q-049",
+      "question": "'As known at' time T: the figure is today's stored figure minus the changes written after T. Which clock do 'written at' and T use: the database server's local time (SYSDATETIME(), as etl_run_log and the bronze audit columns use) or UTC? Is a change written exactly at T part of the figure at T, so that only changes written strictly after T are subtracted? Working default: server local time, and only changes written after T are subtracted.",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-019",
+        "REQ-020"
+      ]
+    },
+    {
+      "id": "Q-050",
+      "question": "'As known at' time T for a date that had not been loaded yet at T: a first load writes no adjustment, so 'today's figure minus changes written after T' gives that date its first-load figure, as if it had been known at T. Should the view or function return those figures, or no figures for dates first loaded after T? Working default: follow the formula literally and return the first-load figures.",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-020"
+      ]
+    },
+    {
+      "id": "Q-051",
+      "question": "Should the adjustments review view keep the cell's grain columns, with one row per cell, run and measure whose change is not zero? Or should it sum to one row per date, run and measure? Summing hides changes that cancel out, such as a corrected retirement date moving a member from Practising (-1) to Retired (+1). Working default: one row per cell, run and measure with a non-zero change.",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-020"
       ]
     }
   ]
