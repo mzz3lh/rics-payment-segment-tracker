@@ -4,24 +4,19 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "DES-001",
-    "version": 3,
+    "version": 4,
     "produced_by": "technical_architect",
-    "produced_at": "2026-11-12T08:09:09Z",
-    "status": "approved",
+    "produced_at": "2026-11-17T21:26:30Z",
+    "status": "for_review",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/amendments/AMD-001.json",
-      "docs/amendments/AMD-002.json"
-    ],
-    "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-12T08:09:25Z",
-      "gate": "architecture_validation",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
-    }
+      "docs/amendments/AMD-002.json",
+      "docs/amendments/AMD-003.json"
+    ]
   },
   "spec_ref": "docs/specs/SPEC-001.json",
-  "overview": "Extends the Phase 1 Layercake membership solution so that every membership event (Join, Change, Lapse, Readmission, Renewal) can be segmented by payment method, payer type and concession type, every Join, Renewal and Readmission can carry its contact-year's invoiced amount in GBP, and Practising / Retired is set from a retirement date derived from retired concessions (AMD-001). Subscription invoices, invoice lines, corporate subscriptions and the concession reference are landed 1:1 in bronze from objects other systems own, and the Phase 1 brnz_subs_status gains 'Inv Total Amount' and 'Retired Concession' from Subs.vwSubsMemberStatuses. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction (AMD-002, ADR-006). Silver adds the segment reference lists, an item-code line-type mapping, a currency list and one attributes row per contact per Campaign Year, set from each year's segment invoice. It adds silv_event_amount, which places each contact-year's Inv Total Amount on one event and pairs each event with its own eligible invoice for the invoice checks only, and ten new anomaly types in the existing silv_data_anomaly. A new view derives each contact's retirement date from brnz_subs_status, and the Phase 1 silv_member_base load takes it in place of apuk_retirementdate (ADR-005), so in Phase 1 only results split by membership status change. Four new gold dimensions are added, and the existing silver and gold event tables carry the segment keys, carried flags, subs_amount_gbp, invoiced_subtotal_gbp and amount_status. The segment loads run as one block after the Phase 1 run (ADR-001). Count-only profiling, coverage, retirement and employer findings queries are delivered as read-only procedures (ADR-003). Employer segmentation is findings only, so no employer objects are created. Every change ships as a framework migration with a tested down script, all objects live in the Layercake schema, and names follow the Phase 1 conventions.",
+  "overview": "Extends the Phase 1 Layercake membership solution so that every membership event (Join, Change, Lapse, Readmission, Renewal) can be segmented by payment method, payer type and concession type, every Join, Renewal and Readmission can carry its contact-year's invoiced amount in GBP, and Practising / Retired is set from a retirement date derived from retired concessions (AMD-001). Subscription invoices, invoice lines, corporate subscriptions and the concession reference are landed 1:1 in bronze from objects other systems own, and the Phase 1 brnz_subs_status gains 'Inv Total Amount' and 'Retired Concession' from Subs.vwSubsMemberStatuses. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction (AMD-002, ADR-006). Silver adds the segment reference lists, an item-code line-type mapping, a currency list and one attributes row per contact per Campaign Year, set from each year's segment invoice. It adds silv_event_amount, which places each contact-year's Inv Total Amount on one event and pairs each event with its own eligible invoice for the invoice checks only, and ten new anomaly types in the existing silv_data_anomaly. A new view derives each contact's retirement date from brnz_subs_status, and the Phase 1 silv_member_base load takes it in place of apuk_retirementdate (ADR-005), so in Phase 1 only results split by membership status change. Four new gold dimensions are added, and the existing silver and gold event tables carry the segment keys, carried flags, subs_amount_gbp, invoiced_subtotal_gbp and amount_status. The daily load is made accurate (AMD-003). On every run, the Phase 1 daily count finds the past dates whose silver inputs changed by comparing the inputs with a stored basis (ADR-007). It recomputes them from 2020-10-01 onward and writes only the differences, so stored daily history always equals a full rebuild. Each change to a date already loaded is recorded in the new Layercake.silv_daily_count_adjustment. Two table functions give the figures as known at any time, and a view lists the adjustments for review (ADR-008). Layercake.usp_run_daily_load now ends by running the segment loads (usp_run_payment_segments, ADR-001) under the same run_id, so one call populates everything. Count-only profiling, coverage, retirement and employer findings queries are delivered as read-only procedures (ADR-003). Employer segmentation is findings only, so no employer objects are created. Every change ships as a framework migration with a tested down script, all objects live in the Layercake schema, and names follow the Phase 1 conventions.",
   "layers": [
     {
       "name": "bronze",
@@ -31,7 +26,7 @@
     {
       "name": "silver",
       "schema": "Layercake",
-      "purpose": "silv_* tables and views: segment reference lists with reserved ids, the line-type mapping, the currency list, the eligible-invoice view, silv_member_year_attributes, silv_event_amount, the derived retirement date view, the new columns on the existing silv_membership_events, anomaly rows in the existing silv_data_anomaly, and the derived date held in the existing silv_member_base.retirement_date."
+      "purpose": "silv_* tables and views: segment reference lists with reserved ids, the line-type mapping, the currency list, the eligible-invoice view, silv_member_year_attributes, silv_event_amount, the derived retirement date view, the new columns on the existing silv_membership_events, anomaly rows in the existing silv_data_anomaly, and the derived date held in the existing silv_member_base.retirement_date. The Phase 1 daily counts (silv_daily_count_detail, silv_daily_count) are corrected for every changed past date on every run. silv_daily_count_adjustment holds their adjustment history, read through the as-known-at functions and the adjustments review view."
     },
     {
       "name": "gold",
@@ -46,7 +41,7 @@
     {
       "name": "load logging",
       "schema": "Layercake",
-      "purpose": "Every load records start, row counts and outcome in Layercake.etl_run_log through the existing Layercake.usp_etl_log_start and Layercake.usp_etl_log_end (project override of base standards 3)."
+      "purpose": "Every load records start, row counts and outcome in Layercake.etl_run_log through the existing Layercake.usp_etl_log_start and Layercake.usp_etl_log_end (project override of base standards 3). The Phase 1 daily count control tables etl_daily_count_loaded and etl_daily_count_pending_rebuild stay; the pending-rebuild table becomes a diagnostic only. etl_daily_count_input_basis is added to hold the daily count's silver inputs as last applied (ADR-007)."
     },
     {
       "name": "control",
@@ -1539,10 +1534,11 @@
       "name": "Layercake.usp_run_payment_segments",
       "kind": "procedure",
       "load_pattern": "n/a",
-      "description": "Runs the solution's loads in dependency order after the Phase 1 run: bronze loads; the line-type and currency lists and concession reference; the gold dimensions; member-year attributes; event amounts; the segment and invoice anomalies; the silver event columns; the gold fact columns. It stops at the first failure, which that load has already logged. A human schedules it to run after the Phase 1 run (Q-031).",
+      "description": "Runs the solution's loads in dependency order after the Phase 1 run: bronze loads; the line-type and currency lists and concession reference; the gold dimensions; member-year attributes; event amounts; the segment and invoice anomalies; the silver event columns; the gold fact columns. It stops at the first failure, which that load has already logged, and re-raises it. Since MOD-023 it is called by Layercake.usp_run_daily_load as that run's last step, under the daily run's run_id, so nobody schedules it. It stays callable on its own for a segment-only rerun (RULE-126). Its own definition is unchanged.",
       "requirement_ids": [
         "REQ-001",
-        "REQ-016"
+        "REQ-016",
+        "REQ-021"
       ]
     },
     {
@@ -1737,10 +1733,461 @@
         "REQ-017",
         "REQ-001"
       ]
+    },
+    {
+      "name": "Layercake.silv_daily_count_adjustment",
+      "kind": "table",
+      "load_pattern": "append",
+      "description": "Adjustment history of the daily counts (REQ-019). There is one row per daily count cell per run that changed any of the cell's seven measures. The cell is the grain of silv_daily_count_detail: [date], region, country_id, gender_id, grade and membership_status_id. Each row holds new minus old for each measure. A cell missing on either side counts as 0 (RULE-113). A measure the run did not change holds 0, and a check constraint rejects a row whose seven changes are all 0. The first load of a date never loaded before writes no row. Every later change writes one: repeat loads of today, corrections of past dates, and manual @RebuildFrom and @FullRebuild calls (RULE-114, RULE-115). Rows are written in the same transaction as the change they record, so a rolled-back change leaves no row (RULE-116). The table is insert-only: no load updates or deletes a row, and nothing purges it (RULE-117). grade holds the silver grades ('enrolment', 'election', 'lapse'), as silv_daily_count_detail does. Unique on (run_id, [date], region, country_id, gender_id, grade, membership_status_id).",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020"
+      ],
+      "columns": [
+        {
+          "name": "adjustment_id",
+          "data_type": "bigint",
+          "nullable": false,
+          "key": "pk",
+          "description": "Identity; technical key in write order. Clustered."
+        },
+        {
+          "name": "run_id",
+          "data_type": "uniqueidentifier",
+          "nullable": false,
+          "key": "none",
+          "description": "Layercake.etl_run_log.run_id of the usp_run_daily_load run, or of the usp_load_silver @RebuildFrom / @FullRebuild call, that made the change"
+        },
+        {
+          "name": "load_id",
+          "data_type": "bigint",
+          "nullable": false,
+          "key": "none",
+          "description": "Layercake.etl_run_log.log_id of the daily count step that wrote the row"
+        },
+        {
+          "name": "written_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "When the row was written, in database server local time, the clock etl_run_log uses (Q-049). Rows written in one batch share one time."
+        },
+        {
+          "name": "date",
+          "data_type": "date",
+          "nullable": false,
+          "key": "bk",
+          "description": "The changed cell's date"
+        },
+        {
+          "name": "region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "bk"
+        },
+        {
+          "name": "country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk"
+        },
+        {
+          "name": "gender_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk"
+        },
+        {
+          "name": "grade",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "bk",
+          "description": "Silver grade: 'enrolment', 'election' or 'lapse'"
+        },
+        {
+          "name": "membership_status_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk"
+        },
+        {
+          "name": "active_count_change",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "New minus old active_count; 0 where unchanged"
+        },
+        {
+          "name": "paid_count_change",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "paid_count_event_change",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_join_count_change",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_renewal_count_change",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_readmission_count_change",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_lapse_count_change",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.fn_silv_daily_count_detail_as_known_at",
+      "kind": "function",
+      "load_pattern": "n/a",
+      "description": "Table function giving the daily counts as known at a time, at the detail grain (ADR-008, RULE-119 to RULE-121). Parameters: @date_from date and @date_to date, both inclusive, and @as_known_at datetime2(3). If any parameter is NULL, no rows are returned. It returns one row per detail cell in the date range that has a stored row in silv_daily_count_detail or an adjustment written after @as_known_at. Each of the seven figures is the stored figure (0 where the cell has no stored row) minus the sum of that cell's changes in silv_daily_count_adjustment written strictly after @as_known_at. A change written exactly at @as_known_at is part of the figure (Q-049). A cell with no stored row whose seven figures all come to 0 is not returned. A date first loaded after @as_known_at returns its first-load figures (Q-050). With @as_known_at after the latest adjustment, it returns exactly the stored rows.",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "columns": [
+        {
+          "name": "date",
+          "data_type": "date",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "gender_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "grade",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "membership_status_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "active_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "paid_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "paid_count_event",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_join_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_renewal_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_readmission_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_lapse_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.fn_silv_daily_count_as_known_at",
+      "kind": "function",
+      "load_pattern": "n/a",
+      "description": "Table function giving the daily counts as known at a time, at the silv_daily_count grain (ADR-008, RULE-120). It takes the same three parameters as fn_silv_daily_count_detail_as_known_at and follows the same rules, including that any NULL parameter returns no rows. It returns one row per [date], region and grade that the detail function returns, with the detail figures summed over country_id, gender_id and membership_status_id. With @as_known_at after the latest adjustment, it equals silv_daily_count on these columns (AC-020-03, AC-020-09).",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "columns": [
+        {
+          "name": "date",
+          "data_type": "date",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "grade",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "active_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "paid_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "paid_count_event",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_join_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_renewal_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_readmission_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "event_lapse_count",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.vw_silv_daily_count_adjustment_review",
+      "kind": "view",
+      "load_pattern": "n/a",
+      "description": "The adjustments for review (RULE-122, Q-051): one row per silv_daily_count_adjustment row and measure whose change is not 0. Each row carries the cell's grain columns, the run, the time written, the measure name and the change. Rows are not summed to date level, so changes that cancel out across cells (for example Practising -1, Retired +1) stay visible.",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "columns": [
+        {
+          "name": "adjustment_id",
+          "data_type": "bigint",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "run_id",
+          "data_type": "uniqueidentifier",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "written_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "date",
+          "data_type": "date",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "gender_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "grade",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "membership_status_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "measure_name",
+          "data_type": "varchar(30)",
+          "nullable": false,
+          "key": "none",
+          "description": "The silv_daily_count_detail column name: active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count or event_lapse_count"
+        },
+        {
+          "name": "change_value",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "New minus old for that measure; never 0"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.etl_daily_count_input_basis",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "Control table for the daily count correction (ADR-007): the daily count's silver inputs as last applied. It holds one row per contact with daily count inputs (input_name 'contact', input_key = contact_no). It also holds one row per reference table the Phase 1 daily derivation reads (input_name = the table name, input_key empty). The fingerprint covers only the rows and columns the derivation reads. Changes to segment and amount columns on events, and to load audit columns, are therefore not input changes (AC-019-08). For ref_date_spine and ref_campaign_year_config it covers only the rows up to the latest loaded date, so the daily extension of the spine is not a change. Only usp_load_silv_daily_count writes the table, and only after every corrected date of the run has committed: changed rows are updated, new ones inserted, and rows whose input has gone are deleted. The table is empty after deployment, so the first run recomputes every date from 2020-10-01 (RULE-109).",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "columns": [
+        {
+          "name": "input_name",
+          "data_type": "varchar(64)",
+          "nullable": false,
+          "key": "pk",
+          "description": "'contact', or the name of a reference table the daily derivation reads"
+        },
+        {
+          "name": "input_key",
+          "data_type": "nvarchar(200)",
+          "nullable": false,
+          "key": "pk",
+          "description": "contact_no for contact rows (same type as silv_membership_events.contact_no); empty string for reference tables"
+        },
+        {
+          "name": "input_fingerprint",
+          "data_type": "varbinary(32)",
+          "nullable": false,
+          "key": "none",
+          "description": "Fingerprint of the input rows and columns the daily derivation reads, as last applied"
+        },
+        {
+          "name": "earliest_affected_date",
+          "data_type": "date",
+          "nullable": false,
+          "key": "none",
+          "description": "For a contact: the earliest date its rows as last applied can affect, as the daily count correction pattern defines it, never before 2020-10-01. For a reference table: 2020-10-01."
+        },
+        {
+          "name": "run_id",
+          "data_type": "uniqueidentifier",
+          "nullable": false,
+          "key": "none",
+          "description": "Run that last wrote the row"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.silv_daily_count_detail",
+      "kind": "table",
+      "load_pattern": "incremental",
+      "description": "Existing Phase 1 silver daily counts: one row per [date], region, country_id, gender_id, grade and membership_status_id, with campaign_year, campaign_quarter and the seven measures active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count. Structure unchanged; no change script. MOD-022 changes how its rows are written. They are written only where the figures differ, and each change to a date already loaded is recorded in silv_daily_count_adjustment. Every changed past date from 2020-10-01 is corrected on every run (REQ-018). grade holds 'enrolment', 'election' or 'lapse'. The gold fact_daily_member_count_detail follows it through the unchanged Phase 1 gold load.",
+      "requirement_ids": [
+        "REQ-018",
+        "REQ-019"
+      ]
+    },
+    {
+      "name": "Layercake.silv_daily_count",
+      "kind": "table",
+      "load_pattern": "incremental",
+      "description": "Existing Phase 1 silver daily counts at the [date], region and grade grain, with campaign_year, campaign_quarter and the seven measures. Structure unchanged; no change script. It is written with the detail table: only where figures differ, and for every corrected date (REQ-018). It holds the detail figures summed over country_id, gender_id and membership_status_id (assumed under Q-052). Its changes are therefore not recorded separately: they are the sums of the detail adjustments.",
+      "requirement_ids": [
+        "REQ-018"
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_daily_count",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 daily count load, called by usp_load_silver in the silver step after the member profile. MOD-022 changes it; the derivation of a date's cells is unchanged. What changes is which dates it recomputes and how it writes them (daily count correction and adjustment history patterns). Every run compares the inputs with etl_daily_count_input_basis, finds the earliest affected date (ADR-007) and recomputes every date from there to today. That includes today, which is recomputed on every run, and dates not yet loaded. @RebuildFrom and @FullRebuild can only move that start earlier. Dates are recomputed in date-ordered batches and written as differences only, with unchanged rows left untouched. Each batch commits in one transaction with its etl_daily_count_loaded marks and one silv_daily_count_adjustment row per changed detail cell of a date already marked loaded. The basis is advanced only after the last batch commits, so the next run completes a failed one with no cleanup. The load also marks open etl_daily_count_pending_rebuild rows applied once its correction covers their affected_from. Its signature, parameters and logging step are unchanged. The down script restores the Phase 1 definition.",
+      "requirement_ids": [
+        "REQ-018",
+        "REQ-019",
+        "REQ-017"
+      ]
+    },
+    {
+      "name": "Layercake.usp_run_daily_load",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 daily run: bronze, silver and gold steps under one run_id, with its own 'run' row in etl_run_log. MOD-023 changes it in one respect only. After the gold step, it runs Layercake.usp_run_payment_segments with the same run_id and no as-of date, so the attributes load uses the run date and one call populates Phase 1 and every segment column (RULE-123, RULE-124). It opens no transaction of its own, as today. A failure in any step, Phase 1 or segment, logs its run row 'Failed' and re-raises the original error to the caller. Steps that committed before the failure stay committed, and running it again recovers (RULE-125). Its parameters, its logging and the Phase 1 steps are unchanged. The down script restores the Phase 1 definition.",
+      "requirement_ids": [
+        "REQ-021"
+      ]
     }
   ],
   "patterns": [
-    "Run order (ADR-001): Layercake.usp_run_payment_segments runs after the Phase 1 run, so every Phase 1 table it reads is already current. Four Phase 1 procedures change: the silv_payment_events load stops writing payment_source; usp_load_silv_data_anomaly resolves only its own types; usp_load_brnz_subs_status lands two more columns; and usp_load_silv_member_base takes the derived retirement date (ADR-005). The last two run inside the Phase 1 run, bronze before silver, so the derived date is current before any Phase 1 status is set.",
+    "Run order (ADR-001, REQ-021): Layercake.usp_run_daily_load runs the Phase 1 bronze, silver and gold steps. As its last step, it runs Layercake.usp_run_payment_segments under the same run_id and with no as-of date. Every Phase 1 table the segment loads read or write onto (silv_membership_events, fact_membership_events, silv_payment_events, brnz_subs_status) is therefore current before they run, and the run ends with every segment column populated (RULE-124). Nobody schedules a second procedure, and usp_run_payment_segments can still be run alone for a segment-only rerun (RULE-126). The run opens no transaction of its own. Each load commits on its own, a failure in any load fails the run and is re-raised to the caller, and running it again recovers (RULE-125). Phase 1 procedures that change: the silv_payment_events load stops writing payment_source; usp_load_silv_data_anomaly resolves only its own types; usp_load_brnz_subs_status lands two more columns; usp_load_silv_member_base takes the derived retirement date (ADR-005); usp_load_silv_daily_count corrects every changed past date and records adjustments (ADR-007); and usp_run_daily_load gains the segment step. The member status and member base loads run inside the Phase 1 run, bronze before silver, so the derived date is current before any Phase 1 status is set. The daily count runs after them in the silver step, so a changed retirement date reaches past daily counts in the same run.",
     "Bronze (REQ-002, REQ-006, REQ-010): full comparison with the source on its key on every run. New rows are inserted with _loaded_at and _updated_at set. Changed rows are updated and _updated_at refreshed. Rows missing from the source get _is_deleted = 1 and _deleted_at; rows that reappear are restored. Unchanged rows are untouched, so a rerun on unchanged source logs 0 inserted, 0 updated and 0 deleted. Values are never transformed or defaulted. Each load checks that live rows equal the source rows in scope and fails if not (RULE-004, RULE-005). String columns take the database's default collation, so they compare with Phase 1 columns without collation conflicts. The Phase 1 brnz_subs_status keeps its own load's behaviour; its two new columns take part in that load's change test (RULE-103).",
     "Reference lists: payment method and payer type are static lists seeded by their migrations. Concession type is insert-and-update by business key. Line type and currency are insert-only. Ids never change between loads. Reserved ids 0 Unknown, -1 Unrecognised and -2 Not applicable have the same labels in all three segment lists (RULE-078). Each gold dimension mirrors its silver list by id. Line types serve the eligible-invoice test and the readmission fee check only, and the currency list describes no event amount (RULE-030, Q-038).",
     "Eligible and segment invoice (RULE-014, RULE-079): eligibility is defined once in vw_silv_eligible_invoice and used by both the attributes load and the invoice match in the event amount load. The latest eligible invoice by trans_date is the segment invoice. Ties on trans_date go to the higher rec_id (Q-036).",
@@ -1754,21 +2201,23 @@
     "Event columns (RULE-017, RULE-018, RULE-081): an event's segment Campaign Year is its own year, except a Join, which uses its amount Campaign Year. The keys and the three carried flags come from that attributes row, or 0 where there is none. Gold copies silver by event_id.",
     "Anomalies: each new procedure owns a fixed set of anomaly types and reconciles them on every run. It inserts cases newly raised, deletes cases no longer raised (for example after a corrected invoice) and leaves existing cases untouched, so a rerun on unchanged data changes no anomaly rows. anomaly_nk identifies the event, the invoice or the contact-year. Invoice anomalies are raised only for amount Campaign Years from 2022 (RULE-093). Each Readmission with an amount Campaign Year from 2022 that has no matched invoice, or whose matched invoice has no own line of line type 'readmission fee', gets exactly one row: EVENT_NO_INVOICE or INVOICE_MATCHES_MULTIPLE_EVENTS where it has no invoice; READMISSION_FREE where its event date falls in the free-readmission window (Campaign Year quarter 2, ADR-004, Q-032); READMISSION_NO_FEE otherwise. The event amount plays no part (AC-009-10).",
     "Derived retirement date (RULE-099 to RULE-102, ADR-005): vw_silv_derived_retirement_date gives each contact the Renewal Date of its earliest live brnz_subs_status Campaign Year with retired_concession 'Retired Conc.' and a Renewal Date. usp_load_silv_member_base writes it to silv_member_base.retirement_date, null where there is none, with no fallback to apuk_retirementdate or 'First Retired Year' (Q-040). The Phase 1 status rule is unchanged: a contact is Retired from that date, inclusive. The events load and the annual rate base read it directly and correct themselves on the next run; the daily count reads the copy in silv_member_profile. Only membership_status_id and results split by it change; totals across statuses, event rows and event identifiers do not (Q-046). Tests that need an apuk_retirementdate set it on the Phase 1 source (brnz_rics_record), and before-and-after comparisons compare with a snapshot taken before the change (AC-017-07).",
-    "Daily history after the retirement change (ASM-002): when retirement dates change, the Phase 1 usp_load_silv_member_profile registers a pending daily rebuild from the earliest affected date, but the daily run does not rebuild dates already loaded. The first Phase 1 run after MOD-018 is deployed changes many contacts' dates, so a human then runs Layercake.usp_load_silver @RebuildFrom set to the pending row's date (or @FullRebuild = 1) once, and fact_daily_member_count_detail re-syncs from silver. Until then daily history keeps the old Practising / Retired split; active, paid and event counts are unaffected. The design adds no automatic rebuild. The step is part of the deployment notes and the handover runbook.",
-    "Idempotency and corrections: every load recomputes from current sources and writes only differences, so reruns change nothing, and late or corrected source rows flow through on the next run. Audit columns change only when a row's values change. No history is kept beyond the bronze soft-delete flags; silver and gold reflect the current sources (no type 2 history is asked for).",
+    "Daily count correction (REQ-018, RULE-106 to RULE-111, ADR-007): the Phase 1 derivation of a date's cells is unchanged; usp_load_silv_daily_count changes which dates it recomputes and how it writes them. (1) Start date. Each run compares the current silver inputs with etl_daily_count_input_basis. A contact's inputs are its rows in silv_membership_events, silv_member_state_ranges, silv_payment_events and silv_member_profile, limited to the columns the derivation reads. Each other table the derivation reads (for example ref_date_spine, ref_campaign_year_config and the grade and status lists) is one reference input, and the spine and Campaign Year list are compared only over dates already loaded. A contact whose inputs changed, appeared or disappeared contributes the earliest date its old or new rows can affect: the start of the Campaign Year of its earliest input row, never before 2020-10-01. The earliest input row is taken over event dates, range starts, payment and renewal dates and the Campaign Years the rows refer to. A changed reference input contributes 2020-10-01. The run's start is the earliest of these, the first date not yet loaded, and today. @RebuildFrom (or 2020-10-01 for @FullRebuild) can only move it earlier. (2) Recompute and write. Every date from the start to today is recomputed in date-ordered batches. For each date, in silv_daily_count_detail and silv_daily_count, cells newly derived are inserted, cells whose figures differ are updated, and cells no longer derived are deleted. Unchanged rows are untouched. Each batch commits in one transaction with its adjustment rows and its etl_daily_count_loaded marks. (3) Basis. After the last batch commits, the basis is brought into line with the inputs the run used, in its own transaction. (4) Failure. A run that fails part way keeps its committed batches and re-raises the error. The basis is unchanged, so the next run starts at the same date or earlier, finds no differences in the batches already corrected and finishes the rest, with no cleanup (RULE-111). (5) First run after deployment. The basis is empty, so the run recomputes every date from 2020-10-01 and corrects the drift so far (RULE-109). This replaces the ASM-002 one-off @RebuildFrom, which ADR-005's consequences described, and no person runs a rebuild after deployment. (6) etl_daily_count_pending_rebuild stays as a diagnostic. Its producers are unchanged and still log to it, and the daily count marks open rows applied once a run's correction covers their affected_from. Nothing reads it to decide what to recompute (RULE-110). (7) fact_daily_member_count_detail is unchanged: its Phase 1 load already applies differences across the whole span, so gold follows silver in the same run. After any completed run the stored history equals @FullRebuild on the same data, for all seven measures and every Campaign Year from 2020-10-01, closed or not (RULE-107, RULE-108). A run takes longer when the earliest change reaches far back.",
+    "Idempotency and corrections: every load recomputes from current sources and writes only differences, so reruns change nothing, and late or corrected source rows flow through on the next run. From AMD-003 this includes the daily counts for every past date (ADR-007). Audit columns change only when a row's values change. No type 2 history is kept: silver and gold reflect the current sources and bronze keeps soft-delete flags. The one history table is the daily count adjustment history (REQ-019).",
     "Error handling and logging: each load procedure follows base standards 3 (try/catch with XACT_ABORT, the error recorded, then re-raised). It logs start, rows inserted, updated and deleted, and outcome through Layercake.usp_etl_log_start and Layercake.usp_etl_log_end, with the start logged before the load's transaction.",
     "Deployment: one migration per module (MIG-0003 onward), each with a down script. Changes to existing Layercake tables go through change scripts that the down script reverses exactly. Down scripts restore the previous definitions of changed code objects and rename new tables that hold rows to <table>_rolledback_MIGnnnn. The eight event amount columns dropped under Q-038 hold only nulls, and their down script adds them back. No external object is created, altered or written to (RULE-076).",
-    "Spec questions this design depends on: Q-001 (payment method source) for attributes; Q-002, Q-019 and Q-027 for payer type, corporate_account_ref and the corporate anomalies; Q-005 for corporate amounts (known gap); Q-006 for carry-forward; Q-007 for leaving the daily and annual tables' grain unchanged; Q-008 for brnz_concession's source; Q-011 for pre-2022 handling; Q-012 for the segment invoice; Q-015 for no Mixed value; Q-017 for the subtotal-below-standard-rate check; Q-018 for the retired codes in the comparison; Q-024 for removing payment_source; Q-028 for Phase 1 column names; Q-029 for Joins with no paid position; Q-010 for the employer findings. Q-021 is answered (AMD-002): invoice lines are at ledger-distribution grain, and the rules that depended on it keep synapse_fo.CUSTTRANS_RICS as their source, read as the invoice line grain pattern describes. Each assumption sits in one rule of one load, so an answer changes one procedure.",
-    "Invoice line grain (RULE-104, RULE-105; Q-021, AMD-002): brnz_subs_invoice_line holds one row per ledger distribution, so one customer transaction (recid) can have several rows, for example one per cost centre or Campaign Year. Every reader follows two rules. First, a line's own amounts (amountcur, amountmst) belong to the row, while transaction-level values repeat on every row of a recid. settleamountcur is the one landed; CustTrans_AmountCur and CustTrans_AmountMst are not landed. Transaction-level values are taken once per recid and never summed across its rows. Second, counts of transactions or invoices count distinct recids or invoices, never rows. How each reader meets this. The line-type mapping adds one row per distinct (productcode, ricinvoicetype). vw_silv_eligible_invoice has one row per brnz_subs_invoice invoice, and its fee-only test asks whether any own line is an enrolment or application fee and every other own line is tax, which a split does not change. The concession is chosen among the item codes on the segment invoice's concession lines, so a split code is one concession, and an unknown code raises one CONCESSION_NOT_IN_REFERENCE row per contact-year and code. DOUBLE_PAYMENT asks whether Corporate and another method both settle the invoice. The readmission fee check asks whether any own line is a readmission fee. INVOICE_NO_EVENT and EVENT_MATCHES_MULTIPLE_INVOICES are raised once per eligible invoice. None of these readers needs to change, and MOD-020 retests them at the new grain. Only the payment-line fallback in usp_load_silv_member_year_attributes summed a transaction-level value per line, and MOD-020 changes it to count each transaction once. Event amounts read no lines (Q-038)."
+    "Spec questions this design depends on: Q-001 (payment method source) for attributes; Q-002, Q-019 and Q-027 for payer type, corporate_account_ref and the corporate anomalies; Q-005 for corporate amounts (known gap); Q-006 for carry-forward; Q-007 for leaving the daily and annual tables' grain unchanged; Q-008 for brnz_concession's source; Q-011 for pre-2022 handling; Q-012 for the segment invoice; Q-015 for no Mixed value; Q-017 for the subtotal-below-standard-rate check; Q-018 for the retired codes in the comparison; Q-024 for removing payment_source; Q-028 for Phase 1 column names; Q-029 for Joins with no paid position; Q-010 for the employer findings. Q-021 is answered (AMD-002): invoice lines are at ledger-distribution grain, and the rules that depended on it keep synapse_fo.CUSTTRANS_RICS as their source, read as the invoice line grain pattern describes. Each assumption sits in one rule of one load, so an answer changes one procedure. Q-049, Q-050 and Q-051 are answered (AMD-003). They fix the as-known-at boundary (only changes written strictly after T are subtracted, in server local time), the first-load figures for dates loaded after T, and the review view's cell grain. Each is held in one function or view.",
+    "Invoice line grain (RULE-104, RULE-105; Q-021, AMD-002): brnz_subs_invoice_line holds one row per ledger distribution, so one customer transaction (recid) can have several rows, for example one per cost centre or Campaign Year. Every reader follows two rules. First, a line's own amounts (amountcur, amountmst) belong to the row, while transaction-level values repeat on every row of a recid. settleamountcur is the one landed; CustTrans_AmountCur and CustTrans_AmountMst are not landed. Transaction-level values are taken once per recid and never summed across its rows. Second, counts of transactions or invoices count distinct recids or invoices, never rows. How each reader meets this. The line-type mapping adds one row per distinct (productcode, ricinvoicetype). vw_silv_eligible_invoice has one row per brnz_subs_invoice invoice, and its fee-only test asks whether any own line is an enrolment or application fee and every other own line is tax, which a split does not change. The concession is chosen among the item codes on the segment invoice's concession lines, so a split code is one concession, and an unknown code raises one CONCESSION_NOT_IN_REFERENCE row per contact-year and code. DOUBLE_PAYMENT asks whether Corporate and another method both settle the invoice. The readmission fee check asks whether any own line is a readmission fee. INVOICE_NO_EVENT and EVENT_MATCHES_MULTIPLE_INVOICES are raised once per eligible invoice. None of these readers needs to change, and MOD-020 retests them at the new grain. Only the payment-line fallback in usp_load_silv_member_year_attributes summed a transaction-level value per line, and MOD-020 changes it to count each transaction once. Event amounts read no lines (Q-038).",
+    "Adjustment history (REQ-019, RULE-112 to RULE-118): every write to silv_daily_count_detail for a date already marked in etl_daily_count_loaded records, in the same transaction, one silv_daily_count_adjustment row per cell whose figures changed. The row holds new minus old per measure, with a missing cell counting as 0 and an unchanged measure as 0. A date not yet marked loaded is a first load and records nothing. Today is marked loaded by its first load, so every later reload of today records its changes (RULE-114). Every path records under its own run_id: the scheduled run, the first run after deployment, @RebuildFrom and @FullRebuild (RULE-115). For every cell and measure, the figure stored after a run equals the figure before it plus that run's adjustment rows, including for a run that failed part way (RULE-116). Rows are never updated or deleted (RULE-117). Only the seven daily measures are recorded. Segment columns on events and the annual rate base write nothing, and silv_daily_count changes are the sums of the detail changes (RULE-118).",
+    "Figures as known at T (REQ-020, ADR-008; Q-049, Q-050, Q-051 answered): fn_silv_daily_count_detail_as_known_at and fn_silv_daily_count_as_known_at return the stored figure minus the changes written strictly after T. written_at and T are both database server local time, so a change written exactly at T is part of the figure at T. A cell removed after T counts as 0 today and so shows its figure at T. A date first loaded after T shows its first-load figures, because no first-load time is tracked. The history starts with the first run after deployment, so for a T before that run the figures are those stored just before it. vw_silv_daily_count_adjustment_review lists one row per adjustment and non-zero measure, keeping the cell's grain columns. Tests use the silver grade 'election' where the spec's AC-020 cells say 'Qualified', which is the gold dim_membership_grade name."
   ],
-  "security": "No new personal data: contact_no already exists in Phase 1, and no names, emails or bank details are landed. No masking is needed. Every count-only procedure returns aggregates only, with no contact-level columns (RULE-057, RULE-064, RULE-066). Grants are scripted by the Developer in src/sql/grants/<MOD>.sql for a human to run: SELECT on the four new dimensions for the existing reporting role that reads fact_membership_events, and EXECUTE on the usp_profile_* and usp_report_* procedures for the analyst role that runs the profiling. Agents hold no grant rights. External sources are read with the project's existing read access and never written.",
-  "performance": "No volumes are given in the spec. Working estimate: about 140,000 members, so about 140,000 subscription invoices a year from 2022, about one attributes row and one brnz_subs_status row per member per year, and one silv_event_amount row per Join, Renewal and Readmission. Invoice lines are at ledger-distribution grain. Profiling (Q-021) found 458,563 transactions split across 1,015,865 rows, so brnz_subs_invoice_line is expected to hold one to a few million rows. Indexes: brnz_subs_invoice on (account_num, campaign_year) and voucher; brnz_subs_invoice_line clustered on line_id, with a unique index on (recid, postingtype, accountdisplayvalue) (up to about 1 KB per entry, within the nonclustered key limit, ADR-006) and indexes on (accountnum, voucher) and lastsettlevoucher as before; brnz_corporate_subscription on (contact_no, sub_campaign_year); silv_event_amount on (contact_no, amount_campaign_year) and invoice_rec_id; silv_member_year_attributes is clustered on its key. brnz_subs_status is read by its key ([Contact No.], [Campaign Year]) for event amounts and the derived date. No index is added to it, to other Phase 1 tables or to external objects. All loads are set-based full comparisons that write only differences, so the daily cost is dominated by reading the bronze sources. The first invoice line load after MOD-019 soft-deletes the rows landed at the old grain and inserts the source rows once. The one heavy step the amendment adds is the one-off daily rebuild after MOD-018, which recomputes daily counts from 2020-10-01; a human runs it outside the daily window.",
+  "security": "No new personal data: contact_no already exists in Phase 1, and no names, emails or bank details are landed. No masking is needed. Every count-only procedure returns aggregates only, with no contact-level columns (RULE-057, RULE-064, RULE-066). The as-known-at functions and the adjustments review view return figures by daily count cell only, with no contact column. etl_daily_count_input_basis holds contact numbers already present in Phase 1 and is internal, so it gets no grant. Grants are scripted by the Developer in src/sql/grants/<MOD>.sql for a human to run. The four new dimensions, the two as-known-at functions and vw_silv_daily_count_adjustment_review get SELECT for the existing reporting role that reads fact_membership_events. The usp_profile_* and usp_report_* procedures get EXECUTE for the analyst role that runs the profiling. Agents hold no grant rights. External sources are read with the project's existing read access and never written.",
+  "performance": "No volumes are given in the spec. Working estimate: about 140,000 members, so about 140,000 subscription invoices a year from 2022, about one attributes row and one brnz_subs_status row per member per year, and one silv_event_amount row per Join, Renewal and Readmission. Invoice lines are at ledger-distribution grain. Profiling (Q-021) found 458,563 transactions split across 1,015,865 rows, so brnz_subs_invoice_line is expected to hold one to a few million rows. Indexes: brnz_subs_invoice on (account_num, campaign_year) and voucher; brnz_subs_invoice_line clustered on line_id, with a unique index on (recid, postingtype, accountdisplayvalue) (up to about 1 KB per entry, within the nonclustered key limit, ADR-006) and indexes on (accountnum, voucher) and lastsettlevoucher as before; brnz_corporate_subscription on (contact_no, sub_campaign_year); silv_event_amount on (contact_no, amount_campaign_year) and invoice_rec_id; silv_member_year_attributes is clustered on its key. brnz_subs_status is read by its key ([Contact No.], [Campaign Year]) for event amounts and the derived date. No index is added to it, to other Phase 1 tables or to external objects. All loads are set-based full comparisons that write only differences, so the daily cost is dominated by reading the bronze sources. The first invoice line load after MOD-019 soft-deletes the rows landed at the old grain and inserts the source rows once. The daily count correction (ADR-007) adds a fingerprint pass over the four silver inputs on every run, with about one basis row per contact. It then recomputes the daily counts from the earliest changed date, which is usually within the current Campaign Year because backdated events and payments mostly fall there. A changed reference input, or the first run after deployment, recomputes from 2020-10-01 and takes about as long as @FullRebuild. Mike accepts longer runs on those days. The first run's catch-up writes one adjustment row per drifted cell. After that, rows grow with the number of changed cells per run, and the table is kept indefinitely. silv_daily_count_adjustment is clustered on adjustment_id, with the unique index on run and cell and an index on ([date], written_at) for the as-known-at functions. etl_daily_count_input_basis is clustered on its key.",
   "requirement_coverage": [
     {
       "requirement_id": "REQ-001",
       "design_elements": [
-        "Layercake.usp_run_payment_segments runs after Phase 1 (ADR-001)",
-        "Phase 1 procedures unchanged except usp_load_brnz_subs_status, usp_load_silv_member_base (retirement date only, ADR-005), usp_load_silv_data_anomaly (own types only) and the silv_payment_events load",
+        "Layercake.usp_run_payment_segments runs after Phase 1 (ADR-001), as the last step of Layercake.usp_run_daily_load",
+        "Phase 1 procedures unchanged except usp_load_brnz_subs_status, usp_load_silv_member_base (retirement date only, ADR-005), usp_load_silv_data_anomaly (own types only), the silv_payment_events load, usp_load_silv_daily_count (which dates are recomputed and how they are written, ADR-007) and usp_run_daily_load (segment step)",
         "Enrichment procedures update only the new columns",
         "Derived retirement date pattern: only membership_status_id and results split by it change (RULE-102, Q-046)"
       ]
@@ -1914,7 +2363,7 @@
       "requirement_id": "REQ-015",
       "design_elements": [
         "Entity descriptions, patterns and known gaps in this design (including Q-038 and Q-040) as source content for the handover pack and the Platform Schema document",
-        "Derived retirement date and daily rebuild handover step"
+        "Derived retirement date; runbook with no one-off daily rebuild (REQ-018) and with usp_run_daily_load as the only scheduled procedure (REQ-021)"
       ]
     },
     {
@@ -1922,7 +2371,8 @@
       "design_elements": [
         "Deployment pattern",
         "Idempotency pattern",
-        "Layercake.usp_run_payment_segments"
+        "Layercake.usp_run_payment_segments",
+        "Daily count correction pattern: a failed run is completed by the next with no cleanup"
       ]
     },
     {
@@ -1931,7 +2381,46 @@
         "Layercake.vw_silv_derived_retirement_date",
         "Layercake.usp_load_silv_member_base (retirement_date from the derived date, ADR-005)",
         "Layercake.brnz_subs_status.retired_concession",
-        "Derived retirement date and daily history patterns"
+        "Derived retirement date pattern",
+        "Past daily counts take a changed retirement date on the next run with no one-off rebuild (daily count correction pattern, Layercake.usp_load_silv_daily_count)"
+      ]
+    },
+    {
+      "requirement_id": "REQ-018",
+      "design_elements": [
+        "Layercake.usp_load_silv_daily_count (difference-only writes; automatic correction of changed past dates)",
+        "Layercake.etl_daily_count_input_basis",
+        "Layercake.silv_daily_count_detail",
+        "Layercake.silv_daily_count",
+        "Daily count correction pattern",
+        "ADR-007 input comparison against a stored basis",
+        "etl_daily_count_pending_rebuild kept as a diagnostic only"
+      ]
+    },
+    {
+      "requirement_id": "REQ-019",
+      "design_elements": [
+        "Layercake.silv_daily_count_adjustment",
+        "Layercake.usp_load_silv_daily_count (writes adjustment rows in the same transaction as each change)",
+        "Adjustment history pattern"
+      ]
+    },
+    {
+      "requirement_id": "REQ-020",
+      "design_elements": [
+        "Layercake.fn_silv_daily_count_detail_as_known_at",
+        "Layercake.fn_silv_daily_count_as_known_at",
+        "Layercake.vw_silv_daily_count_adjustment_review",
+        "ADR-008 table functions",
+        "Figures as known at T pattern"
+      ]
+    },
+    {
+      "requirement_id": "REQ-021",
+      "design_elements": [
+        "Layercake.usp_run_daily_load (runs usp_run_payment_segments as its last step under the same run_id)",
+        "Layercake.usp_run_payment_segments (unchanged, callable alone)",
+        "Run order pattern"
       ]
     }
   ],
@@ -1941,7 +2430,9 @@
     "ADR-003",
     "ADR-004",
     "ADR-005",
-    "ADR-006"
+    "ADR-006",
+    "ADR-007",
+    "ADR-008"
   ],
   "open_questions": [
     {
@@ -1961,7 +2452,8 @@
       "id": "Q-031",
       "question": "How are the Phase 1 silv_membership_events, fact_membership_events, silv_payment_events and silv_data_anomaly loaded? Do they rebuild in full each run or apply only changes, and do the anomaly writers delete anomaly types they do not own? What are the procedure names, and how is the Phase 1 run scheduled, so that usp_run_payment_segments can run straight after it? ADR-001 assumes change-only loads that leave other anomaly types alone.",
       "raised_by": "technical_architect",
-      "status": "open",
+      "status": "answered",
+      "answer": "Layercake.usp_load_silv_payment_events, called by usp_load_silver, is the only loader of silv_payment_events (MOD-009 answer). The Phase 1 loads apply only differences, and each manages its own transaction and logging (ASM-008). The Phase 1 anomaly load now resolves only its own types (MOD-008 answer). Scheduling: Layercake.usp_run_daily_load runs usp_run_payment_segments as its last step under the same run_id, so nobody schedules a second procedure (Mike, AMD-003, 2026-11-17).",
       "blocks": [
         "MOD-009",
         "MOD-012",
@@ -2035,6 +2527,16 @@
       "answer": "The derived retirement date replaces silv_member_base.retirement_date for every reader, and it only sets Practising / Retired (membership_status_id). It does not change which membership events exist or their dates: every Phase 1 use in usp_load_silv_membership_events is inside the join that picks the status, and the annual rate base and daily counts use it for status only. No difference or reconciliation script reads silv_member_base.retirement_date; their diagnostic columns keep showing apuk_retirementdate, and their PASS checks are unaffected (Mike, 2026-11-09).",
       "blocks": [
         "MOD-018"
+      ]
+    },
+    {
+      "id": "Q-052",
+      "question": "The daily count design (ADR-007) assumes three things, which the Developer confirms from the Phase 1 code at the start of MOD-022. (a) The handling of @RebuildFrom and @FullRebuild (which dates are recomputed, and clearing their loaded marks) sits in usp_load_silv_daily_count, which usp_load_silver calls with those parameters, so usp_load_silver needs no change. (b) silv_daily_count holds, for each [date], region and grade, the sum of silv_daily_count_detail over country_id, gender_id and membership_status_id. (c) The full list of tables and columns the daily derivation reads, which the input basis must cover; the change note records it. If (a) is wrong, usp_load_silver joins MOD-022's objects. If (b) is wrong, fn_silv_daily_count_as_known_at cannot equal silv_daily_count, and the spec's RULE-120 needs revisiting.",
+      "raised_by": "technical_architect",
+      "status": "open",
+      "blocks": [
+        "MOD-021",
+        "MOD-022"
       ]
     }
   ]

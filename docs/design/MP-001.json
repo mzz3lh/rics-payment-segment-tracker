@@ -4,21 +4,16 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "MP-001",
-    "version": 3,
+    "version": 4,
     "produced_by": "technical_architect",
-    "produced_at": "2026-11-12T08:09:09Z",
-    "status": "approved",
+    "produced_at": "2026-11-17T21:26:30Z",
+    "status": "for_review",
     "source_artefacts": [
       "docs/design/DES-001.json",
       "docs/amendments/AMD-001.json",
-      "docs/amendments/AMD-002.json"
-    ],
-    "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-12T08:09:25Z",
-      "gate": "architecture_validation",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
-    }
+      "docs/amendments/AMD-002.json",
+      "docs/amendments/AMD-003.json"
+    ]
   },
   "design_ref": "docs/design/DES-001.json",
   "max_test_loops": 3,
@@ -650,6 +645,127 @@
       ],
       "objects": [
         "Layercake.usp_load_silv_member_year_attributes"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-021",
+      "title": "Daily count adjustment history and as-known-at queries",
+      "sequence": 21,
+      "scope": "Builds the insert-only Layercake.silv_daily_count_adjustment, with its columns, the check that not all seven changes are 0, the unique run-and-cell key and its indexes. Also builds the two as-known-at table functions, Layercake.fn_silv_daily_count_detail_as_known_at and Layercake.fn_silv_daily_count_as_known_at (ADR-008), and the review view Layercake.vw_silv_daily_count_adjustment_review. No load writes the table yet: tests insert stored daily counts and adjustment rows directly, using the silver grade 'election' for the spec's 'Qualified' cells. Changes no Phase 1 object. The down script drops the functions and the view. It renames the table to silv_daily_count_adjustment_rolledback_MIGnnnn when it holds rows, and drops it otherwise.",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "AC-020-01",
+        "AC-020-02",
+        "AC-020-03",
+        "AC-020-04",
+        "AC-020-05",
+        "AC-020-06",
+        "AC-020-07"
+      ],
+      "objects": [
+        "Layercake.silv_daily_count_adjustment",
+        "Layercake.fn_silv_daily_count_detail_as_known_at",
+        "Layercake.fn_silv_daily_count_as_known_at",
+        "Layercake.vw_silv_daily_count_adjustment_review"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-022",
+      "title": "Daily count correction of every changed past date, with adjustment history",
+      "sequence": 22,
+      "scope": "Adds Layercake.etl_daily_count_input_basis and changes the Phase 1 Layercake.usp_load_silv_daily_count (ADR-007). Each run compares the inputs with the basis, finds the earliest affected date and recomputes every date from there to today, including today and dates not yet loaded, in date-ordered batches. @RebuildFrom and @FullRebuild can only move the start earlier. Each date is written as differences only. In the same batch transaction, the load writes one silv_daily_count_adjustment row per changed cell of a date already marked loaded. The basis is advanced only after the last batch commits, and covered open etl_daily_count_pending_rebuild rows are marked applied. The derivation, the signature, the logging, the producers of the pending table, usp_load_silver and the gold load are unchanged. silv_daily_count_detail and silv_daily_count keep their structure, with no change script. The Developer first confirms Q-052 from the Phase 1 code. Tests compare with @FullRebuild, including the first run after deployment, a forced failure part way through, an events-only change and a retirement date change. The down script restores the Phase 1 procedure. It renames the basis table to etl_daily_count_input_basis_rolledback_MIGnnnn when it holds rows, and drops it otherwise.",
+      "requirement_ids": [
+        "REQ-018",
+        "REQ-019",
+        "REQ-020"
+      ],
+      "depends_on": [
+        "MOD-007",
+        "MOD-012",
+        "MOD-017",
+        "MOD-018",
+        "MOD-021"
+      ],
+      "acceptance_criteria": [
+        "AC-018-01",
+        "AC-018-02",
+        "AC-018-03",
+        "AC-018-04",
+        "AC-018-05",
+        "AC-018-06",
+        "AC-018-07",
+        "AC-018-08",
+        "AC-018-09",
+        "AC-019-01",
+        "AC-019-02",
+        "AC-019-03",
+        "AC-019-04",
+        "AC-019-05",
+        "AC-019-06",
+        "AC-019-07",
+        "AC-019-08",
+        "AC-019-09",
+        "AC-019-10",
+        "AC-020-08",
+        "AC-020-09"
+      ],
+      "objects": [
+        "Layercake.etl_daily_count_input_basis",
+        "Layercake.usp_load_silv_daily_count",
+        "Layercake.silv_daily_count_detail",
+        "Layercake.silv_daily_count"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-023",
+      "title": "Segment loads in the daily run",
+      "sequence": 23,
+      "scope": "Changes the Phase 1 Layercake.usp_run_daily_load to run Layercake.usp_run_payment_segments as its last step, after the gold step, under the same run_id and with no as-of date. Failure handling, the run's own logging and the Phase 1 steps are unchanged, and usp_run_payment_segments itself is unchanged and stays callable alone. Proves on synthetic data that one call gives the same results as the Phase 1 run followed by usp_run_payment_segments, and that a failing segment load fails the run, with a rerun that recovers. The Developer runs the two Phase 1 reconciliation scripts after one call and records both verdicts in the change note, as for MOD-016. The module's documentation update changes the runbook. It names usp_run_daily_load as the only procedure to schedule, describes usp_run_payment_segments, @RebuildFrom and @FullRebuild as optional manual tools, and removes every step that asks a person to rebuild daily counts or apply pending-rebuild rows. The down script restores the Phase 1 procedure.",
+      "requirement_ids": [
+        "REQ-021",
+        "REQ-018"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006",
+        "MOD-007",
+        "MOD-008",
+        "MOD-009",
+        "MOD-010",
+        "MOD-011",
+        "MOD-012",
+        "MOD-016",
+        "MOD-017",
+        "MOD-018",
+        "MOD-019",
+        "MOD-020",
+        "MOD-022"
+      ],
+      "acceptance_criteria": [
+        "AC-021-01",
+        "AC-021-02",
+        "AC-021-03",
+        "AC-021-04",
+        "AC-021-05",
+        "AC-021-06",
+        "AC-021-07",
+        "AC-018-10"
+      ],
+      "objects": [
+        "Layercake.usp_run_daily_load"
       ],
       "status": "planned",
       "build_tool": "migrations"
