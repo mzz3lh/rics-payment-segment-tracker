@@ -4,10 +4,10 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "SPEC-001",
-    "version": 4,
+    "version": 5,
     "produced_by": "analyst",
-    "produced_at": "2026-11-17T20:34:09Z",
-    "status": "approved",
+    "produced_at": "2026-11-18T16:37:53Z",
+    "status": "for_review",
     "source_artefacts": [
       "docs/requirements/BR-001-payment-segments-tracker.md",
       "docs/reviews/SPEC-001-review-1.md",
@@ -21,15 +21,11 @@
       "docs/sources/external/CE/CE.vwConcession.sql",
       "docs/amendments/AMD-001.json",
       "docs/amendments/AMD-002.json",
-      "docs/amendments/AMD-003.json"
-    ],
-    "approval": {
-      "approved_by": "Mike",
-      "approved_at": "2026-11-17T21:06:27Z",
-      "gate": "spec_signoff"
-    }
+      "docs/amendments/AMD-003.json",
+      "docs/amendments/AMD-004.json"
+    ]
   },
-  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status. It is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. The daily load keeps every past daily count in line with the current silver data on every run, from 2020-10-01, with no manual step. It records each change to a past or repeated day in an adjustment history that gives the figures as known at any time. One call of Layercake.usp_run_daily_load also runs the payment and invoice segment loads. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09), AMD-002 (invoice line grain, Mike, 2026-11-11) and AMD-003 (daily load accuracy, Mike, 2026-11-17) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
+  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status. It is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. Corporate subscriptions are landed as one row per contact, scheme and Campaign Year. Where the source repeats a key, the live copy is kept, and the repeat does not fail the load. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. The daily load keeps every past daily count in line with the current silver data on every run, from 2020-10-01, with no manual step. It records each change to a past or repeated day in an adjustment history that gives the figures as known at any time. One call of Layercake.usp_run_daily_load also runs the payment and invoice segment loads. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09), AMD-002 (invoice line grain, Mike, 2026-11-11), AMD-003 (daily load accuracy, Mike, 2026-11-17) and AMD-004 (corporate subscription repeated keys, Mike, 2026-11-18) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
   "glossary": {
     "Campaign Year": "The RICS subscription year, as held in Layercake.ref_campaign_year_config and on the invoice source (Subs.tblSubsInvoices.Campaign_Year).",
     "Eligible invoice": "A subscription invoice that may set a contact-year's segments and be matched to an event for the invoice checks (RULE-014, RULE-084). Credit notes and enrolment- or application-fee-only invoices are never eligible. A fully credited invoice is eligible only when the contact-year has no other eligible invoice.",
@@ -114,7 +110,7 @@
         },
         {
           "id": "RULE-005",
-          "rule": "Each bronze load runs a row-count check: rows with _is_deleted = 0 equal the source rows in scope. The load records its row counts through Layercake.usp_etl_log_start and Layercake.usp_etl_log_end."
+          "rule": "Each bronze load runs a row-count check: rows with _is_deleted = 0 equal the source rows in scope. The load records its row counts through Layercake.usp_etl_log_start and Layercake.usp_etl_log_end. For Layercake.brnz_corporate_subscription, the source rows in scope are counted as distinct ('Contact No', 'Scheme No', 'Sub Campaign Year') keys, because one key can hold several source rows (RULE-128; AMD-004)."
         },
         {
           "id": "RULE-077",
@@ -723,7 +719,7 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "Mark every membership event and paid member as Individual or Corporate. Corporate scheme subscriptions (Subs.vwCorpSubscriptions) are landed into new Layercake.brnz_corporate_subscription (name proposed). The requirement creates Layercake.silv_ref_payer_type with the shared reserved values, adds payer_type_id, payer_type_carried and corporate_account_ref to silv_member_year_attributes, and carries payer_type_id onto every event and fact_membership_events, with gold Layercake.dim_payer_type. The Corporate test uses the live status of the corporate subscription (review change 9) and the same eligible invoices as payment method. It states which payer type wins on a double payment (review change 8). The text payment_source on silv_payment_events is retired.",
+      "description": "Mark every membership event and paid member as Individual or Corporate. Corporate scheme subscriptions (Subs.vwCorpSubscriptions) are landed into new Layercake.brnz_corporate_subscription (name proposed). The requirement creates Layercake.silv_ref_payer_type with the shared reserved values, adds payer_type_id, payer_type_carried and corporate_account_ref to silv_member_year_attributes, and carries payer_type_id onto every event and fact_membership_events, with gold Layercake.dim_payer_type. The Corporate test uses the live status of the corporate subscription (review change 9) and the same eligible invoices as payment method. It states which payer type wins on a double payment (review change 8). The text payment_source on silv_payment_events is retired. Subs.vwCorpSubscriptions is at subscription-user grain, so one contact can appear several times for one scheme and Campaign Year (Q-033). Bronze keeps one row per contact, scheme and Campaign Year, preferring the live copy, and the repeat does not fail the load (Mike, AMD-004, 2026-11-18). Because the live copy is always kept, the live-subscription test (RULE-082) and the loads and reports that read it are unchanged.",
       "business_rules": [
         {
           "id": "RULE-020",
@@ -764,38 +760,46 @@
         {
           "id": "RULE-027",
           "rule": "silv_payment_events.payment_source is removed. Payer type lives on silv_member_year_attributes (assumes Q-024)."
+        },
+        {
+          "id": "RULE-128",
+          "rule": "Layercake.usp_load_brnz_corporate_subscription lands one live row per ('Contact No', 'Scheme No', 'Sub Campaign Year') in Layercake.brnz_corporate_subscription. Subs.vwCorpSubscriptions is at subscription-user grain, so one key can hold several source rows (Q-033). Where it does, the load keeps one copy, chosen in this order. First, the copy whose 'Sub Status' and 'Sub User Status' are both the active value ('Active', assumes Q-027). Then the copy with the latest 'Sub User Created Date'. Then the copy with the highest 'Round' (assumes Q-053 for a NULL date and for how Round is compared). Any tie that remains, including identical rows, is broken deterministically, so the same source data always lands the same row. The design sets that final tie-break. 'Round' is not landed and plays no other part (Mike, 2026-10-23)."
+        },
+        {
+          "id": "RULE-129",
+          "rule": "Repeated source rows are not an error and do not fail the load. Every run of usp_load_brnz_corporate_subscription logs the number of source rows it did not land because they repeat a key, including 0 when there are none. The design decides where this number is logged, for example a Layercake.etl_progress_log sub-step. Repeated rows are not a data anomaly and write no Layercake.silv_data_anomaly row. A source row with a NULL 'Contact No', 'Scheme No' or 'Sub Campaign Year' still fails the load with error 515: it logs Failed, re-raises the error and leaves the table unchanged (Mike, 2026-10-26)."
         }
       ],
       "mappings": [
         {
           "source": "Subs.vwCorpSubscriptions.Contact No",
           "target": "Layercake.brnz_corporate_subscription.contact_no",
-          "transformation": "1:1 bronze landing with standard audit columns"
+          "transformation": "1:1 bronze landing with standard audit columns. One live row per (contact_no, scheme_no, sub_campaign_year). Where the source repeats the key, the copy chosen by RULE-128 is landed."
         },
         {
           "source": "Subs.vwCorpSubscriptions.Scheme No",
           "target": "Layercake.brnz_corporate_subscription.scheme_no",
-          "transformation": "1:1"
+          "transformation": "1:1. Part of the row key (RULE-128)."
         },
         {
           "source": "Subs.vwCorpSubscriptions.Scheme Name",
           "target": "Layercake.brnz_corporate_subscription.scheme_name",
-          "transformation": "1:1"
+          "transformation": "1:1, from the copy chosen by RULE-128."
         },
         {
           "source": "Subs.vwCorpSubscriptions.Sub Campaign Year",
           "target": "Layercake.brnz_corporate_subscription.sub_campaign_year",
-          "transformation": "1:1"
+          "transformation": "1:1. Part of the row key (RULE-128)."
         },
         {
           "source": "Subs.vwCorpSubscriptions.Sub Status",
           "target": "Layercake.brnz_corporate_subscription.sub_status",
-          "transformation": "1:1"
+          "transformation": "1:1, from the copy chosen by RULE-128. Also the first preference of that choice."
         },
         {
           "source": "Subs.vwCorpSubscriptions.Sub User Status",
           "target": "Layercake.brnz_corporate_subscription.sub_user_status",
-          "transformation": "1:1"
+          "transformation": "1:1, from the copy chosen by RULE-128. Also the first preference of that choice."
         },
         {
           "source": "derived",
@@ -840,6 +844,16 @@
           "source": "derived",
           "target": "Layercake.silv_data_anomaly (anomaly_type, contact_no, anomaly_nk, detail)",
           "transformation": "CORPORATE_FLAG_NO_SCHEME and DOUBLE_PAYMENT rows per RULE-025 and RULE-026. The detail names the Campaign Year and invoice."
+        },
+        {
+          "source": "Subs.vwCorpSubscriptions.Sub User Created Date",
+          "target": "Layercake.brnz_corporate_subscription (choice of copy only; not landed)",
+          "transformation": "Second preference of RULE-128: the latest date wins. A NULL date loses to any date (assumes Q-053)."
+        },
+        {
+          "source": "Subs.vwCorpSubscriptions.Round",
+          "target": "Layercake.brnz_corporate_subscription (choice of copy only; not landed)",
+          "transformation": "Third preference of RULE-128: the highest Round wins, compared as a whole number. A NULL or non-numeric Round ranks below any whole number (assumes Q-053)."
         }
       ],
       "acceptance_criteria": [
@@ -906,6 +920,42 @@
         {
           "id": "AC-006-16",
           "criterion": "Contact P10, 2025: the segment invoice is settled 225.00 by Card and 225.00 by Corporate. The Card payment (one recid) is split into 2 lines, both with the invoice's voucher as LASTSETTLEVOUCHER and settleamountcur 225.00. P10 is in a live corporate subscription for 2025 and has a paid position. Result: exactly one DOUBLE_PAYMENT row for P10 and exactly one 2025 attributes row, with payer type Corporate (assumes Q-002, Q-027)."
+        },
+        {
+          "id": "AC-006-17",
+          "criterion": "Subs.vwCorpSubscriptions holds 3 copies of key ('1000091', 'SCH-091', 2027) that differ only in: copy A, Sub Status 'Active', Sub User Status 'Inactive', Sub User Created Date 2026-09-01, Round '2'; copy B, 'Active', 'Active', 2026-06-01, '1'; copy C, 'Active', 'Inactive', 2026-10-15, '3'. usp_load_brnz_corporate_subscription logs 'Success' and raises no error. brnz_corporate_subscription holds exactly 1 live row for the key, with sub_status 'Active' and sub_user_status 'Active' (copy B) (assumes Q-027)."
+        },
+        {
+          "id": "AC-006-18",
+          "criterion": "Key ('1000092', 'SCH-092', 2027) has no Active/Active copy: copy D, Sub Status 'Active', Sub User Status 'Inactive', Sub User Created Date 2026-08-01, Round '2'; copy E, 'Active', 'Pending', 2026-10-01, '1'. brnz_corporate_subscription holds exactly 1 live row for the key, with sub_user_status 'Pending' (copy E: the later Sub User Created Date wins over the higher Round) (assumes Q-027)."
+        },
+        {
+          "id": "AC-006-19",
+          "criterion": "Key ('1000093', 'SCH-093', 2027): copy F, Sub Status 'Active', Sub User Status 'Inactive', Sub User Created Date 2026-09-01, Round '1'; copy G, 'Active', 'Pending', 2026-09-01, Round '2'. brnz_corporate_subscription holds exactly 1 live row for the key, with sub_user_status 'Pending' (copy G, the higher Round) (assumes Q-027)."
+        },
+        {
+          "id": "AC-006-20",
+          "criterion": "Key ('1000094', 'SCH-094', 2027) has 2 identical copies with Sub Status 'Active' and Sub User Status 'Inactive'. The table holds exactly 1 live row for it, with those values. Key ('1000095', 'SCH-095', 2027) has copy H ('Active', 'Inactive') and copy J ('Active', 'Pending'), both with Sub User Created Date 2026-09-01 and Round '1'. Loading it twice into an empty brnz_corporate_subscription, with H and J inserted into the source in opposite orders, lands 1 live row each time, with the same sub_user_status both times."
+        },
+        {
+          "id": "AC-006-21",
+          "criterion": "The source holds the 11 rows of AC-006-17 to AC-006-20 (5 keys) plus 1 row for the unrepeated key ('1000096', 'SCH-096', 2027): 12 rows on 6 keys. The load logs 'Success'. brnz_corporate_subscription holds 6 live rows, which equals the 6 distinct source keys of the row-count check (RULE-005). The load's log for that run records 6 source rows not landed as repeats. A second load on the unchanged source records 0 rows inserted, 0 updated and 0 deleted, leaves the same 6 rows with the same values, and again records 6 rows not landed. A source with no repeated key records 0."
+        },
+        {
+          "id": "AC-006-22",
+          "criterion": "Run the segment anomaly load twice: once on a source holding only the copy each key of AC-006-21 lands, and once on all 12 rows. silv_data_anomaly holds the same rows both times: 0 differences. No anomaly row is raised for a repeated key."
+        },
+        {
+          "id": "AC-006-23",
+          "criterion": "Contact P11, 2025: the segment invoice has payment mode Corporate and there is a paid position. The source holds 2 copies of ('P11', 'SCH-011', 2025): one with Sub Status 'Active', Sub User Status 'Active' and Sub User Created Date 2024-09-01, and a later one with 'Active', 'Inactive' and 2024-11-01. Result: the corporate subscription load logs 'Success', P11's 2025 payer type is Corporate with corporate_account_ref 'SCH-011', and P11 has 0 CORPORATE_FLAG_NO_SCHEME rows (assumes Q-002, Q-019, Q-027)."
+        },
+        {
+          "id": "AC-006-24",
+          "criterion": "The source holds the 3 copies of AC-006-17 plus 1 row whose 'Scheme No' is NULL. usp_load_brnz_corporate_subscription fails with error 515: it logs 'Failed', re-raises the error, and brnz_corporate_subscription is unchanged."
+        },
+        {
+          "id": "AC-006-25",
+          "criterion": "Key ('1000097', 'SCH-097', 2027): copy K, Sub Status 'Active', Sub User Status 'Inactive', Sub User Created Date NULL, Round '1'; copy L, 'Active', 'Pending', 2026-01-10, Round '1'. The live row has sub_user_status 'Pending' (copy L). Key ('1000098', 'SCH-098', 2027): copy M, 'Active', 'Inactive', 2026-09-01, Round '9'; copy N, 'Active', 'Pending', 2026-09-01, Round '10'. The live row has sub_user_status 'Pending' (copy N) (assumes Q-053)."
         }
       ]
     },
@@ -1737,6 +1787,10 @@
         {
           "id": "RULE-097",
           "rule": "The pack names invoiced_subtotal_gbp as the headline value and states that subs_amount_gbp equals it by design (Q-044). It lists the amount_status values with their meaning, explains the reserved segment values Unknown, Unrecognised and Not applicable, and describes how the derived retirement date is set (REQ-017)."
+        },
+        {
+          "id": "RULE-131",
+          "rule": "docs/handover/06-known-limitations.md records Q-033 as answered and says how a repeated corporate subscription key is landed (RULE-128). It drops the limitation that a repeated key stops the corporate subscription load, and the handover step that asks for Q-033 to be confirmed. It still says that a row with a missing contact number, scheme number or Campaign Year fails that load (AMD-004)."
         }
       ],
       "acceptance_criteria": [
@@ -1755,6 +1809,10 @@
         {
           "id": "AC-015-04",
           "criterion": "The pack names invoiced_subtotal_gbp as the headline value and states that subs_amount_gbp equals it by design. It lists all 6 amount_status values (Before invoice data, No invoice, Counted on another event, Full Concession, Fully credited, Invoiced) and the 3 reserved segment values, and describes how the derived retirement date is set."
+        },
+        {
+          "id": "AC-015-05",
+          "criterion": "docs/handover/06-known-limitations.md lists Q-033 as answered: Subs.vwCorpSubscriptions is at subscription-user grain, and a repeated (Contact No, Scheme No, Sub Campaign Year) key lands as one row chosen by RULE-128. It has no statement that a repeated key stops or fails the corporate subscription load, and no step asking for Q-033 to be confirmed. It still states that a row with a missing contact number, scheme number or Campaign Year fails the load."
         }
       ]
     },
@@ -2177,7 +2235,7 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "Mike wants the normal daily load procedure to populate everything, including the payment and invoice segmentation (AMD-003, 2026-11-17). Layercake.usp_run_daily_load runs everything Layercake.usp_run_payment_segments runs today, under the same run_id. One call then populates Phase 1 and the payment method, payer type, concession and invoice segments, and nobody schedules a second procedure. The segment loads already apply only differences across all history, so they need no rebuild change.",
+      "description": "Mike wants the normal daily load procedure to populate everything, including the payment and invoice segmentation (AMD-003, 2026-11-17). Layercake.usp_run_daily_load runs everything Layercake.usp_run_payment_segments runs today, under the same run_id. One call then populates Phase 1 and the payment method, payer type, concession and invoice segments, and nobody schedules a second procedure. The segment loads already apply only differences across all history, so they need no rebuild change. On 2026-11-18 the first production run after MIG-0023 to MIG-0025 failed in the corporate subscription load on a repeated key (AMD-004). Once RULE-128 is deployed, one call of usp_run_payment_segments, or the next daily run, recovers with no manual cleanup.",
       "business_rules": [
         {
           "id": "RULE-123",
@@ -2198,6 +2256,10 @@
         {
           "id": "RULE-127",
           "rule": "The handover runbook (docs/handover/04-runbook.md) and the Phase 1 reconciliation scripts are checked against the new run."
+        },
+        {
+          "id": "RULE-130",
+          "rule": "After a daily run that failed in Layercake.usp_load_brnz_corporate_subscription, one call of Layercake.usp_run_payment_segments, or the next Layercake.usp_run_daily_load, recovers. Every segment load applies only differences, so no manual cleanup is needed. The handover runbook (docs/handover/04-runbook.md) gives this recovery step (AMD-004)."
         }
       ],
       "acceptance_criteria": [
@@ -2228,6 +2290,18 @@
         {
           "id": "AC-021-07",
           "criterion": "docs/handover/04-runbook.md names Layercake.usp_run_daily_load as the only procedure to schedule, describes usp_run_payment_segments as an optional segment-only rerun, and has no step that schedules usp_run_payment_segments after the Phase 1 run."
+        },
+        {
+          "id": "AC-021-08",
+          "criterion": "With Subs.vwCorpSubscriptions holding the repeated keys of AC-006-21, one call of usp_run_daily_load ends 'Success'. etl_run_log holds a 'Success' row under that run_id for every load that usp_run_payment_segments runs."
+        },
+        {
+          "id": "AC-021-09",
+          "criterion": "Start from the state the failed run left: the Phase 1 loads and the two invoice bronze loads have committed on the current source, brnz_corporate_subscription holds the previous run's rows, and the later segment loads have not run. One call of usp_run_payment_segments, with no manual cleanup, ends 'Success'. It leaves silv_member_year_attributes, the segment and amount columns of silv_membership_events and fact_membership_events, and silv_data_anomaly identical to the result of one usp_run_daily_load on the same data: 0 differing rows."
+        },
+        {
+          "id": "AC-021-10",
+          "criterion": "docs/handover/04-runbook.md gives the recovery after a failed corporate subscription load as one call of EXEC Layercake.usp_run_payment_segments, or the next usp_run_daily_load, with no manual cleanup step. It has no step asking for repeated corporate subscription keys to be corrected in the source."
         }
       ]
     }
@@ -2256,7 +2330,8 @@
     "subs_amount_gbp and invoiced_subtotal_gbp hold the same value on every event, because the view supplies a single invoiced amount (Q-044, answered by Product Owner assumption ASM-001).",
     "The time an adjustment is written and the time T of an 'as known at' query use the database server's local time (SYSDATETIME(), as Layercake.etl_run_log does). Only adjustments written strictly after T are subtracted, so a change written exactly at T is part of the figure at T (Q-049).",
     "An 'as known at T' query returns its first-load figures for a date first loaded after T, following the formula 'today's stored figure minus the changes written after T' literally (Q-050).",
-    "The adjustments review view has one row per cell, run and measure with a non-zero change, keeping the cell's grain columns and the time written, so changes that cancel out across cells stay visible (Q-051)."
+    "The adjustments review view has one row per cell, run and measure with a non-zero change, keeping the cell's grain columns and the time written, so changes that cancel out across cells stay visible (Q-051).",
+    "Where no copy of a repeated corporate subscription key is Active/Active, a copy with a NULL 'Sub User Created Date' loses to every copy that has a date. 'Round' is compared as a whole number, so '10' beats '9', and a NULL or non-numeric Round ranks below any whole number (Q-053)."
   ],
   "out_of_scope": [
     "Power BI work: semantic model, DAX and report pages.",
@@ -2273,7 +2348,9 @@
     "The P01/P03 timing difference: the bronze load runs before Subs.usp_Refresh_SubsMemberStatuses. Mike accepts it for now (AMD-003).",
     "Any rebuild change to the annual rate base tables (silv_annual_rate_base, fact_annual_rate_base), which are re-derived in full on every run (AMD-003).",
     "Adjustment history for anything other than the seven daily measures, including changes to segment columns on events (AMD-003).",
-    "Any rebuild change to the payment and invoice segment loads, which already apply only differences across all history (AMD-003)."
+    "Any rebuild change to the payment and invoice segment loads, which already apply only differences across all history (AMD-003).",
+    "Landing every subscription-user record of Subs.vwCorpSubscriptions: the view has no subscription-user key, so bronze keeps one row per contact, scheme and Campaign Year (AMD-004).",
+    "Any change to Subs.vwCorpSubscriptions or to the CRM data behind it (AMD-004)."
   ],
   "open_questions": [
     {
@@ -2679,6 +2756,25 @@
       "status": "open",
       "blocks": [
         "REQ-020"
+      ]
+    },
+    {
+      "id": "Q-033",
+      "question": "Subs.vwCorpSubscriptions has no row key. The design assumes (Contact No, Scheme No, Sub Campaign Year) is unique per source row and lands on that key. Can a contact appear twice in the same scheme and year (for example as two subscription users)? If so, which row should bronze keep?",
+      "raised_by": "technical_architect",
+      "status": "answered",
+      "answer": "No, the key is not unique (Mike, AMD-004, 2026-11-18). Subs.vwCorpSubscriptions is at subscription-user grain (CE.vwRicsv2Subscription joined to CE.vwSubscriptionUser), so a contact can hold several subscription-user records on one subscription and Campaign Year, for example removed in one round and added again in a later one. Production on 2026-11-18 had repeated keys in every Campaign Year from 2022 to 2027 (2027: 563 keys, up to 4 rows per key). Within each repeated key only the subscription-user columns (Round, Sub User State, Sub User Status, Sub User Created Date) differ, 14 keys repeat identical rows, and no key has more than one Active/Active copy. Bronze keeps one row per key: the Active/Active copy, then the latest Sub User Created Date, then the highest Round, then a deterministic final tie-break that the design sets (RULE-128). Repeats do not fail the load and are not anomalies. Their number is logged on every run (RULE-129).",
+      "blocks": [
+        "REQ-006"
+      ]
+    },
+    {
+      "id": "Q-053",
+      "question": "When no copy of a repeated corporate subscription key is Active/Active, RULE-128 keeps the copy with the latest 'Sub User Created Date', then the highest 'Round'. (1) Does a copy whose 'Sub User Created Date' is NULL lose to every copy that has a date, or win? (2) 'Round' is nvarchar(100): is it compared as a whole number, so '10' beats '9', with a NULL or non-numeric Round lowest, or as text? Working default: a NULL date loses, and Round is compared as a whole number with NULL or non-numeric lowest.",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-006"
       ]
     }
   ]
