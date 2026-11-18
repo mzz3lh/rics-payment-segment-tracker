@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "artefact_type": "defect_report",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-18T09:32:03Z",
+    "status": "for_review",
+    "artefact_id": "DR-MOD-022-1",
+    "source_artefacts": [
+      "TR-MOD-022-1"
+    ]
+  },
+  "module_id": "MOD-022",
+  "loop_number": 1,
+  "defects": [
+    {
+      "id": "DEF-001",
+      "test_condition_ids": [
+        "TC-018-020"
+      ],
+      "requirement_ids": [
+        "REQ-017"
+      ],
+      "severity": "minor",
+      "summary": "The approved MOD-018 test TC-018-020 still expects the Phase 1 forward-only daily count (a plain run leaves loaded dates on the old Retired split until a one-off @RebuildFrom), which REQ-018 / RULE-106, RULE-109 and RULE-110 replace, so the correct MOD-022 build fails it.",
+      "steps_to_reproduce": "Run the regression suite: [test_MOD018].[test TC-018-020 loaded daily history keeps the old split until a rebuild from the pending date applies the derived date]. Setup: T5 has apuk 2024-03-01 and derived date 2025-01-15. 2024-06-01 and 2025-02-01 are loaded and stored as Retired. Run EXEC usp_load_silv_member_base, then usp_load_silv_member_profile, then usp_load_silv_daily_count. The silv_daily_count_detail row for 2024-06-01 comes back with membership_status_id 1.\n\nFix: amend TC-018-020 and its test as ASM-010 says. Keep the setup. Drop the @RebuildFrom step. After the single plain run, assert the detail rows (2024-06-01 election 1 1) and (2025-02-01 election 2 1). Assert that the 'member_profile' row with affected_from 2024-03-01 has applied_at NOT NULL and that no open row remains. Cite REQ-018, RULE-109 and RULE-110 in place of ASM-002, keep AC-017-06, and rename the test to '...derived date reaches loaded daily history on the next plain run'. The code stays as built. If the Tester's tools cannot change an already-merged module's suite, a human sends TC-018-020 back to the Tester with the reason 'superseded by REQ-018 / RULE-109; amend as in ASM-010'.",
+      "expected": "Per REQ-018, RULE-109/110, SPEC-001 REQ-017 ('Past daily counts take the new split on the next daily run, with no one-off rebuild') and ASM-010: after usp_load_silv_member_base, usp_load_silv_member_profile and a plain usp_load_silv_daily_count, T5 on 2024-06-01 is already Practising (membership_status_id 1, active 1) and on 2025-02-01 Retired (2, active 1). The 'member_profile' pending row (affected_from 2024-03-01) is stamped applied_at NOT NULL, and no open 'member_profile' row remains. AC-017-06 is still met.",
+      "actual": "After the plain run the build gives membership_status_id 1 on 2024-06-01, which is the REQ-018 result. The test's first assertion expects 2 (Phase 1 / ASM-002 behaviour) and fails with 'Expected: <2> but was: <1>'. The test's next step looks up affected_from with applied_at IS NULL. That lookup would also fail now, because MOD-022 marks the covered pending row applied, as MP-001 MOD-022 requires.",
+      "suspected_cause": "test",
+      "status": "open"
+    }
+  ]
+}
