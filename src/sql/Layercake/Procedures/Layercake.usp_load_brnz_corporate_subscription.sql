@@ -5,6 +5,9 @@
     (contact_no, scheme_no, sub_campaign_year) can repeat (Q-033, AMD-004).
     One copy per key is landed (RULE-128, ADR-009); the others are counted in
     the etl_progress_log sub-step 'repeated_key_rows_not_landed' (ADR-010).
+    A row with no Sub Campaign Year is not landed and takes no part in the
+    choice or the repeat count; it is counted in the sub-step
+    'no_campaign_year_rows_not_landed' (AMD-005, RULE-134, RULE-135).
     Rows are matched on that key: insert new, update changed (and restore
     reappearing), soft-delete gone; distinct-key row-count check (RULE-005,
     RULE-130); logged. 'Round' is not landed and plays a part only in the
@@ -23,28 +26,30 @@ BEGIN
     -- readers compare it (database collation), so the copy they look for is kept.
     DECLARE @active_status nvarchar(350) = N'Active';
 
-    DECLARE @log_id     bigint,
-            @ins        int,
-            @upd        int,
-            @del        int,
-            @not_landed int,
-            @src_count  bigint,
-            @tgt_count  bigint,
-            @ts         datetime2(3),
-            @err        nvarchar(4000);
+    DECLARE @log_id         bigint,
+            @ins            int,
+            @upd            int,
+            @del            int,
+            @not_landed     int,
+            @no_year        int,
+            @src_count      bigint,
+            @tgt_count      bigint,
+            @ts             datetime2(3),
+            @err            nvarchar(4000);
 
     BEGIN TRY
         EXEC Layercake.usp_etl_log_start @run_id, 'bronze', 'brnz_corporate_subscription', @log_id OUTPUT;
 
-        -- Every source row, staged with the matching key NOT NULL: a NULL key
-        -- fails the load with 515 before bronze is touched (answers 2026-10-26,
-        -- no row is skipped).
+        -- Every source row, staged with Contact No and Scheme No NOT NULL: a NULL
+        -- in either fails the load with 515 before bronze is touched, whether or
+        -- not the row has a Campaign Year (answers 2026-10-26, RULE-137). A NULL
+        -- Sub Campaign Year is allowed here and set aside below (AMD-005).
         CREATE TABLE #src_all_rows
         (
             contact_no            nvarchar(100)  COLLATE DATABASE_DEFAULT NOT NULL,
             scheme_no             nvarchar(100)  COLLATE DATABASE_DEFAULT NOT NULL,
             scheme_name           nvarchar(4000) COLLATE DATABASE_DEFAULT NULL,
-            sub_campaign_year     int            NOT NULL,
+            sub_campaign_year     int            NULL,
             sub_status            nvarchar(350)  COLLATE DATABASE_DEFAULT NULL,
             sub_user_status       nvarchar(350)  COLLATE DATABASE_DEFAULT NULL,
             sub_user_created_date date           NULL,
@@ -76,6 +81,8 @@ BEGIN
         -- landed values in exact order (binary, then length so trailing spaces
         -- count), missing first. The key columns come last because the key itself
         -- matches case-insensitively, so copies still tied land identical values.
+        -- Rows with no Campaign Year are left out: the year is never guessed
+        -- (RULE-134), so a key whose rows all lose it is soft-deleted below.
         CREATE TABLE #src_corporate_subscription
         (
             contact_no        nvarchar(100)  COLLATE DATABASE_DEFAULT NOT NULL,
@@ -103,12 +110,15 @@ BEGIN
                                   a.scheme_name COLLATE Latin1_General_BIN2, DATALENGTH(a.scheme_name),
                                   a.contact_no COLLATE Latin1_General_BIN2, DATALENGTH(a.contact_no),
                                   a.scheme_no COLLATE Latin1_General_BIN2, DATALENGTH(a.scheme_no)) AS copy_rank
-              FROM #src_all_rows AS a) AS ranked
+              FROM #src_all_rows AS a
+              WHERE a.sub_campaign_year IS NOT NULL) AS ranked
         WHERE ranked.copy_rank = 1;
 
         SELECT @src_count = COUNT_BIG(*) FROM #src_corporate_subscription;
-        SET @not_landed = (SELECT COUNT(*) FROM #src_all_rows) - @src_count;
+        SELECT @no_year = COUNT(*) FROM #src_all_rows WHERE sub_campaign_year IS NULL;
+        SET @not_landed = (SELECT COUNT(*) FROM #src_all_rows WHERE sub_campaign_year IS NOT NULL) - @src_count;
         EXEC Layercake.usp_etl_log_progress @log_id, N'repeated_key_rows_not_landed', @not_landed, @ts OUTPUT;
+        EXEC Layercake.usp_etl_log_progress @log_id, N'no_campaign_year_rows_not_landed', @no_year, @ts OUTPUT;
 
         BEGIN TRANSACTION;
 
@@ -163,7 +173,7 @@ BEGIN
                             AND s.sub_campaign_year = tgt.sub_campaign_year);
         SET @del = @@ROWCOUNT;
 
-        -- RULE-130: distinct source keys against live bronze rows.
+        -- RULE-130: distinct keys of the rows with a Campaign Year against live bronze rows.
         SELECT @tgt_count = COUNT_BIG(*) FROM Layercake.brnz_corporate_subscription WHERE _is_deleted = 0;
         IF @src_count <> @tgt_count
             RAISERROR('Row count mismatch after sync of Layercake.brnz_corporate_subscription: distinct source keys %I64d vs active target %I64d.', 16, 1, @src_count, @tgt_count);

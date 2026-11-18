@@ -1,0 +1,80 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-025",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-18T18:44:28Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-025.json",
+      "tests/tsqlt/test_MOD025.sql"
+    ]
+  },
+  "module_id": "MOD-025",
+  "branch": "agent/developer/MOD-025-corporate-subscription-rows-with-no-camp",
+  "commit": "f953fb1be0be38d5fcc51a01ca0977c29e825bd6",
+  "requirement_ids": [
+    "REQ-023"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_brnz_corporate_subscription.sql",
+      "object": "Layercake.usp_load_brnz_corporate_subscription",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-023"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD025_dev].[test a NULL Scheme No on an undated row fails with 515 logs Failed writes neither sub-step and leaves bronze unchanged]",
+    "[test_MOD025_dev].[test a key soft deleted when its year went missing is restored when the year comes back]",
+    "[test_MOD025_dev].[test undated rows are counted one by one and only dated rows count as repeats]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0027",
+      "up_script": "src/sql/deploy/MIG-0027_MOD-025_corporate-subscription-rows-with-no-camp.up.sql",
+      "down_script": "src/sql/deploy/MIG-0027_MOD-025_corporate-subscription-rows-with-no-camp.down.sql",
+      "rollback_test": {
+        "commit": "f953fb1be0be38d5fcc51a01ca0977c29e825bd6",
+        "run_at": "2026-11-18T18:44:22.693532+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "notes": "Only Layercake.usp_load_brnz_corporate_subscription changes (MIG-0027). The down script restores the MOD-024 version. Every source row is still staged with Contact No and Scheme No NOT NULL, so a NULL in either still fails with 515 before bronze is touched, whether or not the row has a Sub Campaign Year (RULE-137). The staging column for Sub Campaign Year now allows NULL. Undated rows are left out of the RULE-128 choice, the repeat count and the RULE-130 distinct-key check. They are counted, 0 when there are none, as the sub-step 'no_campaign_year_rows_not_landed', written beside 'repeated_key_rows_not_landed' under the load's log_id. A failed run writes neither sub-step. A key whose rows all lose their year is soft-deleted, and it is restored when the year comes back. The table, its readers and usp_run_payment_segments are unchanged. For the Tester's regression run: TC-004-023 and TC-024-019, where a NULL Sub Campaign Year fails with 515, are superseded by REQ-023 and will fail until they are amended, as MP-001 MOD-025 says. The NULL Contact No and Scheme No conditions still hold. Unit tests (test_MOD025_dev) cover: undated rows counted one by one, with only dated rows counting as repeats; soft-delete and then restore of a key whose year goes missing and comes back; and the error path for a NULL Scheme No on an undated row (logs Failed, writes no sub-step, bronze unchanged).\n\nTest-first: the first run had 0 of 18 of the Tester's tests passing; the final run passed 18 of 18 and 3 unit test(s), in 3 run(s)."
+}

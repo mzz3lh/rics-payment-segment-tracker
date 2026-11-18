@@ -1,0 +1,122 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-18T18:51:19Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-025-1",
+    "source_artefacts": [
+      "CN-MOD-025",
+      "TCS-MOD-025",
+      "tests/tsqlt/test_MOD025.sql"
+    ]
+  },
+  "module_id": "MOD-025",
+  "loop_number": 1,
+  "run": {
+    "environment": "test",
+    "commit": "f953fb1be0be38d5fcc51a01ca0977c29e825bd6",
+    "started_at": "2026-11-18T18:45:11Z",
+    "finished_at": "2026-11-18T18:50:48Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-025-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-013",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-014",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-015",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-016",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-017",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-025-018",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-023",
+      "status": "met"
+    }
+  ],
+  "regression": {
+    "ran": 651,
+    "failed": [
+      {
+        "test": "[test_MOD004].[test TC-004-023 a source row with null Sub Campaign Year fails the load with 515 and changes nothing]",
+        "outcome": "fail",
+        "message": "a NULL matching key must fail the load with error 515 reaching the caller Expected: <515> but was: <NULL>"
+      },
+      {
+        "test": "[test_MOD024].[test TC-024-019 a NULL Sub Campaign Year on a repeated contact fails with 515 and changes nothing]",
+        "outcome": "fail",
+        "message": "Expected error 515 from usp_load_brnz_corporate_subscription, but no error was raised."
+      }
+    ]
+  },
+  "verdict": "fail",
+  "defect_report_ref": "DR-MOD-025-1"
+}
