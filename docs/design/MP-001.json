@@ -4,20 +4,22 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "MP-001",
-    "version": 4,
+    "version": 5,
     "produced_by": "technical_architect",
-    "produced_at": "2026-11-17T21:26:30Z",
+    "produced_at": "2026-11-18T17:08:31Z",
     "status": "approved",
     "source_artefacts": [
       "docs/design/DES-001.json",
       "docs/amendments/AMD-001.json",
       "docs/amendments/AMD-002.json",
-      "docs/amendments/AMD-003.json"
+      "docs/amendments/AMD-003.json",
+      "docs/amendments/AMD-004.json"
     ],
     "approval": {
-      "approved_by": "Mike",
-      "approved_at": "2026-11-18T07:57:38Z",
-      "gate": "architecture_validation"
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-18T17:08:48Z",
+      "gate": "architecture_validation",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
   },
   "design_ref": "docs/design/DES-001.json",
@@ -771,6 +773,57 @@
       ],
       "objects": [
         "Layercake.usp_run_daily_load"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-024",
+      "title": "Corporate subscription repeated keys",
+      "sequence": 24,
+      "scope": "Changes the MOD-004 Layercake.usp_load_brnz_corporate_subscription (REQ-022): it lands one copy per (Contact No, Scheme No, Sub Campaign Year), chosen by the four steps of RULE-128 and ADR-009, logs the source rows not landed as the etl_progress_log sub-step 'repeated_key_rows_not_landed' (ADR-010), and checks distinct source keys against live rows. A NULL key column still fails with 515. The table's structure, its readers and usp_run_payment_segments are unchanged, and the down script restores the MOD-004 procedure. Tests cover AC-022-01 to AC-022-12 on synthetic data, including full usp_run_payment_segments and usp_run_daily_load runs. The Tester amends the MOD-004 conditions built on Q-033 (a repeated key failing with 2627, TC-004-018's precondition) to the new rule. The documentation update changes docs/handover/06-known-limitations.md and the runbook (AC-022-13).",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006",
+        "MOD-007",
+        "MOD-008",
+        "MOD-009",
+        "MOD-010",
+        "MOD-011",
+        "MOD-012",
+        "MOD-014",
+        "MOD-016",
+        "MOD-017",
+        "MOD-018",
+        "MOD-019",
+        "MOD-020",
+        "MOD-021",
+        "MOD-022",
+        "MOD-023"
+      ],
+      "acceptance_criteria": [
+        "AC-022-01",
+        "AC-022-02",
+        "AC-022-03",
+        "AC-022-04",
+        "AC-022-05",
+        "AC-022-06",
+        "AC-022-07",
+        "AC-022-08",
+        "AC-022-09",
+        "AC-022-10",
+        "AC-022-11",
+        "AC-022-12",
+        "AC-022-13"
+      ],
+      "objects": [
+        "Layercake.usp_load_brnz_corporate_subscription"
       ],
       "status": "planned",
       "build_tool": "migrations"
