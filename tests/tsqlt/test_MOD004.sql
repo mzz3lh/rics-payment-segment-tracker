@@ -877,25 +877,166 @@ END;
 GO
 
 --[@tSQLt:NoTransaction](DEFAULT)
+--[@tSQLt:NoTransaction](DEFAULT)
 CREATE PROCEDURE test_MOD004.[test TC-004-021 a source row with null Contact No fails the load with 515 and changes nothing]
 AS
 BEGIN
-    EXEC test_MOD004.[assert a null key row fails the corporate subscription load] NULL, N'SCH-202', 2025;
+    EXEC tSQLt.FakeTable 'Subs.vwCorpSubscriptions';
+    EXEC tSQLt.FakeTable 'Layercake.brnz_corporate_subscription', @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.etl_run_log', @Identity = 1, @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.etl_progress_log', @Identity = 1;
+
+    ALTER TABLE Layercake.brnz_corporate_subscription ALTER COLUMN contact_no nvarchar(100) NOT NULL;
+    ALTER TABLE Layercake.brnz_corporate_subscription ALTER COLUMN scheme_no nvarchar(100) NOT NULL;
+    ALTER TABLE Layercake.brnz_corporate_subscription ALTER COLUMN sub_campaign_year int NOT NULL;
+
+    INSERT INTO Layercake.brnz_corporate_subscription
+        (contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status, _loaded_at, _updated_at, _is_deleted, _deleted_at)
+    VALUES (N'1000201', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', '2020-01-01T00:00:00', '2020-01-01T00:00:00', 0, NULL),
+           (N'1000202', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', '2020-01-01T00:00:00', '2020-01-01T00:00:00', 0, NULL);
+
+    INSERT INTO Subs.vwCorpSubscriptions ([Contact No], [Scheme No], [Scheme Name], [Sub Campaign Year], [Sub Status], [Sub User Status], [Round])
+    VALUES (N'1000201', N'SCH-201', N'Rho Surveyors', 2025, N'Cancelled', N'Active', N'Round 1'),
+           (N'1000203', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', N'Round 1'),
+           (NULL, N'SCH-202', N'Sigma Partners', 2025, N'Active', N'Active', N'Round 1');
+
+    SELECT * INTO #Before FROM Layercake.brnz_corporate_subscription;
+
+    BEGIN TRY
+        EXEC Layercake.usp_load_brnz_corporate_subscription;
+        EXEC tSQLt.Fail 'Expected error 515 from usp_load_brnz_corporate_subscription for a NULL Contact No, but no error was raised.';
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() <> 515 THROW;
+    END CATCH;
+
+    SELECT * INTO #After FROM Layercake.brnz_corporate_subscription;
+    EXEC tSQLt.AssertEqualsTable '#Before', '#After', 'brnz_corporate_subscription must be unchanged after the failed load';
+
+    SELECT l.status, CASE WHEN l.error_message IS NULL THEN 0 ELSE 1 END AS has_error_message
+    INTO #ActualLog
+    FROM Layercake.etl_run_log AS l;
+
+    SELECT v.status, v.has_error_message
+    INTO #ExpectedLog
+    FROM (VALUES (CAST('Failed' AS varchar(10)), 1)) AS v(status, has_error_message);
+
+    EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog', 'exactly one etl_run_log row, Failed with an error message';
 END;
 GO
 
+--[@tSQLt:NoTransaction](DEFAULT)
 --[@tSQLt:NoTransaction](DEFAULT)
 CREATE PROCEDURE test_MOD004.[test TC-004-022 a source row with null Scheme No fails the load with 515 and changes nothing]
 AS
 BEGIN
-    EXEC test_MOD004.[assert a null key row fails the corporate subscription load] N'1000204', NULL, 2025;
+    EXEC tSQLt.FakeTable 'Subs.vwCorpSubscriptions';
+    EXEC tSQLt.FakeTable 'Layercake.brnz_corporate_subscription', @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.etl_run_log', @Identity = 1, @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.etl_progress_log', @Identity = 1;
+
+    ALTER TABLE Layercake.brnz_corporate_subscription ALTER COLUMN contact_no nvarchar(100) NOT NULL;
+    ALTER TABLE Layercake.brnz_corporate_subscription ALTER COLUMN scheme_no nvarchar(100) NOT NULL;
+    ALTER TABLE Layercake.brnz_corporate_subscription ALTER COLUMN sub_campaign_year int NOT NULL;
+
+    INSERT INTO Layercake.brnz_corporate_subscription
+        (contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status, _loaded_at, _updated_at, _is_deleted, _deleted_at)
+    VALUES (N'1000201', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', '2020-01-01T00:00:00', '2020-01-01T00:00:00', 0, NULL),
+           (N'1000202', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', '2020-01-01T00:00:00', '2020-01-01T00:00:00', 0, NULL);
+
+    INSERT INTO Subs.vwCorpSubscriptions ([Contact No], [Scheme No], [Scheme Name], [Sub Campaign Year], [Sub Status], [Sub User Status], [Round])
+    VALUES (N'1000201', N'SCH-201', N'Rho Surveyors', 2025, N'Cancelled', N'Active', N'Round 1'),
+           (N'1000203', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', N'Round 1'),
+           (N'1000204', NULL, N'Sigma Partners', 2025, N'Active', N'Active', N'Round 1');
+
+    SELECT * INTO #Before FROM Layercake.brnz_corporate_subscription;
+
+    BEGIN TRY
+        EXEC Layercake.usp_load_brnz_corporate_subscription;
+        EXEC tSQLt.Fail 'Expected error 515 from usp_load_brnz_corporate_subscription for a NULL Scheme No, but no error was raised.';
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() <> 515 THROW;
+    END CATCH;
+
+    SELECT * INTO #After FROM Layercake.brnz_corporate_subscription;
+    EXEC tSQLt.AssertEqualsTable '#Before', '#After', 'brnz_corporate_subscription must be unchanged after the failed load';
+
+    SELECT l.status, CASE WHEN l.error_message IS NULL THEN 0 ELSE 1 END AS has_error_message
+    INTO #ActualLog
+    FROM Layercake.etl_run_log AS l;
+
+    SELECT v.status, v.has_error_message
+    INTO #ExpectedLog
+    FROM (VALUES (CAST('Failed' AS varchar(10)), 1)) AS v(status, has_error_message);
+
+    EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog', 'exactly one etl_run_log row, Failed with an error message';
 END;
 GO
 
 --[@tSQLt:NoTransaction](DEFAULT)
-CREATE PROCEDURE test_MOD004.[test TC-004-023 a source row with null Sub Campaign Year fails the load with 515 and changes nothing]
+CREATE PROCEDURE test_MOD004.[test TC-004-023 a source row with null Sub Campaign Year is skipped and counted and the rest of the load applies]
 AS
 BEGIN
-    EXEC test_MOD004.[assert a null key row fails the corporate subscription load] N'1000205', N'SCH-202', NULL;
+    EXEC tSQLt.FakeTable 'Subs.vwCorpSubscriptions';
+    EXEC tSQLt.FakeTable 'Layercake.brnz_corporate_subscription', @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.etl_run_log', @Identity = 1, @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.etl_progress_log', @Identity = 1;
+
+    ALTER TABLE Layercake.brnz_corporate_subscription ALTER COLUMN contact_no nvarchar(100) NOT NULL;
+    ALTER TABLE Layercake.brnz_corporate_subscription ALTER COLUMN scheme_no nvarchar(100) NOT NULL;
+    ALTER TABLE Layercake.brnz_corporate_subscription ALTER COLUMN sub_campaign_year int NOT NULL;
+
+    INSERT INTO Layercake.brnz_corporate_subscription
+        (contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status, _loaded_at, _updated_at, _is_deleted, _deleted_at)
+    VALUES (N'1000201', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', '2020-01-01T00:00:00', '2020-01-01T00:00:00', 0, NULL),
+           (N'1000202', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', '2020-01-01T00:00:00', '2020-01-01T00:00:00', 0, NULL);
+
+    INSERT INTO Subs.vwCorpSubscriptions ([Contact No], [Scheme No], [Scheme Name], [Sub Campaign Year], [Sub Status], [Sub User Status], [Round])
+    VALUES (N'1000201', N'SCH-201', N'Rho Surveyors', 2025, N'Cancelled', N'Active', N'Round 1'),
+           (N'1000203', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', N'Round 1'),
+           (N'1000205', N'SCH-202', N'Sigma Partners', NULL, N'Active', N'Active', N'Round 1');
+
+    EXEC Layercake.usp_load_brnz_corporate_subscription;
+
+    SELECT b.contact_no, b.scheme_no, b.scheme_name, b.sub_campaign_year, b.sub_status, b.sub_user_status, b._is_deleted,
+           CASE WHEN b._deleted_at IS NULL THEN 0 ELSE 1 END AS has_deleted_at
+    INTO #Actual
+    FROM Layercake.brnz_corporate_subscription AS b;
+
+    SELECT v.contact_no, v.scheme_no, v.scheme_name, v.sub_campaign_year, v.sub_status, v.sub_user_status, v._is_deleted, v.has_deleted_at
+    INTO #Expected
+    FROM (VALUES (N'1000201', N'SCH-201', N'Rho Surveyors', 2025, N'Cancelled', N'Active', CAST(0 AS bit), 0),
+                 (N'1000202', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', CAST(1 AS bit), 1),
+                 (N'1000203', N'SCH-201', N'Rho Surveyors', 2025, N'Active', N'Active', CAST(0 AS bit), 0))
+         AS v(contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status, _is_deleted, has_deleted_at);
+
+    EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual', 'the NULL-year row is not landed and the other changes apply';
+
+    SELECT l.status, l.rows_inserted, l.rows_updated, l.rows_deleted, l.error_message
+    INTO #ActualLog
+    FROM Layercake.etl_run_log AS l;
+
+    SELECT v.status, v.rows_inserted, v.rows_updated, v.rows_deleted, v.error_message
+    INTO #ExpectedLog
+    FROM (VALUES (CAST('Success' AS varchar(10)), 1, 1, 1, CAST(NULL AS nvarchar(4000))))
+         AS v(status, rows_inserted, rows_updated, rows_deleted, error_message);
+
+    EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog', 'exactly one etl_run_log row, Success 1 1 1';
+
+    SELECT p.substep, p.rows_affected
+    INTO #ActualProgress
+    FROM Layercake.etl_progress_log AS p
+    INNER JOIN Layercake.etl_run_log AS l
+        ON l.log_id = p.log_id
+    WHERE p.substep IN (N'no_campaign_year_rows_not_landed', N'repeated_key_rows_not_landed');
+
+    SELECT v.substep, v.rows_affected
+    INTO #ExpectedProgress
+    FROM (VALUES (CAST(N'no_campaign_year_rows_not_landed' AS nvarchar(128)), 1),
+                 (CAST(N'repeated_key_rows_not_landed' AS nvarchar(128)), 0))
+         AS v(substep, rows_affected);
+
+    EXEC tSQLt.AssertEqualsTable '#ExpectedProgress', '#ActualProgress', 'the load counts 1 row with no Campaign Year and 0 repeats under its log_id';
 END;
 GO

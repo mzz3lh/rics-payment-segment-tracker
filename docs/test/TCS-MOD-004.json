@@ -4,20 +4,20 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-004",
-    "version": 1,
+    "version": 2,
     "produced_by": "tester",
-    "produced_at": "2026-10-26T16:43:21Z",
-    "status": "rejected",
+    "produced_at": "2026-11-18T20:28:51Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike",
-      "approved_at": "2026-11-18T20:26:37Z",
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-18T20:29:06Z",
       "gate": "test_design_review",
-      "comments": "Reopened for MOD-025: AMD-005: a NULL Sub Campaign Year is skipped and counted, not a 515; MOD-025 supersedes TC-004-023 and TC-024-019. TC-004-021 and TC-004-022 are restated with the shared helper's assertions written inline, with no change to their data, steps or expected results. TC-004-011's precondition wording is corrected so it no longer says a NULL Sub Campaign Year fails the load; nothing else in it changes."
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
   },
   "module_id": "MOD-004",
@@ -165,7 +165,7 @@
       "acceptance_criterion_id": "AC-006-01",
       "category": "nulls",
       "description": "NULL Scheme Name, Sub Status and Sub User Status land as NULL; bronze applies no default.",
-      "preconditions": "Source (1000011, SCH-011, NULL, 2025, NULL, NULL, NULL) and (1000012, SCH-011, 'Gamma Estates', 2025, Active, NULL). A NULL Contact No, Scheme No or Sub Campaign Year is covered by TC-004-021 to TC-004-023 (Mike, 2026-10-26: the load fails).",
+      "preconditions": "Source (1000011, SCH-011, NULL, 2025, NULL, NULL, NULL) and (1000012, SCH-011, 'Gamma Estates', 2025, Active, NULL). A NULL Contact No or Scheme No is covered by TC-004-021 and TC-004-022 (Mike, 2026-10-26: the load fails with 515). A NULL Sub Campaign Year is covered by TC-004-023 (AMD-005, Mike 2026-11-18: the row is not landed and is counted, and the load does not fail).",
       "expected": "1000011 has scheme_name, sub_status and sub_user_status NULL; 1000012 has 'Gamma Estates', 'Active', NULL. Both live.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD004].[test TC-004-011 null scheme name and statuses land as null]"
@@ -294,8 +294,8 @@
       ],
       "acceptance_criterion_id": "AC-006-01",
       "category": "nulls",
-      "description": "A source row with a NULL Contact No fails the whole load with error 515: logged Failed, re-raised, target unchanged, no row skipped (docs/answers.md 'MOD-004 NULL matching key', Mike 2026-10-26).",
-      "preconditions": "Runs without the tSQLt transaction. Source, bronze and etl_run_log faked; NOT NULL is put back on the faked bronze's three key columns (same type and collation), since FakeTable makes every column nullable. Bronze holds live 1000201 and 1000202 (SCH-201, 2025, Active, Active). Source holds 1000201 changed to Sub Status 'Cancelled' (update pending), new 1000203 (insert pending), no 1000202 (soft delete pending), and (NULL, SCH-202, 'Sigma Partners', 2025).",
+      "description": "A source row with a NULL Contact No fails the whole load with error 515: logged Failed, re-raised, target unchanged, no row skipped (docs/answers.md 'MOD-004 NULL matching key', Mike 2026-10-26; still so under AMD-005).",
+      "preconditions": "Runs without the tSQLt transaction. Source, bronze, etl_run_log and etl_progress_log faked. NOT NULL is put back on the faked bronze's three key columns (same type and collation), since FakeTable makes every column nullable. Bronze holds live 1000201 and 1000202 (SCH-201, 2025, Active, Active). Source holds 1000201 changed to Sub Status 'Cancelled' (update pending), new 1000203 (insert pending), no 1000202 (soft delete pending), and (NULL, SCH-202, 'Sigma Partners', 2025). The assertions are written in the test itself.",
       "expected": "Error 515 reaches the caller. brnz_corporate_subscription identical to before in every column (1000201 still 'Active', 1000202 still live, no 1000203 and no row for the NULL-key source row). Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD004].[test TC-004-021 a source row with null Contact No fails the load with 515 and changes nothing]"
@@ -307,8 +307,8 @@
       ],
       "acceptance_criterion_id": "AC-006-01",
       "category": "nulls",
-      "description": "A source row with a NULL Scheme No fails the whole load with error 515: logged Failed, re-raised, target unchanged, no row skipped (docs/answers.md 'MOD-004 NULL matching key', Mike 2026-10-26).",
-      "preconditions": "Runs without the tSQLt transaction. Source, bronze and etl_run_log faked; NOT NULL is put back on the faked bronze's three key columns (same type and collation), since FakeTable makes every column nullable. Bronze holds live 1000201 and 1000202 (SCH-201, 2025, Active, Active). Source holds 1000201 changed to Sub Status 'Cancelled' (update pending), new 1000203 (insert pending), no 1000202 (soft delete pending), and (1000204, NULL, 'Sigma Partners', 2025).",
+      "description": "A source row with a NULL Scheme No fails the whole load with error 515: logged Failed, re-raised, target unchanged, no row skipped (docs/answers.md 'MOD-004 NULL matching key', Mike 2026-10-26; still so under AMD-005).",
+      "preconditions": "Runs without the tSQLt transaction. Source, bronze, etl_run_log and etl_progress_log faked. NOT NULL is put back on the faked bronze's three key columns (same type and collation), since FakeTable makes every column nullable. Bronze holds live 1000201 and 1000202 (SCH-201, 2025, Active, Active). Source holds 1000201 changed to Sub Status 'Cancelled' (update pending), new 1000203 (insert pending), no 1000202 (soft delete pending), and (1000204, NULL, 'Sigma Partners', 2025). The assertions are written in the test itself.",
       "expected": "Error 515 reaches the caller. brnz_corporate_subscription identical to before in every column (1000201 still 'Active', 1000202 still live, no 1000203 and no row for the NULL-key source row). Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD004].[test TC-004-022 a source row with null Scheme No fails the load with 515 and changes nothing]"
@@ -316,15 +316,16 @@
     {
       "id": "TC-004-023",
       "requirement_ids": [
-        "REQ-006"
+        "REQ-006",
+        "REQ-023"
       ],
       "acceptance_criterion_id": "AC-006-01",
       "category": "nulls",
-      "description": "A source row with a NULL Sub Campaign Year fails the whole load with error 515: logged Failed, re-raised, target unchanged, no row skipped (docs/answers.md 'MOD-004 NULL matching key', Mike 2026-10-26).",
-      "preconditions": "Runs without the tSQLt transaction. Source, bronze and etl_run_log faked; NOT NULL is put back on the faked bronze's three key columns (same type and collation), since FakeTable makes every column nullable. Bronze holds live 1000201 and 1000202 (SCH-201, 2025, Active, Active). Source holds 1000201 changed to Sub Status 'Cancelled' (update pending), new 1000203 (insert pending), no 1000202 (soft delete pending), and (1000205, SCH-202, 'Sigma Partners', NULL).",
-      "expected": "Error 515 reaches the caller. brnz_corporate_subscription identical to before in every column (1000201 still 'Active', 1000202 still live, no 1000203 and no row for the NULL-key source row). Exactly one etl_run_log row, status 'Failed', non-NULL error_message.",
+      "description": "AMD-005 (RULE-134, RULE-135; supersedes the 2026-10-26 answer for Sub Campaign Year): a source row with a NULL Sub Campaign Year is not landed and does not fail the load. The other inserts, updates and soft deletes apply, and the row is counted in the etl_progress_log sub-step 'no_campaign_year_rows_not_landed' under the load's log_id.",
+      "preconditions": "Runs inside the tSQLt transaction. Source, bronze, etl_run_log and etl_progress_log faked. NOT NULL is put back on the faked bronze's three key columns, so a NULL year can never be landed. Bronze holds live 1000201 and 1000202 (SCH-201, 'Rho Surveyors', 2025, Active, Active). Source holds 1000201 changed to Sub Status 'Cancelled', new 1000203 (SCH-201, 2025, Active, Active), no 1000202, and (1000205, SCH-202, 'Sigma Partners', NULL year, Active, Active). The load is called once.",
+      "expected": "No error. brnz_corporate_subscription holds exactly 3 rows: 1000201 live with sub_status 'Cancelled'; 1000202 with _is_deleted 1 and _deleted_at set; 1000203 live, Active/Active. There is no row for 1000205. Exactly one etl_run_log row: 'Success', 1 inserted, 1 updated, 1 deleted, error_message NULL. Under that log_id, 'no_campaign_year_rows_not_landed' has rows_affected 1 and 'repeated_key_rows_not_landed' has rows_affected 0.",
       "framework": "tsqlt",
-      "test_ref": "[test_MOD004].[test TC-004-023 a source row with null Sub Campaign Year fails the load with 515 and changes nothing]"
+      "test_ref": "[test_MOD004].[test TC-004-023 a source row with null Sub Campaign Year is skipped and counted and the rest of the load applies]"
     }
   ]
 }
