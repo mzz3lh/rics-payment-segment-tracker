@@ -1,0 +1,123 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-022",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-18T09:25:07Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-022.json",
+      "tests/tsqlt/test_MOD022.sql"
+    ]
+  },
+  "module_id": "MOD-022",
+  "branch": "agent/developer/MOD-022-daily-count-correction-of-every-changed",
+  "commit": "22fbee084e7b4c6947e5a4072a7755069ef2fa5d",
+  "requirement_ids": [
+    "REQ-018",
+    "REQ-019",
+    "REQ-020"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_input_basis.sql",
+      "object": "Layercake.etl_daily_count_input_basis",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-018"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_daily_count.sql",
+      "object": "Layercake.usp_load_silv_daily_count",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-018",
+        "REQ-019"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_daily_count_detail.sql",
+      "object": "Layercake.silv_daily_count_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-018",
+        "REQ-019"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_daily_count.sql",
+      "object": "Layercake.silv_daily_count",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-018"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD022_dev].[test a changed spine quarter on a loaded date updates both tables and writes no adjustment]",
+    "[test_MOD022_dev].[test a contact with only a profile row affects no date and its change does not reach back]",
+    "[test_MOD022_dev].[test a failing first run logs Failed with error 515 and leaves the tables marks history and basis empty]",
+    "[test_MOD022_dev].[test a payment dated in the previous Campaign Year moves the earliest affected date to that year's start]",
+    "[test_MOD022_dev].[test a rerun on unchanged data logs 0 inserted 0 updated 0 deleted after a first load of 9 rows]",
+    "[test_MOD022_dev].[test a spine date added after the latest loaded date is no change and an uncovered pending row stays open]",
+    "[test_MOD022_dev].[test a stored row of a loaded date after today is removed with its mark and recorded as a negative adjustment]",
+    "[test_MOD022_dev].[test an added Renewal is logged as 4 updated rows and nothing inserted or deleted]",
+    "[test_MOD022_dev].[test the basis holds one row per reference table with an empty key and 2020-10-01]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0024",
+      "up_script": "src/sql/deploy/MIG-0024_MOD-022_daily-count-correction-of-every-changed.up.sql",
+      "down_script": "src/sql/deploy/MIG-0024_MOD-022_daily-count-correction-of-every-changed.down.sql",
+      "rollback_test": {
+        "commit": "22fbee084e7b4c6947e5a4072a7755069ef2fa5d",
+        "run_at": "2026-11-18T09:25:01.795550+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Earlier suite superseded by REQ-018: test_MOD018.[test TC-018-020 ...] asserts the Phase 1 forward-only behaviour (a plain daily run leaves a loaded date on the old Retired split until a one-off @RebuildFrom). MOD-022 makes every run correct changed past dates, so that assertion now fails by design ('Expected <2> but was <1>'; checked in dev). Asked the owner whether the Tester amends or retires it (deferred). Assumption: REQ-018 and the approved TCS-MOD-022 win, and the code was not bent to keep the ASM-002 behaviour. test_MOD016 TC-016-009 and TC-016-011 still pass.",
+    "Q-052 confirmed from the Phase 1 code. (a) usp_load_silver passes @run_id, @FullRebuild, @RebuildFrom and @DailyCountBatchDays straight to usp_load_silv_daily_count, and all rebuild handling sits in the daily count, so usp_load_silver is unchanged. (b) Confirmed in CN-MOD-021. (c) The derivation reads: silv_member_state_ranges (contact_no, valid_from, valid_to, grade, region); silv_member_profile (contact_no, country_id, gender_id, retirement_date); silv_payment_events (contact_no, campaign_year, renewal_date_adj); silv_membership_events (contact_no, campaign_year, event_type, event_date, and event_id only as a tie-break that cannot change a figure, so it is left out of the fingerprint); ref_date_spine ([date], campaign_year, campaign_quarter); ref_campaign_year_config (campaign_year, campaign_year_start, campaign_year_end); silv_ref_membership_status (id, status_name). It does not read silv_ref_membership_grade, so that table is not a reference input, although DES-001 names the grade list as an example.",
+    "Today is now marked in etl_daily_count_loaded by its first load (RULE-114), where Phase 1 never marked it. @FullRebuild and @RebuildFrom no longer clear loaded markers; they only move the start date earlier, so their changes are recorded as adjustments (RULE-115). The comment in the unchanged etl_daily_count_loaded table file still describes the Phase 1 behaviour, and the file was left as it is on the base commit, as the plan requires.",
+    "A contact with no dated input row (only a silv_member_profile row, so no ranges) gets earliest_affected_date 9999-12-31, meaning it affects no date. With no state range it contributes to no cell, so a change to it alone does not move the start back. The design does not cover this case.",
+    "The earliest affected date also takes in silv_payment_events.payment_date. The derivation does not read it, but DES-001 lists 'payment and renewal dates', and it can only move the start earlier.",
+    "Rows on dates after today that belong to a date already marked loaded are removed by the Phase 1 housekeeping (possible only if the clock moved back). They are now recorded as negative adjustments in the same transaction, so RULE-116 (stored before + adjustments = after) holds on that path too.",
+    "rows_inserted, rows_updated and rows_deleted in the step's etl_run_log row now count the differences actually written to both daily tables, where Phase 1 logged every re-inserted row and always 0 updated. The step name and statuses are unchanged."
+  ],
+  "notes": "Test-first: before the build the 26 test_MOD022 tests failed, because etl_daily_count_input_basis did not exist and the procedure was Phase 1. The final run passes 26/26 Tester tests and 9 test_MOD022_dev tests. The MIG-0024 roundtrip passes, and check passes. The sqlfluff findings are advisory: mostly capitalisation, because the procedure keeps its Phase 1 lower-case style.\n\nWhat the procedure does (ADR-007). The Phase 1 derivation of a date's cells is copied unchanged into #dc_new.\n- Fingerprints: one SHA2_256 fingerprint per contact over the columns the derivation reads. Rows are sorted bytewise (Latin1_General_BIN2) so the hash is the same on every run.\n- Reference inputs: one fingerprint each for ref_date_spine and ref_campaign_year_config (both only up to the latest loaded date) and for silv_ref_membership_status (in full). fp_now is compared with the basis. fp_end, cut off at the latest date this run will have loaded, is what gets written, so the next day's spine extension is not a change.\n- Start date: the earliest of: changed contacts (the earlier of the old and new earliest affected dates), any changed reference input (2020-10-01), the first unloaded spine date, today, and @RebuildFrom/@FullRebuild.\n- Each chunk, in one transaction: adjustment rows for dates already marked (full outer join; a missing cell counts as 0; all-zero rows skipped), then delete, update and insert differences in detail and main, then mark the new dates.\n- After the last chunk: a separate transaction updates the basis and stamps open pending rows with affected_from >= start as applied.\n- On failure: committed chunks stay, the basis is untouched, the step logs 'Failed' with the error, and the error is re-raised.\n\nThe down script restores the Phase 1 procedure. It renames etl_daily_count_input_basis to _rolledback_MIG0024 when the table holds rows, and drops it otherwise. No grants: the design says the basis table is internal.\n\nUnit tests (test_MOD022_dev) cover: run counts (9/0/0 on the first load, 0/0/0 on a rerun, 0/4/0 for an added Renewal); a spine quarter change, which updates both tables with no adjustment row; the three reference basis rows; a spine extension past the latest loaded date not counting as a change, with an uncovered pending row staying open; a profile-only contact (earliest 9999-12-31, no reach back); a payment dated in the previous Campaign Year moving the earliest date to 2023-10-01; future-dated stored rows removed and recorded as a negative adjustment; and the error path (NoTransaction, a spine date with a NULL Campaign Year gives 515, the step logs 'Failed' with the error text, and the tables, marks, history and basis stay empty).\n\nTest-first: the first run had 0 of 26 of the Tester's tests passing; the final run passed 26 of 26 and 9 unit test(s), in 5 run(s)."
+}
