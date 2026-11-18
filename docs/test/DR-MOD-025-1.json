@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "artefact_type": "defect_report",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-18T18:51:19Z",
+    "status": "for_review",
+    "artefact_id": "DR-MOD-025-1",
+    "source_artefacts": [
+      "TR-MOD-025-1"
+    ]
+  },
+  "module_id": "MOD-025",
+  "loop_number": 1,
+  "defects": [
+    {
+      "id": "DEF-002",
+      "test_condition_ids": [
+        "TC-004-023",
+        "TC-024-019"
+      ],
+      "requirement_ids": [
+        "REQ-006",
+        "REQ-022"
+      ],
+      "severity": "minor",
+      "summary": "Two earlier-module conditions still expect a NULL 'Sub Campaign Year' to fail usp_load_brnz_corporate_subscription with 515. REQ-023 / RULE-134 (AMD-005, answer of 2026-11-18) replaced that rule, so the tests are out of date and the build is right.",
+      "steps_to_reproduce": "run_test [test_MOD004].[test TC-004-023 a source row with null Sub Campaign Year fails the load with 515 and changes nothing] and [test_MOD024].[test TC-024-019 a NULL Sub Campaign Year on a repeated contact fails with 515 and changes nothing] on commit f953fb1be0be. Each test adds a source row with 'Sub Campaign Year' NULL and a non-NULL Contact No and Scheme No, calls Layercake.usp_load_brnz_corporate_subscription and expects error 515. No error is raised.",
+      "expected": "Under REQ-023, RULE-134, RULE-135 and RULE-137 and the DES-001 usp_load_brnz_corporate_subscription rule, a source row with a NULL Sub Campaign Year is not landed and does not fail the load. It is counted in the 'no_campaign_year_rows_not_landed' sub-step. Only a NULL Contact No or Scheme No still fails with 515. MP-001 MOD-025 tells the Tester to amend TC-004-023 and TC-024-019 to this rule. Suggested amendments: TC-004-023 (MOD-004 data): the load succeeds. 1000201 is updated to 'Cancelled', 1000203 is inserted and 1000202 is soft-deleted. There is no row for 1000205. The log shows 'Success' with 1 inserted, 1 updated and 1 deleted, and 'no_campaign_year_rows_not_landed' is 1. TC-024-019 (17 standard rows plus an undated C2203 row): the load succeeds and lands the 8 AC-022-01 rows. C2203's 2025 row stays Inactive/Inactive. 'no_campaign_year_rows_not_landed' is 1 and 'repeated_key_rows_not_landed' is 9. The NULL Contact No and Scheme No conditions stay as they are.",
+      "actual": "In both tests the load raises no error and the build applies RULE-134. TC-004-023 fails with 'a NULL matching key must fail the load with error 515 reaching the caller Expected: <515> but was: <NULL>'. TC-024-019 fails with 'Expected error 515 from usp_load_brnz_corporate_subscription, but no error was raised.' This matches MOD-025's own passing conditions TC-025-001 to TC-025-004: undated rows are skipped and counted, and nothing fails.",
+      "suspected_cause": "test",
+      "status": "open"
+    }
+  ]
+}
