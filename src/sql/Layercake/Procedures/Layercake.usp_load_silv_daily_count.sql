@@ -5,34 +5,55 @@
 
 /*====================================================================
     13. Layercake.silv_daily_count_detail + Layercake.silv_daily_count
-        (FORWARD ONLY - two tables, one module: see the file header)
+        (two tables, one module: see the file header)
     ------------------------------------------------------------------
-    WHAT THIS MODULE LOADS: every spine date from 2020-10-01 to today
-    that is NOT already recorded in Layercake.etl_daily_count_loaded.
-    Nothing else. Historical dates already marked loaded are never
-    rebuilt by a daily run.
+    WHAT THIS MODULE LOADS (MOD-022, ADR-007): every spine date from the
+    run's START DATE to today, recomputed with the derivation below and
+    written as DIFFERENCES only. After any completed run the stored
+    history equals what @FullRebuild = 1 produces on the same data.
 
-    That single rule delivers all three required behaviours:
-      * new days are loaded (never marked before);
-      * a run that failed part-way is RESUMED - the chunks that
-        committed are marked, the chunk that died is not, so it is
-        still in the work list next run and is re-done in full;
-      * history is left alone.
+    START DATE: the earliest of
+      * the earliest date a changed input can affect. The inputs are
+        compared with Layercake.etl_daily_count_input_basis (the inputs
+        as last applied): per contact, a fingerprint of its rows in
+        silv_membership_events, silv_member_state_ranges,
+        silv_payment_events and silv_member_profile, limited to the
+        columns read below; per reference table (ref_date_spine and
+        ref_campaign_year_config up to the latest loaded date,
+        silv_ref_membership_status in full), one fingerprint. A contact
+        whose fingerprint changed, appeared or disappeared contributes
+        the earlier of its old and new earliest affected dates (the
+        start of the Campaign Year of its earliest input row, never
+        before 2020-10-01). A changed reference table contributes
+        2020-10-01;
+      * the first spine date not yet marked loaded;
+      * today (rebuilt on every run);
+      * @RebuildFrom, or 2020-10-01 for @FullRebuild.
+    The basis is empty after deployment, so the first run recomputes
+    the whole spine and corrects the drift so far.
 
-    THE CURRENT DAY IS NEVER MARKED. Today's counts depend on
-    open-ended ranges ("count through today") and on source data that is
-    still landing, so today is rebuilt on every run and only becomes
-    final on the first run after midnight.
+    WRITES: per date, cells newly derived are inserted, cells whose
+    figures differ are updated and cells no longer derived are deleted,
+    in both tables. Unchanged rows are untouched, so a rerun on
+    unchanged data writes nothing. Each change to a date ALREADY MARKED
+    in etl_daily_count_loaded writes one silv_daily_count_adjustment row
+    per detail cell (new minus old, a missing cell counting as 0). A
+    first load writes none. Today is marked by its first load, so a
+    reload of today records its changes like any other date.
 
     GRANULARITY: the work list is walked in @DailyCountBatchDays-day
-    chunks (default 31). Each chunk is ONE transaction: delete +
-    re-insert the DETAIL rows for those dates (the expensive join),
-    delete + re-derive the MAIN rows from that same detail, then mark
-    the chunk's past dates loaded. Data and marker commit together, so
-    the marker can never lie in either direction.
+    chunks (default 31). Each chunk is ONE transaction: its detail and
+    main differences, its adjustment rows and its loaded marks commit
+    together.
 
-    RETROSPECTIVE CHANGES ARE LOGGED BY THE PRODUCING MODULES, NOT
-    APPLIED HERE. Use @RebuildFrom (or @FullRebuild) to apply them.
+    FAILURE: committed chunks stay committed and the error is re-raised.
+    The basis is advanced only after the last chunk commits, so the next
+    run starts at the same date or earlier, finds no differences in the
+    chunks already corrected and finishes the rest. No cleanup.
+
+    etl_daily_count_pending_rebuild is a diagnostic only: nothing here
+    reads it to decide what to recompute. Open rows whose affected_from
+    the run's correction covered are stamped applied.
 
     COUNT DERIVATION: ONE expensive join builds the DETAIL table at
     [date] x region x country x gender x grade x status, and the main
@@ -71,7 +92,7 @@
     paid_count_event (EVENT-driven, added alongside)
       Reads silv_membership_events instead: joins + renewals +
       readmissions. A contact is PAID IN from the earliest Join /
-      Renewal / Readmission event in the campaign year (step c picks
+      Renewal / Readmission event in the campaign year (step e picks
       exactly one - they are already mutually exclusive per contact per
       year, since module 9 excludes the Join year and the Readmission
       years from Renewal; the tie-break only makes that deterministic),
@@ -113,14 +134,12 @@
     events carries every Lapse event if the unfiltered number is wanted.
 
     Parameters:
-      @FullRebuild         - 1 clears the loaded markers for the WHOLE
-                             spine (from 2020-10-01).
-      @RebuildFrom         - clear the loaded markers from this date
-                             forward and re-do those dates. The
-                             deliberate way to apply a retrospective
-                             correction flagged in
-                             etl_daily_count_pending_rebuild. Ignored
-                             when @FullRebuild = 1.
+      @FullRebuild         - 1 recomputes the WHOLE spine (from
+                             2020-10-01). Changes are written as
+                             differences and recorded as adjustments.
+      @RebuildFrom         - recompute from this date at the latest. It
+                             can only move the start date earlier.
+                             Ignored when @FullRebuild = 1.
       @DailyCountBatchDays - chunk size, and the resume granularity
                              (default 31; minimum 1).
 ====================================================================*/
@@ -139,88 +158,293 @@ begin
     -- batch size would select no dates and never make progress
     if isnull(@DailyCountBatchDays, 0) < 1 set @DailyCountBatchDays = 31;
 
-    declare @log_id       bigint,
-            @ins          int,
-            @upd          int,
-            @del          int,
-            @rc           int,
-            @note         nvarchar(256),
-            @substep_ts   datetime2(3),
-            @err          nvarchar(4000),
-            @today        date = cast(getdate() as date),
-            @rebuild_from date = null,
-            @win_from     date,
-            @win_to       date,
-            @marked       int,
-            @todo_days    int,
-            @todo_min     date,
-            @todo_max     date;
+    declare @log_id        bigint,
+            @ins           int,
+            @upd           int,
+            @del           int,
+            @adj           int,
+            @rc            int,
+            @pend          int,
+            @note          nvarchar(256),
+            @substep_ts    datetime2(3),
+            @err           nvarchar(4000),
+            @today         date = cast(getdate() as date),
+            @spine_from    date = '20201001',
+            -- a contact with no dated input row (a profile alone) can affect no date
+            @no_date       date = '99991231',
+            @rebuild_from  date = null,
+            @start         date,
+            @basis_to_now  date,
+            @basis_to_end  date,
+            @contacts_chg  int,
+            @refs_chg      int,
+            @win_from      date,
+            @win_to        date,
+            @marked        int,
+            @todo_days     int,
+            @todo_min      date,
+            @todo_max      date;
 
     begin try
         exec Layercake.usp_etl_log_start @run_id, 'silver', 'silv_daily_count', @log_id output;
         set @substep_ts = sysdatetime();
 
-        select @ins = 0, @del = 0;
+        select @ins = 0, @upd = 0, @del = 0, @adj = 0;
 
         /* ---- a. deliberate rebuild request ----------------------------
-           @FullRebuild / @RebuildFrom clear the loaded markers, which is
-           all it takes to put those dates back in the work list below.
+           @FullRebuild / @RebuildFrom only move the start date earlier.
+           No loaded marker is cleared: the marks decide which changes are
+           adjustments, and a rebuild records its changes like any run.
            ------------------------------------------------------------- */
         if @FullRebuild = 1
-            set @rebuild_from = '20201001';
+            set @rebuild_from = @spine_from;
         else if @RebuildFrom is not null
             set @rebuild_from = @RebuildFrom;
 
-        if @rebuild_from < '20201001'
-            set @rebuild_from = '20201001';
+        if @rebuild_from < @spine_from
+            set @rebuild_from = @spine_from;
 
-        if @rebuild_from is not null
-        begin
-            begin tran;
+        /* ---- b. the inputs, as they stand now --------------------------
+           Only the rows and columns the derivation in step f reads, so a
+           change to segment or amount columns on events, or to audit
+           columns, is not an input change. event_id is left out: it only
+           breaks ties between events of one type on one date, which
+           cannot change a figure.
+           ------------------------------------------------------------- */
+        create table #in_row
+        (
+            contact_no nvarchar(200) collate database_default not null,
+            row_text   nvarchar(400) collate database_default not null,
+            row_date   date null            -- the earliest date the row refers to
+        );
 
-            delete from Layercake.etl_daily_count_loaded where [date] >= @rebuild_from;
-            set @rc = @@rowcount;
+        insert into #in_row (contact_no, row_text, row_date)
+        select e.contact_no,
+               concat(N'E|', e.event_type,
+                      N'|', isnull(convert(nchar(10), e.event_date, 23), N'~'),
+                      N'|', isnull(convert(nvarchar(11), e.campaign_year), N'~')),
+               case when y.cy_start < e.event_date or e.event_date is null then y.cy_start else e.event_date end
+        from Layercake.silv_membership_events e
+        left join Layercake.ref_campaign_year_config cfg
+            on  cfg.campaign_year = e.campaign_year
+        cross apply (select isnull(cfg.campaign_year_start, datefromparts(e.campaign_year - 1, 10, 1)) as cy_start) y
+        where e.event_type in ('Join', 'Renewal', 'Readmission', 'Lapse')
+        union all
+        select r.contact_no,
+               concat(N'R|', isnull(convert(nchar(10), r.valid_from, 23), N'~'),
+                      N'|', isnull(convert(nchar(10), r.valid_to, 23), N'~'),
+                      N'|', isnull(r.grade, N'~'),
+                      N'|', isnull(r.region, N'~')),
+               r.valid_from
+        from Layercake.silv_member_state_ranges r
+        union all
+        -- payment_date is not read by the derivation, but it is one of the
+        -- payment's dates, so it can only move the earliest date back
+        select p.contact_no,
+               concat(N'P|', isnull(convert(nvarchar(11), p.campaign_year), N'~'),
+                      N'|', isnull(convert(nchar(10), p.renewal_date_adj, 23), N'~')),
+               (select min(v.d)
+                from (values (p.renewal_date_adj), (p.payment_date),
+                             (isnull(cfg.campaign_year_start, datefromparts(p.campaign_year - 1, 10, 1)))) v(d))
+        from Layercake.silv_payment_events p
+        left join Layercake.ref_campaign_year_config cfg
+            on  cfg.campaign_year = p.campaign_year
+        union all
+        select pr.contact_no,
+               concat(N'F|', isnull(convert(nvarchar(11), pr.country_id), N'~'),
+                      N'|', isnull(convert(nvarchar(11), pr.gender_id), N'~'),
+                      N'|', isnull(convert(nchar(10), pr.retirement_date, 23), N'~')),
+               null
+        from Layercake.silv_member_profile pr;
+        set @rc = @@rowcount;
 
-            commit;
+        -- one fingerprint per contact; sorted bytewise so the hash is the
+        -- same on every run whatever the collation makes of the row text
+        create table #in_cur
+        (
+            contact_no             nvarchar(200) collate database_default not null primary key clustered,
+            input_fingerprint      varbinary(32) not null,
+            earliest_affected_date date not null
+        );
 
-            -- NOTE: the pending-rebuild rows this covers are stamped applied
-            -- only AFTER the walk completes (step e) - stamping them here
-            -- would claim the history was re-derived while the walk could
-            -- still die half way through it.
+        insert into #in_cur (contact_no, input_fingerprint, earliest_affected_date)
+        select c.contact_no,
+               c.input_fingerprint,
+               -- the start of the Campaign Year of the earliest input row,
+               -- never before 2020-10-01 (the ranges gate every figure, so a
+               -- contact with no dated row can affect no date)
+               case when c.first_date is null        then @no_date
+                    when c.first_date < @spine_from then @spine_from
+                    else isnull((select min(cfg.campaign_year_start)
+                                 from Layercake.ref_campaign_year_config cfg
+                                 where c.first_date between cfg.campaign_year_start and cfg.campaign_year_end),
+                                datefromparts(year(c.first_date) - iif(month(c.first_date) < 10, 1, 0), 10, 1))
+               end
+        from (
+            select x.contact_no,
+                   cast(hashbytes('SHA2_256',
+                        cast(string_agg(cast(x.row_text as nvarchar(max)), nchar(30))
+                             within group (order by x.row_text collate Latin1_General_BIN2) as nvarchar(max)))
+                        as varbinary(32)) as input_fingerprint,
+                   min(x.row_date) as first_date
+            from #in_row x
+            group by x.contact_no
+        ) c;
 
-            set @note = concat(N'rebuild requested from ', convert(nvarchar(10), @rebuild_from, 23),
-                               N' - ', @rc, N' loaded marker(s) cleared');
-            exec Layercake.usp_etl_log_progress @log_id, @note, @rc, @substep_ts output;
-        end
+        -- the reference tables. The spine and the Campaign Year list are
+        -- compared only up to the latest loaded date, so the daily extension
+        -- of the spine is not a change. fp_now is compared with the basis;
+        -- fp_end is what the basis will hold once this run has loaded every
+        -- spine date up to today.
+        select @basis_to_now = isnull(max(l.[date]), '00010101')
+        from Layercake.etl_daily_count_loaded l;
 
-        /* ---- b. the work list ----------------------------------------- */
+        select @basis_to_end = max(x.d)
+        from (select max(s.[date]) as d
+              from Layercake.ref_date_spine s
+              where s.[date] between @spine_from and @today
+              union all
+              select max(l.[date])
+              from Layercake.etl_daily_count_loaded l
+              where l.[date] <= @today) x;
+        set @basis_to_end = isnull(@basis_to_end, '00010101');
+
+        create table #ref_cur
+        (
+            input_name varchar(64) collate database_default not null primary key clustered,
+            fp_now     varbinary(32) not null,
+            fp_end     varbinary(32) not null
+        );
+
+        insert into #ref_cur (input_name, fp_now, fp_end)
+        select v.input_name,
+               cast(hashbytes('SHA2_256', isnull(cast(
+                    string_agg(case when v.ref_date <= @basis_to_now then cast(v.row_text as nvarchar(max)) end, nchar(30))
+                    within group (order by v.sort_key) as nvarchar(max)), N'')) as varbinary(32)),
+               cast(hashbytes('SHA2_256', isnull(cast(
+                    string_agg(case when v.ref_date <= @basis_to_end then cast(v.row_text as nvarchar(max)) end, nchar(30))
+                    within group (order by v.sort_key) as nvarchar(max)), N'')) as varbinary(32))
+        from (
+            -- one sort key for both aggregates (they must share an ordering)
+            select u.input_name, u.ref_date, u.row_text, u.row_text collate Latin1_General_BIN2 as sort_key
+            from (
+                select cast('ref_date_spine' as varchar(64)),
+                       s.[date],
+                       concat(convert(nchar(10), s.[date], 23), N'|', s.campaign_year, N'|', s.campaign_quarter)
+                from Layercake.ref_date_spine s
+                where s.[date] >= @spine_from
+                union all
+                select 'ref_campaign_year_config',
+                       c.campaign_year_start,
+                       concat(c.campaign_year, N'|', convert(nchar(10), c.campaign_year_start, 23),
+                              N'|', convert(nchar(10), c.campaign_year_end, 23))
+                from Layercake.ref_campaign_year_config c
+                union all
+                -- read in full: dated before any cutoff
+                select 'silv_ref_membership_status',
+                       cast('00010101' as date),
+                       concat(ms.id, N'|', ms.status_name)
+                from Layercake.silv_ref_membership_status ms
+            ) u (input_name, ref_date, row_text)
+        ) v
+        group by v.input_name;
+
+        set @note = concat(N'inputs fingerprinted: ', @rc, N' input row(s), ',
+                           (select count(*) from #in_cur), N' contact(s)');
+        exec Layercake.usp_etl_log_progress @log_id, @note, @rc, @substep_ts output;
+
+        /* ---- c. the start date ---------------------------------------- */
+        create table #changed (kind char(1) not null, affected_from date null);
+
+        -- a contact whose inputs changed, appeared or disappeared: the
+        -- earlier of its old and new earliest affected dates
+        insert into #changed (kind, affected_from)
+        select 'C',
+               case when b.input_key is null   then c.earliest_affected_date
+                    when c.contact_no is null  then b.earliest_affected_date
+                    when b.earliest_affected_date < c.earliest_affected_date then b.earliest_affected_date
+                    else c.earliest_affected_date
+               end
+        from #in_cur c
+        full join (select ib.input_key, ib.input_fingerprint, ib.earliest_affected_date
+                   from Layercake.etl_daily_count_input_basis ib
+                   where ib.input_name = 'contact') b
+            on  b.input_key = c.contact_no
+        where b.input_key is null
+           or c.contact_no is null
+           or b.input_fingerprint <> c.input_fingerprint;
+        set @contacts_chg = @@rowcount;
+
+        -- a changed reference table reaches every date
+        insert into #changed (kind, affected_from)
+        select 'R', @spine_from
+        from #ref_cur r
+        full join (select ib.input_name, ib.input_fingerprint
+                   from Layercake.etl_daily_count_input_basis ib
+                   where ib.input_name <> 'contact') b
+            on  b.input_name = r.input_name
+        where b.input_name is null
+           or r.input_name is null
+           or b.input_fingerprint <> r.fp_now;
+        set @refs_chg = @@rowcount;
+
+        select @start = min(x.d)
+        from (select min(ch.affected_from) as d from #changed ch
+              union all
+              -- the first date not yet loaded (a new day, or a gap left behind)
+              select min(s.[date])
+              from Layercake.ref_date_spine s
+              where s.[date] between @spine_from and @today
+                and not exists (select 1 from Layercake.etl_daily_count_loaded l
+                                where l.[date] = s.[date])
+              union all
+              select @today
+              union all
+              select @rebuild_from) x;
+
+        if @start < @spine_from
+            set @start = @spine_from;
+
+        set @note = concat(N'changed inputs: ', @contacts_chg, N' contact(s), ', @refs_chg, N' reference table(s)',
+                           iif(@rebuild_from is not null,
+                               concat(N'; rebuild requested from ', convert(nvarchar(10), @rebuild_from, 23)), N''));
+        exec Layercake.usp_etl_log_progress @log_id, @note, @contacts_chg, @substep_ts output;
+
+        /* ---- d. the work list ----------------------------------------- */
         select s.[date]
         into #dc_todo
         from Layercake.ref_date_spine s
-        where s.[date] >= '20201001'
-          and s.[date] <= @today
-          and not exists (select 1 from Layercake.etl_daily_count_loaded l
-                          where l.[date] = s.[date]);
+        where s.[date] >= @start
+          and s.[date] <= @today;
         set @todo_days = @@rowcount;
 
         create unique clustered index cx_dc_todo on #dc_todo ([date]);
         select @todo_min = min([date]), @todo_max = max([date]) from #dc_todo;
 
-        set @note = case when @todo_days = 0
-                         then N'nothing to load - every date up to today is already marked loaded'
-                         else concat(N'to load: ', @todo_days, N' date(s) ',
-                                     convert(nvarchar(10), @todo_min, 23), N' -> ',
-                                     convert(nvarchar(10), @todo_max, 23),
-                                     N' in ', @DailyCountBatchDays, N'-day chunks',
-                                     -- a gap means an earlier run left dates behind
-                                     iif(@todo_days < 1 + datediff(day, @todo_min, @todo_max),
-                                         N' (includes a gap from an earlier incomplete run)', N''))
-                    end;
+        set @note = concat(N'correct from ', convert(nvarchar(10), @start, 23), N': ', @todo_days, N' date(s)',
+                           iif(@todo_days > 0,
+                               concat(N' ', convert(nvarchar(10), @todo_min, 23), N' -> ',
+                                      convert(nvarchar(10), @todo_max, 23),
+                                      N' in ', @DailyCountBatchDays, N'-day chunks'), N''));
         exec Layercake.usp_etl_log_progress @log_id, @note, @todo_days, @substep_ts output;
 
         -- housekeeping: the spine runs two years ahead, so make sure nothing
-        -- beyond today survives from an earlier run (and no marker with it)
+        -- beyond today survives from an earlier run (and no marker with it).
+        -- A removed row of a loaded date is an adjustment like any other.
         begin tran;
+        insert into Layercake.silv_daily_count_adjustment
+        (run_id, load_id, written_at, [date], region, country_id, gender_id, grade, membership_status_id,
+         active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
+         event_renewal_count_change, event_readmission_count_change, event_lapse_count_change)
+        select @run_id, @log_id, sysdatetime(), d.[date], d.region, d.country_id, d.gender_id, d.grade, d.membership_status_id,
+               -d.active_count, -d.paid_count, -d.paid_count_event, -d.event_join_count,
+               -d.event_renewal_count, -d.event_readmission_count, -d.event_lapse_count
+        from Layercake.silv_daily_count_detail d
+        where d.[date] > @today
+          and exists (select 1 from Layercake.etl_daily_count_loaded l where l.[date] = d.[date])
+          and (d.active_count <> 0 or d.paid_count <> 0 or d.paid_count_event <> 0 or d.event_join_count <> 0
+               or d.event_renewal_count <> 0 or d.event_readmission_count <> 0 or d.event_lapse_count <> 0);
+        set @adj = @adj + @@rowcount;
         delete from Layercake.silv_daily_count_detail where [date] > @today;
         set @del = @del + @@rowcount;
         delete from Layercake.silv_daily_count        where [date] > @today;
@@ -228,7 +452,7 @@ begin
         delete from Layercake.etl_daily_count_loaded  where [date] > @today;
         commit;
 
-        /* ---- c. event-driven paid: per-contact staging -----------------
+        /* ---- e. event-driven paid: per-contact staging -----------------
            Built ONCE for the whole run and read by every chunk. Two work
            tables: #ev_paid is the STOCK (one row per contact per campaign
            year: the date they became paid, plus the date they later
@@ -238,7 +462,7 @@ begin
            carried for REPORTING only and never deducts from the stock.
            ------------------------------------------------------------- */
 
-        -- c1. the paid-in event: the earliest Join / Renewal / Readmission
+        -- e1. the paid-in event: the earliest Join / Renewal / Readmission
         -- in the campaign year. Ties on the same date break
         -- Join -> Readmission -> Renewal so the winner is deterministic
         -- across runs; in practice module 9 already makes the three
@@ -284,7 +508,7 @@ begin
         create unique clustered index cx_ev_paid_in on #ev_paid_in (contact_no, campaign_year);
         exec Layercake.usp_etl_log_progress @log_id, N'stage #ev_paid_in (event-driven paid: paid-in events)', @rc, @substep_ts output;
 
-        -- c2. the lapse that follows it. Feeds event_lapse_count only - it does
+        -- e2. the lapse that follows it. Feeds event_lapse_count only - it does
         -- not end the paid count. Module 9 keys Lapse events 'LA:' + contact_no,
         -- so there is at most one per contact - aggregated anyway so the join
         -- below stays 1:1 whatever the source does.
@@ -300,7 +524,7 @@ begin
         create unique clustered index cx_ev_lapse on #ev_lapse (contact_no, campaign_year);
         exec Layercake.usp_etl_log_progress @log_id, N'stage #ev_lapse (event-driven paid: lapse events)', @rc, @substep_ts output;
 
-        -- c3. the STOCK table the day-by-day count reads.
+        -- e3. the STOCK table the day-by-day count reads.
         select i.contact_no,
                i.campaign_year,
                i.event_type,
@@ -320,7 +544,7 @@ begin
 
         create unique clustered index cx_ev_paid on #ev_paid (contact_no, campaign_year);
 
-        -- c4. the FLOW table: those same two dates as one row per contact per
+        -- e4. the FLOW table: those same two dates as one row per contact per
         -- day. Derived from #ev_paid rather than re-read from the events, so
         -- the components can only ever describe the stock above. A contact who
         -- paid in and lapsed on the same day collapses into a single row
@@ -352,8 +576,46 @@ begin
         create unique clustered index cx_ev_day on #ev_day (contact_no, event_date);
         exec Layercake.usp_etl_log_progress @log_id, N'stage #ev_paid + #ev_day (event-driven paid: stock and daily flow)', @rc, @substep_ts output;
 
-        /* ---- d. the chunked walk -------------------------------------- */
+        /* ---- f. the chunked walk -------------------------------------- */
         create table #dc_chunk ([date] date not null primary key clustered);
+
+        -- a chunk's cells as derived now, in the target tables' shape
+        create table #dc_new
+        (
+            [date]                  date not null,
+            campaign_year           int not null,
+            campaign_quarter        char(2) collate database_default not null,
+            region                  varchar(12) collate database_default not null,
+            country_id              int not null,
+            gender_id               int not null,
+            grade                   varchar(12) collate database_default not null,
+            membership_status_id    int not null,
+            active_count            int not null,
+            paid_count              int not null,
+            paid_count_event        int not null,
+            event_join_count        int not null,
+            event_renewal_count     int not null,
+            event_readmission_count int not null,
+            event_lapse_count       int not null,
+            primary key clustered ([date], region, country_id, gender_id, grade, membership_status_id)
+        );
+
+        create table #dc_new_main
+        (
+            [date]                  date not null,
+            campaign_year           int not null,
+            campaign_quarter        char(2) collate database_default not null,
+            region                  varchar(12) collate database_default not null,
+            grade                   varchar(12) collate database_default not null,
+            active_count            int not null,
+            paid_count              int not null,
+            paid_count_event        int not null,
+            event_join_count        int not null,
+            event_renewal_count     int not null,
+            event_readmission_count int not null,
+            event_lapse_count       int not null,
+            primary key clustered ([date], region, grade)
+        );
 
         while exists (select 1 from #dc_todo)
         begin
@@ -370,23 +632,15 @@ begin
 
             select @win_from = min([date]), @win_to = max([date]) from #dc_chunk;
 
-            begin tran;
-
-            -- ---- detail chunk: delete + re-insert -----------------------
-            -- restricted to the chunk's OWN dates (not the from/to range), so
-            -- a loaded date sitting inside a gap is never touched
-            delete d
-            from Layercake.silv_daily_count_detail d
-            where d.[date] between @win_from and @win_to
-              and exists (select 1 from #dc_chunk c where c.[date] = d.[date]);
-            set @del = @del + @@rowcount;
-
+            -- ---- derive the chunk (the Phase 1 derivation, unchanged) ----
             -- the chunk's dates drive one row per day per populated cell,
             -- joining the state ranges active on that day (set-based - no
             -- cursor). Profile left-joined: every ranged contact has a
             -- profile row (both derive from silv_member_base), the isnulls
             -- are belt and braces for a mid-deploy state.
-            insert into Layercake.silv_daily_count_detail
+            truncate table #dc_new;
+
+            insert into #dc_new
             ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
              active_count, paid_count, paid_count_event,
              event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
@@ -413,7 +667,7 @@ begin
                 -- EVENT-driven paid (STOCK): paid from the campaign year's
                 -- paid-in event, and counted for the rest of that year. A later
                 -- lapse does NOT take it back off - the lapse date staged in
-                -- step c reaches event_lapse_count below and nothing else. See
+                -- step e reaches event_lapse_count below and nothing else. See
                 -- the module header.
                 count(distinct case when ep.paid_in_date <= s.[date]
                                     then r.contact_no else null end) as paid_count_event,
@@ -449,7 +703,7 @@ begin
                 on  r.contact_no = p.contact_no
                 and s.campaign_year = p.campaign_year
             -- event-driven paid, both halves keyed 1:1 against the range row
-            -- (step c indexes them uniquely), so neither can fan the join out
+            -- (step e indexes them uniquely), so neither can fan the join out
             left join #ev_paid ep
                 on  ep.contact_no    = r.contact_no
                 and ep.campaign_year = s.campaign_year
@@ -461,46 +715,195 @@ begin
                 r.region, isnull(pr.country_id, 0), isnull(pr.gender_id, 0),
                 r.grade, isnull(ms.id, 0);
             set @rc = @@rowcount;
-            set @ins = @ins + @rc;
 
-            -- ---- main chunk: plain aggregate of the chunk's detail -------
-            -- (additive: one detail cell per contact per day - see header)
+            -- main: plain aggregate of the chunk's detail (additive: one
+            -- detail cell per contact per day - see header)
+            truncate table #dc_new_main;
+
+            insert into #dc_new_main
+            ([date], campaign_year, campaign_quarter, region, grade,
+             active_count, paid_count, paid_count_event,
+             event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
+            select
+                n.[date], n.campaign_year, n.campaign_quarter, n.region, n.grade,
+                sum(n.active_count), sum(n.paid_count), sum(n.paid_count_event),
+                sum(n.event_join_count), sum(n.event_renewal_count),
+                sum(n.event_readmission_count), sum(n.event_lapse_count)
+            from #dc_new n
+            group by n.[date], n.campaign_year, n.campaign_quarter, n.region, n.grade;
+
+            begin tran;
+
+            -- ---- adjustment history (REQ-019) ---------------------------
+            -- one row per detail cell whose figures change on a date already
+            -- marked loaded; a missing cell counts as 0 on its side
+            insert into Layercake.silv_daily_count_adjustment
+            (run_id, load_id, written_at, [date], region, country_id, gender_id, grade, membership_status_id,
+             active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
+             event_renewal_count_change, event_readmission_count_change, event_lapse_count_change)
+            select @run_id, @log_id, sysdatetime(),
+                   x.[date], x.region, x.country_id, x.gender_id, x.grade, x.membership_status_id,
+                   x.active_change, x.paid_change, x.paid_event_change, x.join_change,
+                   x.renewal_change, x.readmission_change, x.lapse_change
+            from (
+                select isnull(n.[date], o.[date])                             as [date],
+                       isnull(n.region, o.region)                             as region,
+                       isnull(n.country_id, o.country_id)                     as country_id,
+                       isnull(n.gender_id, o.gender_id)                       as gender_id,
+                       isnull(n.grade, o.grade)                               as grade,
+                       isnull(n.membership_status_id, o.membership_status_id) as membership_status_id,
+                       isnull(n.active_count, 0)            - isnull(o.active_count, 0)            as active_change,
+                       isnull(n.paid_count, 0)              - isnull(o.paid_count, 0)              as paid_change,
+                       isnull(n.paid_count_event, 0)        - isnull(o.paid_count_event, 0)        as paid_event_change,
+                       isnull(n.event_join_count, 0)        - isnull(o.event_join_count, 0)        as join_change,
+                       isnull(n.event_renewal_count, 0)     - isnull(o.event_renewal_count, 0)     as renewal_change,
+                       isnull(n.event_readmission_count, 0) - isnull(o.event_readmission_count, 0) as readmission_change,
+                       isnull(n.event_lapse_count, 0)       - isnull(o.event_lapse_count, 0)       as lapse_change
+                from #dc_new n
+                full join (select d.[date], d.region, d.country_id, d.gender_id, d.grade, d.membership_status_id,
+                                  d.active_count, d.paid_count, d.paid_count_event, d.event_join_count,
+                                  d.event_renewal_count, d.event_readmission_count, d.event_lapse_count
+                           from Layercake.silv_daily_count_detail d
+                           inner join #dc_chunk c on c.[date] = d.[date]) o
+                    on  o.[date]               = n.[date]
+                    and o.region               = n.region
+                    and o.country_id           = n.country_id
+                    and o.gender_id            = n.gender_id
+                    and o.grade                = n.grade
+                    and o.membership_status_id = n.membership_status_id
+            ) x
+            where exists (select 1 from Layercake.etl_daily_count_loaded l where l.[date] = x.[date])
+              and (x.active_change <> 0 or x.paid_change <> 0 or x.paid_event_change <> 0 or x.join_change <> 0
+                   or x.renewal_change <> 0 or x.readmission_change <> 0 or x.lapse_change <> 0);
+            set @adj = @adj + @@rowcount;
+
+            -- ---- detail: differences only -------------------------------
+            -- restricted to the chunk's OWN dates (not the from/to range)
+            delete d
+            from Layercake.silv_daily_count_detail d
+            inner join #dc_chunk c
+                on  c.[date] = d.[date]
+            where not exists (select 1 from #dc_new n
+                              where n.[date]               = d.[date]
+                                and n.region               = d.region
+                                and n.country_id           = d.country_id
+                                and n.gender_id            = d.gender_id
+                                and n.grade                = d.grade
+                                and n.membership_status_id = d.membership_status_id);
+            set @del = @del + @@rowcount;
+
+            update d
+            set campaign_year           = n.campaign_year,
+                campaign_quarter        = n.campaign_quarter,
+                active_count            = n.active_count,
+                paid_count              = n.paid_count,
+                paid_count_event        = n.paid_count_event,
+                event_join_count        = n.event_join_count,
+                event_renewal_count     = n.event_renewal_count,
+                event_readmission_count = n.event_readmission_count,
+                event_lapse_count       = n.event_lapse_count
+            from Layercake.silv_daily_count_detail d
+            inner join #dc_new n
+                on  n.[date]               = d.[date]
+                and n.region               = d.region
+                and n.country_id           = d.country_id
+                and n.gender_id            = d.gender_id
+                and n.grade                = d.grade
+                and n.membership_status_id = d.membership_status_id
+            where d.campaign_year           <> n.campaign_year
+               or d.campaign_quarter        <> n.campaign_quarter
+               or d.active_count            <> n.active_count
+               or d.paid_count              <> n.paid_count
+               or d.paid_count_event        <> n.paid_count_event
+               or d.event_join_count        <> n.event_join_count
+               or d.event_renewal_count     <> n.event_renewal_count
+               or d.event_readmission_count <> n.event_readmission_count
+               or d.event_lapse_count       <> n.event_lapse_count;
+            set @upd = @upd + @@rowcount;
+
+            insert into Layercake.silv_daily_count_detail
+            ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
+             active_count, paid_count, paid_count_event,
+             event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
+            select n.[date], n.campaign_year, n.campaign_quarter, n.region, n.country_id, n.gender_id, n.grade,
+                   n.membership_status_id, n.active_count, n.paid_count, n.paid_count_event,
+                   n.event_join_count, n.event_renewal_count, n.event_readmission_count, n.event_lapse_count
+            from #dc_new n
+            where not exists (select 1 from Layercake.silv_daily_count_detail d
+                              where d.[date]               = n.[date]
+                                and d.region               = n.region
+                                and d.country_id           = n.country_id
+                                and d.gender_id            = n.gender_id
+                                and d.grade                = n.grade
+                                and d.membership_status_id = n.membership_status_id);
+            set @ins = @ins + @@rowcount;
+
+            -- ---- main: differences only ---------------------------------
             delete t
             from Layercake.silv_daily_count t
-            where t.[date] between @win_from and @win_to
-              and exists (select 1 from #dc_chunk c where c.[date] = t.[date]);
+            inner join #dc_chunk c
+                on  c.[date] = t.[date]
+            where not exists (select 1 from #dc_new_main n
+                              where n.[date] = t.[date]
+                                and n.region = t.region
+                                and n.grade  = t.grade);
             set @del = @del + @@rowcount;
+
+            update t
+            set campaign_year           = n.campaign_year,
+                campaign_quarter        = n.campaign_quarter,
+                active_count            = n.active_count,
+                paid_count              = n.paid_count,
+                paid_count_event        = n.paid_count_event,
+                event_join_count        = n.event_join_count,
+                event_renewal_count     = n.event_renewal_count,
+                event_readmission_count = n.event_readmission_count,
+                event_lapse_count       = n.event_lapse_count
+            from Layercake.silv_daily_count t
+            inner join #dc_new_main n
+                on  n.[date] = t.[date]
+                and n.region = t.region
+                and n.grade  = t.grade
+            where t.campaign_year           <> n.campaign_year
+               or t.campaign_quarter        <> n.campaign_quarter
+               or t.active_count            <> n.active_count
+               or t.paid_count              <> n.paid_count
+               or t.paid_count_event        <> n.paid_count_event
+               or t.event_join_count        <> n.event_join_count
+               or t.event_renewal_count     <> n.event_renewal_count
+               or t.event_readmission_count <> n.event_readmission_count
+               or t.event_lapse_count       <> n.event_lapse_count;
+            set @upd = @upd + @@rowcount;
 
             insert into Layercake.silv_daily_count
             ([date], campaign_year, campaign_quarter, region, grade,
              active_count, paid_count, paid_count_event,
              event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-            select
-                d.[date], d.campaign_year, d.campaign_quarter, d.region, d.grade,
-                sum(d.active_count), sum(d.paid_count), sum(d.paid_count_event),
-                sum(d.event_join_count), sum(d.event_renewal_count),
-                sum(d.event_readmission_count), sum(d.event_lapse_count)
-            from Layercake.silv_daily_count_detail d
-            inner join #dc_chunk c on c.[date] = d.[date]
-            where d.[date] between @win_from and @win_to
-            group by d.[date], d.campaign_year, d.campaign_quarter, d.region, d.grade;
+            select n.[date], n.campaign_year, n.campaign_quarter, n.region, n.grade,
+                   n.active_count, n.paid_count, n.paid_count_event,
+                   n.event_join_count, n.event_renewal_count, n.event_readmission_count, n.event_lapse_count
+            from #dc_new_main n
+            where not exists (select 1 from Layercake.silv_daily_count t
+                              where t.[date] = n.[date]
+                                and t.region = n.region
+                                and t.grade  = n.grade);
             set @ins = @ins + @@rowcount;
 
             -- ---- mark the chunk loaded (ATOMIC with its data) -----------
-            -- today is deliberately excluded: it is rebuilt every run and is
-            -- only marked once it is in the past
+            -- today included: its first load is a first load, and every
+            -- later reload of today records its changes (RULE-114)
             insert into Layercake.etl_daily_count_loaded ([date], run_id, batch_from, batch_to)
             select c.[date], @run_id, @win_from, @win_to
             from #dc_chunk c
-            where c.[date] < @today;
+            where not exists (select 1 from Layercake.etl_daily_count_loaded l
+                              where l.[date] = c.[date]);
             set @marked = @@rowcount;
 
             commit;    -- one transaction per chunk: small, quick, resumable
 
             set @note = concat(N'chunk ', convert(nvarchar(10), @win_from, 23),
                                N' -> ',   convert(nvarchar(10), @win_to,  23),
-                               N' (', @rc, N' detail rows, ', @marked, N' date(s) marked loaded',
-                               iif(@win_to = @today, N', today left unmarked - rebuilt next run', N''), N')');
+                               N' (', @rc, N' detail cells derived, ', @marked, N' date(s) newly marked loaded)');
             exec Layercake.usp_etl_log_progress @log_id, @note, @rc, @substep_ts output;
 
             -- done with these dates
@@ -509,40 +912,79 @@ begin
             where exists (select 1 from #dc_chunk c where c.[date] = t.[date]);
         end
 
-        /* ---- e. close off any pending rebuild this walk satisfied ------
-           Stamped only now: the whole requested range has been re-derived
-           and committed. A run that died mid-walk leaves the pending row
-           OPEN (and its markers cleared), so the next run finishes the walk
-           and stamps it then - the audit trail never claims a rebuild that
-           didn't finish.
+        /* ---- g. advance the basis --------------------------------------
+           Only now, with every corrected date committed: a run that died
+           mid-walk leaves the basis as it was, so the next run starts at
+           the same date or earlier. The pending rows the correction
+           covered are stamped applied in the same transaction.
            ------------------------------------------------------------- */
-        if @rebuild_from is not null
-        begin
-            begin tran;
+        begin tran;
 
-            update Layercake.etl_daily_count_pending_rebuild
-            set applied_at = sysdatetime()
-            where applied_at is null
-              and affected_from >= @rebuild_from;
-            set @upd = @@rowcount;
+        delete b
+        from Layercake.etl_daily_count_input_basis b
+        where b.input_name = 'contact'
+          and not exists (select 1 from #in_cur c where c.contact_no = b.input_key);
 
-            commit;
+        update b
+        set input_fingerprint      = c.input_fingerprint,
+            earliest_affected_date = c.earliest_affected_date,
+            run_id                 = @run_id,
+            updated_at             = sysdatetime()
+        from Layercake.etl_daily_count_input_basis b
+        inner join #in_cur c
+            on  b.input_name = 'contact'
+            and b.input_key  = c.contact_no
+        where b.input_fingerprint      <> c.input_fingerprint
+           or b.earliest_affected_date <> c.earliest_affected_date;
 
-            if @upd > 0
-            begin
-                set @note = concat(N'rebuild complete from ', convert(nvarchar(10), @rebuild_from, 23),
-                                   N' - ', @upd, N' pending row(s) stamped applied');
-                exec Layercake.usp_etl_log_progress @log_id, @note, @upd, @substep_ts output;
-            end
-        end
+        insert into Layercake.etl_daily_count_input_basis
+        (input_name, input_key, input_fingerprint, earliest_affected_date, run_id, updated_at)
+        select 'contact', c.contact_no, c.input_fingerprint, c.earliest_affected_date, @run_id, sysdatetime()
+        from #in_cur c
+        where not exists (select 1 from Layercake.etl_daily_count_input_basis b
+                          where b.input_name = 'contact'
+                            and b.input_key  = c.contact_no);
 
-        exec Layercake.usp_etl_log_end @log_id, 'Success', @ins, 0, @del;
+        delete b
+        from Layercake.etl_daily_count_input_basis b
+        where b.input_name <> 'contact'
+          and not exists (select 1 from #ref_cur r where r.input_name = b.input_name);
+
+        update b
+        set input_fingerprint = r.fp_end,
+            run_id            = @run_id,
+            updated_at        = sysdatetime()
+        from Layercake.etl_daily_count_input_basis b
+        inner join #ref_cur r
+            on  r.input_name = b.input_name
+        where b.input_fingerprint <> r.fp_end;
+
+        insert into Layercake.etl_daily_count_input_basis
+        (input_name, input_key, input_fingerprint, earliest_affected_date, run_id, updated_at)
+        select r.input_name, N'', r.fp_end, @spine_from, @run_id, sysdatetime()
+        from #ref_cur r
+        where not exists (select 1 from Layercake.etl_daily_count_input_basis b
+                          where b.input_name = r.input_name);
+
+        update Layercake.etl_daily_count_pending_rebuild
+        set applied_at = sysdatetime()
+        where applied_at is null
+          and affected_from >= @start;
+        set @pend = @@rowcount;
+
+        commit;
+
+        set @note = concat(N'input basis advanced; ', @adj, N' adjustment row(s) written',
+                           iif(@pend > 0, concat(N', ', @pend, N' pending row(s) stamped applied'), N''));
+        exec Layercake.usp_etl_log_progress @log_id, @note, @adj, @substep_ts output;
+
+        exec Layercake.usp_etl_log_end @log_id, 'Success', @ins, @upd, @del;
     end try
     begin catch
         if xact_state() <> 0 rollback;
         set @err = concat(error_message(), ' (error ', error_number(), ', line ', error_line(), ')');
         if @log_id is not null
-            exec Layercake.usp_etl_log_end @log_id, 'Failed', @ins, 0, @del, @err;
+            exec Layercake.usp_etl_log_end @log_id, 'Failed', @ins, @upd, @del, @err;
         throw;
     end catch
 end
