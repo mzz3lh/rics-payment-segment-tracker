@@ -1,0 +1,254 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-021",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-18T07:59:01Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-11-18T08:13:08Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-021",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-021-001",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-01",
+      "category": "happy_path",
+      "description": "Detail-grain as-known-at figures for cell X at three times subtract only the adjustments written after T, and only that cell's adjustments.",
+      "preconditions": "silv_daily_count_detail and silv_daily_count_adjustment faked. Stored: X (2025-01-10, 'UK', 1, 1, 'election' (spec 'Qualified'), status 1) active 11, paid 9, paid_event 8, join 1, renewal 2, readmission 0, lapse 0; Y (gender 2) 5/4/4/0/1/1/0; Z (status 2) all 0. Adjustments: R2 2026-11-02 06:00 X active +2; R3 2026-11-03 06:00 X active -1; R3 Z active -1. R1's first load writes no adjustment.",
+      "expected": "For cell X, range 2025-01-10..2025-01-10: as known at 2026-11-01 12:00 active_count 10, at 2026-11-02 12:00 12, at 2026-11-03 12:00 11; the other six measures are 9, 8, 1, 2, 0, 0 at all three times; one row per time.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-001 detail as known at three times gives 10, 12 and 11 for cell X]"
+    },
+    {
+      "id": "TC-021-002",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-02",
+      "category": "boundary",
+      "description": "A change written exactly at T is part of the figure at T; one written a millisecond after T is subtracted.",
+      "preconditions": "Q-049 answered (server local time; only changes written strictly after T are subtracted). Stored X active 11; R2 +2 at 2026-11-02 06:00:00.000, R3 -1 at 2026-11-03 06:00:00.000.",
+      "expected": "active_count for X: at 2026-11-02 05:59:59.999 is 10; at exactly 2026-11-02 06:00:00.000 is 12; at exactly 2026-11-03 06:00:00.000 is 11.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-002 a change written exactly at T is part of the figure at T]"
+    },
+    {
+      "id": "TC-021-003",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-03",
+      "category": "happy_path",
+      "description": "The silv_daily_count-grain function sums the detail as-known-at figures of cells X and Y over country, gender and status.",
+      "preconditions": "silv_daily_count_detail, silv_daily_count and silv_daily_count_adjustment faked. X and Y are the only cells for (2025-01-10, 'UK', 'election'): X 11/9/8/1/2/0/0 with R2 +2 and R3 -1 on active; Y 5/4/4/0/1/1/0 with no adjustments. Stored silv_daily_count row (2025-01-10, 'UK', 'election') 16/13/12/1/3/1/0.",
+      "expected": "As known at 2026-11-02 12:00: one row (2025-01-10, 'UK', 'election') active 17, paid 13, paid_event 12, join 1, renewal 3, readmission 1, lapse 0. As known at 2026-11-03 12:00: equal to the stored silv_daily_count row, active 16.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-003 silv_daily_count grain sums cells X and Y to 17 then 16]"
+    },
+    {
+      "id": "TC-021-004",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-04",
+      "category": "boundary",
+      "description": "Cell Z, first loaded with active 1 and changed to 0 by R3, still has a stored row of zeros; as known before R3 it shows 1.",
+      "preconditions": "Stored X 11/9/8/1/2/0/0 and Z (2025-01-10, 'UK', 1, 1, 'election', status 2) all 0. Adjustments: R2 X +2 at 2026-11-02 06:00; R3 Z active -1 at 2026-11-03 06:00.",
+      "expected": "As known at 2026-11-02 12:00, cell Z returns one row with active_count 1 and the other six measures 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-004 cell Z changed to 0 with a stored row shows 1 as known before the change]"
+    },
+    {
+      "id": "TC-021-005",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-04",
+      "category": "nulls",
+      "description": "Cell Z removed by R3 with no stored row left counts as 0 today and still shows its figure before the change; after the change it is not returned.",
+      "preconditions": "Stored X only (no Z row). Adjustments: R2 X +2 at 2026-11-02 06:00; R3 Z active -1 at 2026-11-03 06:00.",
+      "expected": "As known at 2026-11-02 12:00, Z (2025-01-10, 'UK', 1, 1, 'election', 2) is returned with active_count 1 and the other six 0. As known at 2026-11-03 12:00, no row is returned for Z.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-005 cell Z removed with no stored row shows 1 before the change and nothing after]"
+    },
+    {
+      "id": "TC-021-006",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-05",
+      "category": "happy_path",
+      "description": "A date first loaded after T (no first-load time is tracked) returns its first-load figures.",
+      "preconditions": "Q-050 answered (first-load figures are returned for a date first loaded after T). Stored W (2025-01-20, 'UK', 1, 1, 'election', 1) 7/6/6/0/0/0/0, first loaded by R3, no adjustments; X on 2025-01-10 with R2/R3 adjustments.",
+      "expected": "Range 2025-01-20..2025-01-20 as known at 2026-11-02 12:00 returns exactly one row: W with active_count 7, paid 6, paid_event 6, others 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-006 a date first loaded after T returns its first-load figures]"
+    },
+    {
+      "id": "TC-021-007",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-06",
+      "category": "negative",
+      "description": "A one-day range returns that date's cells only; stored rows and adjustment-only cells on other dates are excluded.",
+      "preconditions": "Stored X and Y on 2025-01-10, W on 2025-01-20. Adjustments: R2 X +2, R3 X -1, and R3 -3 on a removed cell (2025-01-20, 'UK', 1, 2, 'election', 1) written after T.",
+      "expected": "Range 2025-01-10..2025-01-10 as known at 2026-11-02 12:00 returns exactly 2 rows: X active 12 (9/8/1/2/0/0) and Y active 5 (4/4/0/1/1/0); no 2025-01-20 rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-007 a one-day range returns only that date's cells X and Y]"
+    },
+    {
+      "id": "TC-021-008",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-06",
+      "category": "boundary",
+      "description": "Both ends of the date range are inclusive and the days just outside are excluded, including adjustment-only cells there.",
+      "preconditions": "Stored one cell each on 2025-01-09 (active 4), 2025-01-10 (11), 2025-01-20 (7), 2025-01-21 (8). Adjustments after T (2026-11-03 06:00) on removed cells dated 2025-01-09 and 2025-01-21.",
+      "expected": "Range 2025-01-10..2025-01-20 as known at 2026-11-02 12:00 returns exactly 2 rows: 2025-01-10 active 11 and 2025-01-20 active 7.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-008 the date range includes both end dates and nothing outside them]"
+    },
+    {
+      "id": "TC-021-009",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-06",
+      "category": "nulls",
+      "description": "Any NULL parameter (@date_from, @date_to or @as_known_at) returns no rows from either function, as the design states.",
+      "preconditions": "Stored X on 2025-01-10 with an R2 adjustment.",
+      "expected": "Each of the six calls (two functions x one NULL parameter each) returns 0 rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-009 a NULL parameter returns no rows from either function]"
+    },
+    {
+      "id": "TC-021-010",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-03",
+      "category": "reconciliation",
+      "description": "With T after the latest adjustment, the detail function returns exactly the stored detail rows and the daily-grain function equals silv_daily_count.",
+      "preconditions": "Stored detail: X, Y, Z (zeros) and an EMEA 'enrolment' cell (3/0/0/1/0/0/0) on 2025-01-10, W on 2025-01-20. Stored silv_daily_count: (2025-01-10, UK, election) 16/13/12/1/3/1/0; (2025-01-10, EMEA, enrolment) 3/0/0/1/0/0/0; (2025-01-20, UK, election) 7/6/6/0/0/0/0. Adjustments up to 2026-11-03 06:00, including one on a removed cell with no stored row.",
+      "expected": "Range 2025-01-01..2025-01-31 as known at 2026-11-04 00:00: detail function equals the 5 stored detail rows; daily function equals the 3 stored silv_daily_count rows; the removed cell is not returned.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-010 with T after the latest adjustment both functions equal the stored counts]"
+    },
+    {
+      "id": "TC-021-011",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-04",
+      "category": "negative",
+      "description": "A cell with no stored row whose seven figures come to 0 at T is not returned, even though it has adjustments after T.",
+      "preconditions": "Cell Q (2025-01-10, 'UK', 1, 1, 'enrolment', 1) has no stored row; R2 +1 active at 2026-11-02 06:00, R3 -1 active at 2026-11-03 06:00. Stored X for noise.",
+      "expected": "As known at 2026-11-01 12:00, no row for Q (0 - (+1 - 1) = 0). As known at 2026-11-02 12:00, Q is returned with active_count 1 and the other six 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-011 a cell with no stored row that nets to 0 at T is not returned]"
+    },
+    {
+      "id": "TC-021-012",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-07",
+      "category": "happy_path",
+      "description": "The adjustments review view lists cell X's two non-zero changes with run, time written, grain, measure and change, and nothing for zero measures.",
+      "preconditions": "Q-051 answered (one row per cell, run and non-zero measure). silv_daily_count_adjustment faked with rows R2 X active +2 (2026-11-02 06:00), R3 X active -1 (2026-11-03 06:00), R3 Z active -1.",
+      "expected": "Filtered to cell X: exactly 2 rows: (A1000000-...-000000000002, 2026-11-02 06:00:00.000, 2025-01-10, UK, 1, 1, election, 1, 'active_count', 2) and (A1000000-...-000000000003, 2026-11-03 06:00:00.000, same cell, 'active_count', -1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-012 review view lists exactly the two non-zero changes for cell X]"
+    },
+    {
+      "id": "TC-021-013",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-07",
+      "category": "boundary",
+      "description": "Each non-zero measure of an adjustment row becomes its own review row, named exactly by its silv_daily_count_detail column (byte comparison), and carries the source row's adjustment_id.",
+      "preconditions": "Two adjustment rows on (2025-03-01, 'UK', 3, 1, 'election', 1): run B2...01 with changes 1, -2, 3, -4, 5, -6, 7; run B2...02 with paid_count +2 and event_lapse_count -1, the rest 0.",
+      "expected": "9 rows: run 1 active_count 1, paid_count -2, paid_count_event 3, event_join_count -4, event_renewal_count 5, event_readmission_count -6, event_lapse_count 7; run 2 paid_count 2, event_lapse_count -1. measure_name bytes equal the lower-case literals. Every row's adjustment_id and run_id match an adjustment row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-013 review view gives one row per non-zero measure with the exact column names]"
+    },
+    {
+      "id": "TC-021-014",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-07",
+      "category": "reconciliation",
+      "description": "Changes that cancel out across cells in one run (Practising -1, Retired +1) stay visible as two rows and are not summed to date level.",
+      "preconditions": "Q-051 answered. Run C3...04 on 2024-12-01, 'UK', 1, 1, 'election': status 1 active -1; status 2 active +1.",
+      "expected": "Exactly 2 review rows: status 1 'active_count' -1 and status 2 'active_count' +1, both with run C3...04 and date 2024-12-01.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-014 review view keeps changes that cancel out across cells as separate rows]"
+    },
+    {
+      "id": "TC-021-015",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-07",
+      "category": "happy_path",
+      "description": "Layercake.silv_daily_count_adjustment has the designed columns, types and nullability, with adjustment_id the identity.",
+      "preconditions": "Reads the real table's metadata (sys.columns); no rows touched.",
+      "expected": "Exactly 17 columns, all NOT NULL: adjustment_id bigint identity, run_id uniqueidentifier, load_id bigint, written_at datetime2(3), date date, region varchar(12), country_id int, gender_id int, grade varchar(12), membership_status_id int, and the seven *_change columns int; no other identity.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-015 adjustment table has the designed columns, types and nullability]"
+    },
+    {
+      "id": "TC-021-016",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-07",
+      "category": "negative",
+      "description": "The table's check constraint rejects an adjustment row whose seven changes are all 0 (so the review view never has a 0 change), and accepts one with a single non-zero change.",
+      "preconditions": "Table faked with @Identity = 1 and every check constraint of the real table applied with tSQLt.ApplyConstraint. A row with only event_lapse_count_change -1 is inserted first.",
+      "expected": "The first insert succeeds; inserting a row with all seven changes 0 fails with error 547.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-016 adjustment table rejects a row whose seven changes are all 0]"
+    },
+    {
+      "id": "TC-021-017",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-07",
+      "category": "duplicates",
+      "description": "The table is unique on (run_id, [date], region, country_id, gender_id, grade, membership_status_id), whether built as a unique constraint or a unique index.",
+      "preconditions": "Reads the real table's index metadata (sys.indexes, sys.index_columns); no rows touched, because a fake cannot carry a unique index.",
+      "expected": "Exactly one unfiltered unique index or constraint whose key columns are exactly those seven columns.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD021].[test TC-021-017 adjustment table is unique on run_id and the six cell columns]"
+    }
+  ]
+}
