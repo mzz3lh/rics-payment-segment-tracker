@@ -1,0 +1,343 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-024",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-18T17:15:24Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-18T17:29:23Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-024",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-024-001",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-01",
+      "category": "happy_path",
+      "description": "RULE-128, RULE-129, RULE-130: the 17-row synthetic source on 8 keys loads without error, lands exactly one live row per key, and passes the row-count check, which compares 8 distinct source keys (not 17 rows) with 8 live rows.",
+      "preconditions": "Standard SetUp (all tests): Subs.vwCorpSubscriptions, brnz_corporate_subscription (@Defaults), etl_run_log (@Identity, @Defaults), etl_progress_log and the readers' inputs are faked. Source: 17 rows, Scheme No 'SCH-020', Scheme Name 'Scheme Twenty', Sub Campaign Year 2025: C2201 (Active/Active, 2024-10-01, 'Round 1'); C2202 Sub Status Active with (Inactive, 2024-10-01, 'Round 1'), (Inactive, 2024-12-01, 'Round 2'), (Active, 2024-11-01, 'Round 3'), (Inactive, 2025-01-10, 'Round 4'); C2203 Sub Status Inactive with (Active, 2024-10-01, 'Round 3'), (Inactive, 2024-11-15, 'Round 1'); C2204 Inactive with (Active, NULL, 'Round 4'), (Inactive, 2024-10-05, 'Round 1'); C2205/C2206/C2207 Inactive, both copies 2024-10-01: (Active 'Round 9', Inactive 'Round 10'), (Active NULL, Inactive 'Round 1'), (Active 'Round X', Inactive 'Round 2'); C2208 two identical copies (Active, Active, 2024-10-01, 'Round 1'). Bronze empty. One call of usp_load_brnz_corporate_subscription.",
+      "expected": "No error. The brnz_corporate_subscription log row is 'Success' with 8 inserted, 0 updated, 0 deleted and no error message. The live rows are exactly the keys (C2201..C2208, 'SCH-020', 2025), and 0 keys have more than one live row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-001 the 17 row source lands 8 live rows one per key and logs Success]"
+    },
+    {
+      "id": "TC-024-002",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-01",
+      "category": "reconciliation",
+      "description": "RULE-129, ADR-010: the run logs the source rows not landed as repeats (rows in scope minus distinct keys) as the etl_progress_log sub-step 'repeated_key_rows_not_landed' under the load's own log_id.",
+      "preconditions": "Standard SetUp 17-row source (TC-024-001). One call of the load. ADR-010 Option A as stated in DES-001.",
+      "expected": "Exactly one etl_progress_log row joined to the brnz_corporate_subscription log row with substep 'repeated_key_rows_not_landed', rows_affected 9 (17 - 8).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-002 the load logs 9 source rows not landed as the repeated key sub-step]"
+    },
+    {
+      "id": "TC-024-003",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-02",
+      "category": "happy_path",
+      "description": "RULE-128 step 1: a single-row key lands as it is, and C2202's Active/Active copy wins over copies with a later created date (2025-01-10) and a higher Round ('Round 4').",
+      "preconditions": "assumes Q-027: the active value of Sub Status and Sub User Status is 'Active'. Standard SetUp 17-row source. One call of the load. Statuses compared as bytes.",
+      "expected": "Live rows: C2201 'SCH-020' 'Scheme Twenty' 2025 sub_status 'Active' sub_user_status 'Active'; C2202 'SCH-020' 'Scheme Twenty' 2025 'Active' 'Active'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-003 a single row key lands as it is and the Active Active copy beats a later date and higher Round]"
+    },
+    {
+      "id": "TC-024-004",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-03",
+      "category": "happy_path",
+      "description": "RULE-128 step 2: with no Active/Active copy, C2203's copy created 2024-11-15 ('Round 1') wins over the copy created 2024-10-01 with the higher 'Round 3'.",
+      "preconditions": "assumes Q-027: neither C2203 copy is Active/Active because Sub Status is 'Inactive'. Standard SetUp 17-row source. One call of the load.",
+      "expected": "C2203's live row has sub_status 'Inactive' and sub_user_status 'Inactive' (bytes).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-004 with no Active Active copy the later created date beats the higher Round]"
+    },
+    {
+      "id": "TC-024-005",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-04",
+      "category": "nulls",
+      "description": "RULE-128 step 2, Q-053: C2204's copy with a NULL Sub User Created Date (and the higher 'Round 4') loses to the copy created 2024-10-05.",
+      "preconditions": "Standard SetUp 17-row source. One call of the load.",
+      "expected": "C2204's live row has sub_status 'Inactive' and sub_user_status 'Inactive' (bytes).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-005 a copy with a NULL created date loses to a dated copy]"
+    },
+    {
+      "id": "TC-024-006",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-05",
+      "category": "boundary",
+      "description": "RULE-128 step 3, Q-053: with equal created dates, 'Round 10' beats 'Round 9' (compared as numbers, not text), and a NULL Round or 'Round X' counts as lowest.",
+      "preconditions": "Standard SetUp 17-row source (C2205, C2206, C2207, both copies created 2024-10-01). One call of the load.",
+      "expected": "C2205, C2206 and C2207 each have one live row with sub_status 'Inactive' and sub_user_status 'Inactive' (bytes).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-006 Round compares by its trailing number with NULL or no number lowest]"
+    },
+    {
+      "id": "TC-024-007",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-06",
+      "category": "duplicates",
+      "description": "C2208's two identical copies land as exactly one row carrying their values.",
+      "preconditions": "Standard SetUp 17-row source. One call of the load.",
+      "expected": "brnz_corporate_subscription holds exactly one row for C2208: 'SCH-020', 'Scheme Twenty', 2025, _is_deleted 0, sub_status 'Active', sub_user_status 'Active' (bytes).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-007 two identical copies land as exactly one row with their values]"
+    },
+    {
+      "id": "TC-024-008",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-06",
+      "category": "idempotency",
+      "description": "A second load on the unchanged 17-row source chooses the same copies, so it changes nothing and logs 0, 0, 0, and it logs the repeats again.",
+      "preconditions": "Standard SetUp 17-row source. Load, whole-table snapshot of brnz_corporate_subscription, load again.",
+      "expected": "The second log row is 'Success' with 0 inserted, 0 updated, 0 deleted. The table equals the snapshot in every column (audit columns included). The second run's own log_id has a 'repeated_key_rows_not_landed' sub-step with rows_affected 9. 8 live rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-008 a second load on the unchanged source logs 0 0 0 changes nothing and logs 9 again]"
+    },
+    {
+      "id": "TC-024-009",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-06",
+      "category": "idempotency",
+      "description": "RULE-128 and DES-001: the choice depends only on the source data, never on the order the view returns rows, so the same 17 rows supplied in reverse order land the same rows.",
+      "preconditions": "Standard SetUp 17-row source. Load, snapshot; the source rows are deleted and re-inserted in descending order of contact, sub user status, created date and Round; load again.",
+      "expected": "The second log row is 'Success' with 0 inserted, 0 updated, 0 deleted, and brnz_corporate_subscription equals the snapshot in every column.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-009 the same source returned in another row order lands the same rows and logs 0 0 0]"
+    },
+    {
+      "id": "TC-024-010",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-07",
+      "category": "boundary",
+      "description": "RULE-129: with the AC-006 synthetic source, where no key repeats, the sub-step is still written, with 0.",
+      "preconditions": "Source replaced by the AC-006-02 to AC-006-16 corporate subscription rows: P1 'SCH-001' 2025 Active/Active Round '1'; P6 'SCH-006' 2025 Active/Active; P7 'SCH-007' 2025 Active/Inactive; P10 'SCH-010' 2025 Active/Active. Bronze empty. One call of the load.",
+      "expected": "The log row is 'Success' with 4 inserted, 0 updated, 0 deleted, and its 'repeated_key_rows_not_landed' sub-step has rows_affected 0. 4 live rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-010 a source with no repeated key logs 0 source rows not landed]"
+    },
+    {
+      "id": "TC-024-011",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-05",
+      "category": "boundary",
+      "description": "RULE-128 step 3 as Q-054 defines it: outer spaces are ignored; the part after the last space counts only if all digits; a value with no space is used whole; numbers compare by value, so leading zeros do not matter; a whole number of 0 beats a non-number; equal numbers, and two non-numbers, tie and go to the final tie-break (ADR-009).",
+      "preconditions": "Source replaced; every copy Sub Status 'Inactive', created 2024-10-01, scheme 'SCH-024', 2025. C2401: Active 'Round 6' vs Inactive '  Round 7  '. C2402: Active 'Round 9' vs Inactive '12'. C2403: Active 'Round 1a' vs Inactive 'Round 0'. C2404: Active 'Round 9' vs Inactive 'Round 0010'. C2405: Inactive 'Round 10' vs Active '10' (tie at 10). C2406: Inactive 'Round' vs Active '   ' (both lowest). One call of the load. Final tie-break as DES-001 states it (ADR-009 Option A): exact order of sub_user_status, so 'Active' comes before 'Inactive'.",
+      "expected": "Live sub_user_status (bytes): C2401 'Inactive', C2402 'Inactive', C2403 'Inactive', C2404 'Inactive', C2405 'Active', C2406 'Active'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-011 Round number ignores outer spaces uses a value with no space whole and compares by value]"
+    },
+    {
+      "id": "TC-024-012",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-04",
+      "category": "nulls",
+      "description": "RULE-128 step 2: copies that all have no created date tie there and go on to Round. Where one of three copies has a date, it wins whatever its Round.",
+      "preconditions": "Source replaced; Sub Status 'Inactive', scheme 'SCH-024', 2025. C2411: Active NULL 'Round 2' vs Inactive NULL 'Round 5'. C2412: Active NULL 'Round 9', Pending NULL 'Round 8', Inactive 2024-10-01 'Round 1'. One call of the load.",
+      "expected": "Live sub_user_status (bytes): C2411 'Inactive', C2412 'Inactive'. The sub-step logs rows_affected 3 (5 rows, 2 keys).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-012 copies that all lack a created date go on to Round and a dated copy beats undated ones]"
+    },
+    {
+      "id": "TC-024-013",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-06",
+      "category": "duplicates",
+      "description": "ADR-009 final tie-break (DES-001): copies tied on the first three steps but with different sub_user_status are decided by exact character order of sub_user_status, with case counting and a missing value first. A different copy cannot win on a rerun or a different row order.",
+      "preconditions": "Final tie-break as DES-001 states it (ADR-009 Option A). Source replaced; Sub Status 'Inactive', created 2024-10-01, scheme 'SCH-024', 2025; Rounds NULL, 'Round X' or 'Round' (all lowest). C2421: 'Inactive' vs NULL. C2422: 'Inactive' vs 'INACTIVE' (equal under the case-insensitive collation). C2423: 'Removed' vs 'Expired'. One call of the load. Compared as bytes.",
+      "expected": "Live sub_user_status bytes: C2421 NULL; C2422 'INACTIVE'; C2423 'Expired'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-013 the final tie-break takes the missing then exactly first sub_user_status]"
+    },
+    {
+      "id": "TC-024-014",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-06",
+      "category": "duplicates",
+      "description": "ADR-009 final tie-break (DES-001): where sub_user_status also ties, sub_status decides, and then scheme_name, in exact order with a missing value first.",
+      "preconditions": "Final tie-break as DES-001 states it (ADR-009 Option A). Source replaced; Sub User Status 'Inactive', created 2024-10-01, Round NULL, scheme 'SCH-024', 2025. C2431: Sub Status 'Lapsed' vs 'Cancelled' (Scheme Name 'Scheme 24'). C2432: Sub Status 'Inactive', Scheme Name 'Scheme B' vs NULL. C2433: Sub Status 'Inactive', Scheme Name 'scheme a' vs 'Scheme a'. One call of the load. Compared as bytes.",
+      "expected": "Live rows (sub_status, scheme_name): C2431 ('Cancelled', 'Scheme 24'); C2432 ('Inactive', NULL); C2433 ('Inactive', 'Scheme a').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-014 the final tie-break goes on to sub_status and then scheme_name]"
+    },
+    {
+      "id": "TC-024-015",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-06",
+      "category": "happy_path",
+      "description": "DES-001: when a source change makes a different copy win a key, that one bronze row is updated and the other keys are untouched.",
+      "preconditions": "Standard SetUp 17-row source. Load and snapshot the other 7 keys. C2203's Inactive copy's Sub User Created Date is then changed to 2024-09-01, so its Active copy (2024-10-01) is now later. Load again.",
+      "expected": "The second log row is 'Success' with 0 inserted, 1 updated, 0 deleted. C2203 is live with sub_status 'Inactive' and sub_user_status 'Active' (bytes). The other 7 rows equal the snapshot in every column.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-015 a source change that makes another copy win updates only that row]"
+    },
+    {
+      "id": "TC-024-016",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-01",
+      "category": "negative",
+      "description": "Bronze pattern with RULE-130: when every copy of a repeated key leaves the source, the key is soft-deleted, and the row-count check (7 distinct keys against 7 live rows) still passes.",
+      "preconditions": "Standard SetUp 17-row source. Load; then C2202's 4 copies are deleted from the source (13 rows, 7 keys); load again.",
+      "expected": "The second log row is 'Success' with 0 inserted, 0 updated, 1 deleted, and its sub-step has rows_affected 6. C2202's row has _is_deleted 1 and a _deleted_at. 7 live rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-016 a repeated key gone from the source is soft deleted and the distinct key check still passes]"
+    },
+    {
+      "id": "TC-024-017",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-08",
+      "category": "reconciliation",
+      "description": "RULE-129: a full usp_run_payment_segments run on the 17-row set leaves silv_data_anomaly identical (anomaly_type, contact_no, anomaly_nk) to the same run on a source holding only the 8 copies landed. No row is added for a repeated key, and no anomaly type names one.",
+      "preconditions": "assumes Q-027 and Q-002: Corporate needs a Corporate invoice method and a live 'Active'/'Active' subscription. Standard SetUp: Campaign Years 2021-2060; payment method, payer type and concession seeds; each of C2201..C2208 has a 2025 Renewal, a 2025 'Fully Paid' paid position and one live 2025 invoice (rec_id 22010..22080) with payment mode 'Corporate' and no lines. usp_run_payment_segments, the corporate subscription load and the two readers of the table that write here (usp_load_silv_member_year_attributes, usp_load_silv_data_anomaly_segment) run for real. The other 14 loads of the run are unchanged by MOD-024, do not read brnz_corporate_subscription and are covered by their own suites, so they are stand-ins that only log 'Success'. Run A with @as_of_date 2025-06-15; then bronze, attributes and anomalies are cleared, the source is replaced by the 8 landed copies, and run B is made.",
+      "expected": "Run B's anomalies equal run A's (0 differing rows). Run A's anomalies are exactly CORPORATE_FLAG_NO_SCHEME for C2203, C2204, C2205, C2206 and C2207 (5 rows), with no other type.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-017 a full segment run raises the same anomalies on the repeated source as on its 8 landed copies]"
+    },
+    {
+      "id": "TC-024-018",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-09",
+      "category": "negative",
+      "description": "RULE-130: after a successful load of the 17 rows, a ninth key C2209 with a NULL Scheme No fails the next load with 515. The error reaches the caller, the load logs 'Failed', and bronze keeps the same 8 rows and values.",
+      "preconditions": "Runs outside the tSQLt transaction. Standard SetUp 17-row source; one successful load; snapshot of brnz_corporate_subscription; then the source row (C2209, NULL, 'Scheme Twenty', 2025, Active, Active, 2024-10-01, 'Round 1') is added and the load is called again.",
+      "expected": "Error 515 reaches the caller. The latest brnz_corporate_subscription log row is 'Failed' with an error message. brnz_corporate_subscription equals the snapshot in every column (8 live rows).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-018 a NULL Scheme No after a good load fails with 515 logs Failed and leaves the 8 rows]"
+    },
+    {
+      "id": "TC-024-019",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-09",
+      "category": "nulls",
+      "description": "RULE-130: a NULL Sub Campaign Year still fails the load with 515, even on a contact whose other copies repeat a key. No row is skipped, and the repeat handling does not absorb it.",
+      "preconditions": "Runs outside the tSQLt transaction. Bronze holds one earlier row (C2201, 'SCH-020', 'Scheme Twenty', 2025, Active, Active). Source: the 17 standard rows plus (C2203, 'SCH-020', 'Scheme Twenty', NULL, Inactive, Inactive, 2024-12-01, 'Round 2'). One call of the load.",
+      "expected": "Error 515 reaches the caller. The load's log row is 'Failed' with an error message. brnz_corporate_subscription equals its snapshot from before the call (the one C2201 row).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-019 a NULL Sub Campaign Year on a repeated contact fails with 515 and changes nothing]"
+    },
+    {
+      "id": "TC-024-020",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-10",
+      "category": "happy_path",
+      "description": "RULE-131: the unchanged readers see the landed copies. C2202, whose Active/Active copy lands, is Corporate on SCH-020 with no CORPORATE_FLAG_NO_SCHEME row. C2203, whose Inactive copy lands, is Individual with one CORPORATE_FLAG_NO_SCHEME row.",
+      "preconditions": "assumes Q-002, Q-019, Q-027: Corporate needs a Corporate segment invoice and a live 'Active'/'Active' subscription; corporate_account_ref holds its Scheme No. Full-run SetUp as TC-024-017 (8 contacts, 2025 Corporate invoices and paid positions; the 14 loads that do not read the table are logging stand-ins). One call of usp_run_payment_segments with @as_of_date 2025-06-15.",
+      "expected": "silv_member_year_attributes (contact, year, payment_method_id, payer_type_id, corporate_account_ref): C2201 2025 5 2 'SCH-020'; C2202 2025 5 2 'SCH-020'; C2203 to C2207 2025 5 1 NULL; C2208 2025 5 2 'SCH-020'. CORPORATE_FLAG_NO_SCHEME rows: 0 for C2202, 1 for C2203.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-020 C2202 is Corporate on SCH-020 and C2203 Individual with one CORPORATE_FLAG_NO_SCHEME]"
+    },
+    {
+      "id": "TC-024-021",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-11",
+      "category": "negative",
+      "description": "AC-022-11, database part (RULE-131, DES-001): brnz_corporate_subscription, the table the five readers query, keeps exactly its structure and key, and all five readers exist and still read it. That the readers' definitions are byte-identical before and after the change is checked outside tSQLt, because a test sees only the deployed state: MP-001 lists usp_load_brnz_corporate_subscription as MOD-024's only object, and the pre-merge review and the Developer's change note (migration diff) confirm no reader file changed, as ASM-009 sets for ACs a tSQLt test cannot fully observe.",
+      "preconditions": "Reads the original table (renamed by FakeTable, found through tSQLt.Private_RenamedObjectLog) through sys.columns and sys.indexes, and the readers through sys.sql_expression_dependencies.",
+      "expected": "Columns in order (type, max_length bytes, scale, nullable): contact_no nvarchar 200 0 no; scheme_no nvarchar 200 0 no; scheme_name nvarchar 8000 0 yes; sub_campaign_year int 4 0 no; sub_status nvarchar 700 0 yes; sub_user_status nvarchar 700 0 yes; _loaded_at datetime2 7 3 no; _updated_at datetime2 7 3 no; _is_deleted bit 1 0 no; _deleted_at datetime2 7 3 yes. Primary key (contact_no, scheme_no, sub_campaign_year). usp_load_silv_member_year_attributes, usp_load_silv_data_anomaly_segment, usp_report_employer_scheme_coverage, usp_report_employer_source_agreement and usp_report_top_employers all exist as procedures that reference Layercake.brnz_corporate_subscription.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-021 the table keeps its structure and key and the five readers still read it]"
+    },
+    {
+      "id": "TC-024-022",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-12",
+      "category": "happy_path",
+      "description": "RULE-132: bronze holds rows from an earlier load and the source now holds the 17-row set. With no manual step first, one usp_run_payment_segments call ends 'Success' on its own row, on the corporate subscription load and on every later step, and bronze holds the 8 AC-022-01 rows.",
+      "preconditions": "assumes Q-027: the Active/Active copy is the one with both statuses 'Active'. Full-run SetUp as TC-024-017 (the 14 loads that do not read the table are stand-ins that log 'Success'). Earlier bronze rows: C2201 ('SCH-020', 'Scheme Twenty', 2025, Active, Active), C2203 (same scheme, Inactive, Active) and C2290 (same scheme, Active, Active; not in the source). One call with a fixed run_id and @as_of_date 2025-06-15.",
+      "expected": "Under the run_id, etl_run_log holds exactly 18 rows, all 'Success': run/usp_run_payment_segments; bronze/brnz_subs_invoice, brnz_subs_invoice_line, brnz_corporate_subscription, brnz_concession; silver/silv_ref_invoice_line_type, silv_ref_currency, silv_ref_concession_type; gold/dim_payment_method, dim_payer_type, dim_currency, dim_concession_type; silver/silv_member_year_attributes, silv_event_amount, silv_data_anomaly_segment, silv_data_anomaly_invoice, silv_membership_events_segments; gold/fact_membership_events_segments. The corporate subscription row has 6 inserted, 1 updated, 1 deleted. Bronze: C2201, C2202, C2208 live Active/Active; C2203 to C2207 live Inactive/Inactive; all 'SCH-020', 'Scheme Twenty', 2025; C2290 _is_deleted 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-022 one segment run over earlier bronze rows ends Success on every step and lands the 8 rows]"
+    },
+    {
+      "id": "TC-024-023",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-12",
+      "category": "idempotency",
+      "description": "AC-022-12, second part: a usp_run_daily_load after the segment run, on unchanged data, records 0 inserted, 0 updated and 0 deleted for brnz_corporate_subscription and leaves the table unchanged.",
+      "preconditions": "Setup as TC-024-022, plus the Phase 1 orchestrators usp_load_bronze, usp_load_silver and usp_load_gold as stand-ins that log one 'Success' row each (unchanged by MOD-024, tested by their own suites). usp_run_payment_segments with @as_of_date 2025-06-15, then a snapshot of brnz_corporate_subscription, then one usp_run_daily_load (no as-of date; Campaign Years to 2060 cover today).",
+      "expected": "Under the daily run's run_id: usp_run_daily_load 'Success' with no row counts; brnz_corporate_subscription 'Success' with 0 inserted, 0 updated, 0 deleted. brnz_corporate_subscription equals the snapshot in every column.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-023 a daily run after the segment run records 0 0 0 for the corporate subscription load]"
+    },
+    {
+      "id": "TC-024-024",
+      "requirement_ids": [
+        "REQ-022"
+      ],
+      "acceptance_criterion_id": "AC-022-13",
+      "category": "negative",
+      "description": "AC-022-13, database part (RULE-130, RULE-132, RULE-133): the two behaviours the known limitations and runbook must describe. A row with a missing key still stops the run, and the next segment run after the source is corrected recovers with no manual cleanup, while repeated keys no longer stop it. The wording of docs/handover/06-known-limitations.md and docs/handover/04-runbook.md is MOD-024's documentation update and is checked at the documentation review, as ASM-009 sets for document ACs.",
+      "preconditions": "assumes Q-002, Q-027 for C2202's Corporate payer type. Runs outside the tSQLt transaction. Full-run SetUp as TC-024-017 (stand-ins for the 14 loads that do not read the table). Bronze holds C2201 ('SCH-020', 'Scheme Twenty', 2025, Active, Active). Source: the 17 standard rows plus (C2209, NULL Scheme No, 2025, Active, Active). Run 1 with @as_of_date 2025-06-15. Then the C2209 row is deleted and run 2 is made with another run_id.",
+      "expected": "Run 1: error 515 reaches the caller. Its only rows not 'Success' are usp_run_payment_segments 'Failed' and brnz_corporate_subscription 'Failed'. No silver or gold step is logged, and bronze equals its snapshot. Run 2: 18 rows, all 'Success'; 8 live bronze rows; attributes C2202 2025 payer type 2 'SCH-020' and C2203 2025 payer type 1 NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD024].[test TC-024-024 after a missing key stops the run one more segment run recovers with no cleanup]"
+    }
+  ]
+}
