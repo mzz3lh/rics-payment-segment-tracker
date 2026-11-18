@@ -1,11 +1,14 @@
 /*====================================================================
     Layercake.usp_load_brnz_corporate_subscription
     Bronze layer - Subs.vwCorpSubscriptions -> Layercake.brnz_corporate_subscription
-    1:1 landing. The source has no row key, so rows are matched on
-    (contact_no, scheme_no, sub_campaign_year) (Q-033): insert new, update
-    changed (and restore reappearing), soft-delete gone; row-count check
-    (RULE-005); logged. 'Round' is not landed and plays no part
-    (answers 2026-10-23).
+    The source has no row key and is at subscription-user grain, so
+    (contact_no, scheme_no, sub_campaign_year) can repeat (Q-033, AMD-004).
+    One copy per key is landed (RULE-128, ADR-009); the others are counted in
+    the etl_progress_log sub-step 'repeated_key_rows_not_landed' (ADR-010).
+    Rows are matched on that key: insert new, update changed (and restore
+    reappearing), soft-delete gone; distinct-key row-count check (RULE-005,
+    RULE-130); logged. 'Round' is not landed and plays a part only in the
+    choice of copy (answers 2026-10-23, Q-054).
 ====================================================================*/
 CREATE OR ALTER PROCEDURE Layercake.usp_load_brnz_corporate_subscription
     @run_id uniqueidentifier = NULL
@@ -16,20 +19,63 @@ BEGIN
 
     IF @run_id IS NULL SET @run_id = NEWID();
 
-    DECLARE @log_id    bigint,
-            @ins       int,
-            @upd       int,
-            @del       int,
-            @src_count bigint,
-            @tgt_count bigint,
-            @err       nvarchar(4000);
+    -- Q-027: the active value of Sub Status and Sub User Status. Compared as the
+    -- readers compare it (database collation), so the copy they look for is kept.
+    DECLARE @active_status nvarchar(350) = N'Active';
+
+    DECLARE @log_id     bigint,
+            @ins        int,
+            @upd        int,
+            @del        int,
+            @not_landed int,
+            @src_count  bigint,
+            @tgt_count  bigint,
+            @ts         datetime2(3),
+            @err        nvarchar(4000);
 
     BEGIN TRY
         EXEC Layercake.usp_etl_log_start @run_id, 'bronze', 'brnz_corporate_subscription', @log_id OUTPUT;
 
-        -- Staged in the target's types with the matching key NOT NULL and unique:
-        -- a NULL key fails the load with 515 (answers 2026-10-26, no row is skipped)
-        -- and a duplicate key fails it with 2627 (Q-033), before bronze is touched.
+        -- Every source row, staged with the matching key NOT NULL: a NULL key
+        -- fails the load with 515 before bronze is touched (answers 2026-10-26,
+        -- no row is skipped).
+        CREATE TABLE #src_all_rows
+        (
+            contact_no            nvarchar(100)  COLLATE DATABASE_DEFAULT NOT NULL,
+            scheme_no             nvarchar(100)  COLLATE DATABASE_DEFAULT NOT NULL,
+            scheme_name           nvarchar(4000) COLLATE DATABASE_DEFAULT NULL,
+            sub_campaign_year     int            NOT NULL,
+            sub_status            nvarchar(350)  COLLATE DATABASE_DEFAULT NULL,
+            sub_user_status       nvarchar(350)  COLLATE DATABASE_DEFAULT NULL,
+            sub_user_created_date date           NULL,
+            round_number          decimal(38, 0) NULL
+        );
+
+        -- Round counts by the whole number at its end (Q-053, Q-054): outer spaces
+        -- ignored, the part after the last space (or the whole value), only if it
+        -- is all digits; anything else is NULL and ranks lowest.
+        INSERT INTO #src_all_rows
+            (contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status,
+             sub_user_created_date, round_number)
+        SELECT cs.[Contact No], cs.[Scheme No], cs.[Scheme Name], cs.[Sub Campaign Year],
+               cs.[Sub Status], cs.[Sub User Status], cs.[Sub User Created Date],
+               CASE
+                   WHEN rt.round_tail <> N'' AND rt.round_tail COLLATE Latin1_General_BIN2 NOT LIKE N'%[^0-9]%'
+                       THEN TRY_CAST(rt.round_tail AS decimal(38, 0))
+               END
+        FROM Subs.vwCorpSubscriptions AS cs
+        CROSS APPLY (SELECT LTRIM(RTRIM(cs.[Round])) AS round_trimmed) AS r
+        CROSS APPLY (SELECT CASE
+                                WHEN CHARINDEX(N' ', r.round_trimmed) > 0
+                                    THEN RIGHT(r.round_trimmed, CHARINDEX(N' ', REVERSE(r.round_trimmed)) - 1)
+                                ELSE r.round_trimmed
+                            END AS round_tail) AS rt;
+
+        -- One copy per key, in RULE-128's order: Active/Active, latest created
+        -- date (NULL loses), highest Round; then ADR-009's final tie-break on the
+        -- landed values in exact order (binary, then length so trailing spaces
+        -- count), missing first. The key columns come last because the key itself
+        -- matches case-insensitively, so copies still tied land identical values.
         CREATE TABLE #src_corporate_subscription
         (
             contact_no        nvarchar(100)  COLLATE DATABASE_DEFAULT NOT NULL,
@@ -43,9 +89,26 @@ BEGIN
 
         INSERT INTO #src_corporate_subscription
             (contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status)
-        SELECT cs.[Contact No], cs.[Scheme No], cs.[Scheme Name], cs.[Sub Campaign Year],
-               cs.[Sub Status], cs.[Sub User Status]
-        FROM Subs.vwCorpSubscriptions AS cs;
+        SELECT ranked.contact_no, ranked.scheme_no, ranked.scheme_name, ranked.sub_campaign_year,
+               ranked.sub_status, ranked.sub_user_status
+        FROM (SELECT a.contact_no, a.scheme_no, a.scheme_name, a.sub_campaign_year, a.sub_status, a.sub_user_status,
+                     ROW_NUMBER() OVER (
+                         PARTITION BY a.contact_no, a.scheme_no, a.sub_campaign_year
+                         ORDER BY CASE WHEN a.sub_status = @active_status AND a.sub_user_status = @active_status
+                                       THEN 0 ELSE 1 END,
+                                  a.sub_user_created_date DESC,
+                                  a.round_number DESC,
+                                  a.sub_user_status COLLATE Latin1_General_BIN2, DATALENGTH(a.sub_user_status),
+                                  a.sub_status COLLATE Latin1_General_BIN2, DATALENGTH(a.sub_status),
+                                  a.scheme_name COLLATE Latin1_General_BIN2, DATALENGTH(a.scheme_name),
+                                  a.contact_no COLLATE Latin1_General_BIN2, DATALENGTH(a.contact_no),
+                                  a.scheme_no COLLATE Latin1_General_BIN2, DATALENGTH(a.scheme_no)) AS copy_rank
+              FROM #src_all_rows AS a) AS ranked
+        WHERE ranked.copy_rank = 1;
+
+        SELECT @src_count = COUNT_BIG(*) FROM #src_corporate_subscription;
+        SET @not_landed = (SELECT COUNT(*) FROM #src_all_rows) - @src_count;
+        EXEC Layercake.usp_etl_log_progress @log_id, N'repeated_key_rows_not_landed', @not_landed, @ts OUTPUT;
 
         BEGIN TRANSACTION;
 
@@ -100,10 +163,10 @@ BEGIN
                             AND s.sub_campaign_year = tgt.sub_campaign_year);
         SET @del = @@ROWCOUNT;
 
-        SELECT @src_count = COUNT_BIG(*) FROM #src_corporate_subscription;
+        -- RULE-130: distinct source keys against live bronze rows.
         SELECT @tgt_count = COUNT_BIG(*) FROM Layercake.brnz_corporate_subscription WHERE _is_deleted = 0;
         IF @src_count <> @tgt_count
-            RAISERROR('Row count mismatch after sync of Layercake.brnz_corporate_subscription: source %I64d vs active target %I64d.', 16, 1, @src_count, @tgt_count);
+            RAISERROR('Row count mismatch after sync of Layercake.brnz_corporate_subscription: distinct source keys %I64d vs active target %I64d.', 16, 1, @src_count, @tgt_count);
 
         COMMIT TRANSACTION;
         EXEC Layercake.usp_etl_log_end @log_id, 'Success', @ins, @upd, @del;
