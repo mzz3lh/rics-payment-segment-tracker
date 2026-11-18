@@ -6,12 +6,13 @@ GO
 -- Choice: a source key repeated (Q-033 assumes it is unique) fails the load with 2627 at
 -- staging rather than landing one of the rows arbitrarily.
 --[@tSQLt:NoTransaction](DEFAULT)
-CREATE PROCEDURE test_MOD004_dev.[test duplicate source key fails the corporate subscription load with 2627 and changes nothing]
+CREATE PROCEDURE test_MOD004_dev.[test a repeated source key lands its Active Active copy and the load succeeds (AMD-004)]
 AS
 BEGIN
     EXEC tSQLt.FakeTable 'Subs.vwCorpSubscriptions';
     EXEC tSQLt.FakeTable 'Layercake.brnz_corporate_subscription', @Defaults = 1;
     EXEC tSQLt.FakeTable 'Layercake.etl_run_log', @Identity = 1, @Defaults = 1;
+    EXEC tSQLt.FakeTable 'Layercake.etl_progress_log', @Identity = 1, @Defaults = 1;
 
     INSERT INTO Layercake.brnz_corporate_subscription
         (contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status, _loaded_at, _updated_at, _is_deleted, _deleted_at)
@@ -22,28 +23,20 @@ BEGIN
            (N'2000002', N'SCH-301', N'Tau Partners', 2025, N'Active', N'Active', N'Round 1'),
            (N'2000002', N'SCH-301', N'Tau Partners', 2025, N'Active', N'Inactive', N'Round 2');
 
-    SELECT * INTO #Before FROM Layercake.brnz_corporate_subscription;
+    EXEC Layercake.usp_load_brnz_corporate_subscription;
 
-    BEGIN TRY
-        EXEC Layercake.usp_load_brnz_corporate_subscription;
-        EXEC tSQLt.Fail 'usp_load_brnz_corporate_subscription should have raised the duplicate key error';
-    END TRY
-    BEGIN CATCH
-        IF ERROR_NUMBER() <> 2627 THROW;
-    END CATCH;
+    SELECT contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status, _is_deleted
+    INTO #Actual FROM Layercake.brnz_corporate_subscription;
 
-    SELECT * INTO #After FROM Layercake.brnz_corporate_subscription;
+    SELECT * INTO #Expected FROM (VALUES
+        (N'2000001', N'SCH-301', N'Tau Partners', 2025, N'Cancelled', N'Active', CAST(0 AS bit)),
+        (N'2000002', N'SCH-301', N'Tau Partners', 2025, N'Active',    N'Active', CAST(0 AS bit))
+    ) AS v(contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status, _is_deleted);
 
-    EXEC tSQLt.AssertEqualsTable '#Before', '#After', 'brnz_corporate_subscription must be unchanged after a failed load';
+    EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 
-    SELECT l.status, CASE WHEN l.error_message LIKE N'%error 2627%' THEN 1 ELSE 0 END AS has_2627
-    INTO #ActualLog
-    FROM Layercake.etl_run_log AS l;
-
-    SELECT v.status, v.has_2627
-    INTO #ExpectedLog
-    FROM (VALUES ('Failed', 1)) AS v(status, has_2627);
-
+    SELECT l.status, l.rows_inserted, l.rows_updated, l.rows_deleted INTO #ActualLog FROM Layercake.etl_run_log AS l;
+    SELECT * INTO #ExpectedLog FROM (VALUES ('Success', 1, 1, 0)) AS v(status, rows_inserted, rows_updated, rows_deleted);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 END;
 GO
