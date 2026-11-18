@@ -7,17 +7,17 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-11-09T14:58:08Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-09T15:11:38Z",
+      "approved_by": "Mike",
+      "approved_at": "2026-11-18T09:44:36Z",
       "gate": "test_design_review",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+      "comments": "Reopened for MOD-022: TC-018-020 is superseded by REQ-018 / RULE-109, RULE-110 (AMD-003): amend it as ASM-010 says: keep the setup, drop the @RebuildFrom step, after the single plain run assert detail rows (2024-06-01 election 1 1) and (2025-02-01 election 2 1), the member_profile row with affected_from 2024-03-01 has applied_at NOT NULL and no open row remains; cite REQ-018, RULE-109, RULE-110 instead of ASM-002, keep AC-017-06, rename the test to '...derived date reaches loaded daily history on the next plain run'"
     }
   },
   "module_id": "MOD-018",
