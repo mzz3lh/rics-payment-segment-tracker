@@ -1,0 +1,113 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-021",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-18T08:17:18Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-021.json",
+      "tests/tsqlt/test_MOD021.sql"
+    ]
+  },
+  "module_id": "MOD-021",
+  "branch": "agent/developer/MOD-021-daily-count-adjustment-history-and-as-kn",
+  "commit": "277974c9925e59a4da40a39ad60e2831f9aee778",
+  "requirement_ids": [
+    "REQ-019",
+    "REQ-020"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_daily_count_adjustment.sql",
+      "object": "Layercake.silv_daily_count_adjustment",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Functions/Layercake.fn_silv_daily_count_detail_as_known_at.sql",
+      "object": "Layercake.fn_silv_daily_count_detail_as_known_at",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-020"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Functions/Layercake.fn_silv_daily_count_as_known_at.sql",
+      "object": "Layercake.fn_silv_daily_count_as_known_at",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-020"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Views/Layercake.vw_silv_daily_count_adjustment_review.sql",
+      "object": "Layercake.vw_silv_daily_count_adjustment_review",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-020"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD021_dev].[test daily function returns a row of zeros for a stored detail row of zeros]",
+    "[test_MOD021_dev].[test daily function sums status cells that cancel out and keeps regions and grades apart]",
+    "[test_MOD021_dev].[test detail function returns a removed cell whose only figure at T is a non-active measure]",
+    "[test_MOD021_dev].[test detail function returns a stored row of zeros with no adjustments and sums several later changes to one cell]",
+    "[test_MOD021_dev].[test detail function returns no rows when date_from is after date_to]",
+    "[test_MOD021_dev].[test review view returns measure_name as varchar(30) and change_value as int, both not null]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0023",
+      "up_script": "src/sql/deploy/MIG-0023_MOD-021_daily-count-adjustment-history-and-as-kn.up.sql",
+      "down_script": "src/sql/deploy/MIG-0023_MOD-021_daily-count-adjustment-history-and-as-kn.down.sql",
+      "rollback_test": {
+        "commit": "277974c9925e59a4da40a39ad60e2831f9aee778",
+        "run_at": "2026-11-18T08:17:10.585883+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Grant script src/sql/grants/MOD-021.sql uses the placeholder role [<reporting_role>]: DES-001 names 'the existing reporting role that reads fact_membership_events' but not its name. A human replaces it and runs the script.",
+    "Q-052 (open, blocks MOD-021 and MOD-022), part (b) only: confirmed from the Phase 1 code (Layercake.usp_load_silv_daily_count, the insert into silv_daily_count) that silv_daily_count is silv_daily_count_detail summed by [date], campaign_year, campaign_quarter, region and grade. So fn_silv_daily_count_as_known_at sums the detail function and does not read silv_daily_count. Parts (a) and (c) are left for MOD-022, as the plan says."
+  ],
+  "notes": "MOD-021 builds Layercake.silv_daily_count_adjustment, the two as-known-at table functions and the review view. All 23 tests pass: the 17 in test_MOD021 and 6 in test_MOD021_dev. They failed before the build because the objects did not exist.\n\nTable: adjustment_id is a clustered identity primary key. The unique constraint is UQ on (run_id, [date], region, country_id, gender_id, grade, membership_status_id). CK_..._any_change rejects a row whose seven changes are all 0. IX_silv_daily_count_adjustment_date_written_at on ([date], written_at), with the cell and change columns included, serves the functions.\n\nfn_silv_daily_count_detail_as_known_at is an inline table function. It stacks the stored detail rows on top of the negated adjustments written strictly after @as_known_at, within the date range, and groups by cell. A stored row is always returned, including one of all zeros. A cell found only in the history is returned when any of its seven figures is not 0 at T. A NULL parameter, or @date_from after @date_to, returns no rows.\n\nfn_silv_daily_count_as_known_at sums the detail function by [date], region and grade.\n\nThe review view uses CROSS APPLY VALUES to give one row per non-zero measure. measure_name is varchar(30) NOT NULL; the ISNULL is there only to make the column NOT NULL.\n\nUnit tests cover:\n- several changes to one cell around T, and a stored row of zeros;\n- a removed cell whose only figure at T is a lapse, and one removed before T;\n- a reversed date range;\n- the daily function, where Practising -1 / Retired +1 cancel out, region and grade stay separate, and a history-only cell gets its own row;\n- the review view's column types.\n\nNo load writes the table yet; MOD-022 adds that. The down script drops the view and both functions. It drops the table when it is empty and renames it to _rolledback_MIG0023 when it holds rows.\n\nTest-first: the first run had 0 of 17 of the Tester's tests passing; the final run passed 17 of 17 and 6 unit test(s), in 4 run(s)."
+}
