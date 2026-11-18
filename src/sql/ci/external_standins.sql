@@ -360,6 +360,64 @@ CREATE TABLE [CE].[vwLocalGroup] (
     [Budget_Region] varchar(10) NULL
 );
 GO
+-- CE.vwRicsv2Subscription (view)
+IF OBJECT_ID(N'[CE].[vwRicsv2Subscription]') IS NULL
+CREATE TABLE [CE].[vwRicsv2Subscription] (
+    [ricsv2_subscriptionId] uniqueidentifier NULL,
+    [ricsv2_SubscriptionNo] nvarchar(100) NULL,
+    [ricsv2_SubscriptionsidName] nvarchar(150) NULL,
+    [sub_product_code] nvarchar(20) NULL,
+    [CreatedBy] uniqueidentifier NULL,
+    [CreatedByName] nvarchar(200) NULL,
+    [Created_On] datetime NULL,
+    [ModifiedBy] uniqueidentifier NULL,
+    [ModifiedByName] nvarchar(200) NULL,
+    [Modified_On] datetime NULL,
+    [OwnerId] uniqueidentifier NULL,
+    [OwnerIdName] nvarchar(200) NULL,
+    [ricsv1_licencesused_Date] datetime NULL,
+    [ricsv1_licencesused_State] int NULL,
+    [ricsv1_SubscriptionProduct] uniqueidentifier NULL,
+    [ricsv1_SubscriptionProductName] nvarchar(120) NULL,
+    [ricsv2_EndDate] datetime NULL,
+    [ricsv2_NumberofLicences] int NULL,
+    [ricsv2_PaymentId] int NULL,
+    [ricsv2_PaymentId_Description] nvarchar(350) NULL,
+    [ricsv2_StartDate] datetime NULL,
+    [statecode] int NULL,
+    [StateCode_Description] nvarchar(350) NULL,
+    [statuscode] int NULL,
+    [StatusCode_Description] nvarchar(350) NULL,
+    [apuk_subscriptionownerid] uniqueidentifier NULL,
+    [apuk_corporate] bit NULL,
+    [apuk_onbehalfoforganisationid] uniqueidentifier NULL,
+    [apuk_licensekey] nvarchar(100) NULL
+);
+GO
+-- CE.vwSubscriptionUser (view)
+IF OBJECT_ID(N'[CE].[vwSubscriptionUser]') IS NULL
+CREATE TABLE [CE].[vwSubscriptionUser] (
+    [ricsv2_subscriptionuserId] uniqueidentifier NULL,
+    [ricsv2_SubscriptionId] uniqueidentifier NULL,
+    [ricsv2_SubscriptionIdName] nvarchar(150) NULL,
+    [ricsv2_name] nvarchar(100) NULL,
+    [ricsv2_Contact] uniqueidentifier NULL,
+    [contactnumber] nvarchar(100) NULL,
+    [Created_On] datetime NULL,
+    [CreatedBy] uniqueidentifier NULL,
+    [CreatedByName] nvarchar(200) NULL,
+    [Modified_On] datetime NULL,
+    [ModifiedBy] uniqueidentifier NULL,
+    [ModifiedByName] nvarchar(200) NULL,
+    [statecode] int NULL,
+    [StateCode_Description] nvarchar(350) NULL,
+    [statuscode] int NULL,
+    [StatusCode_Description] nvarchar(350) NULL,
+    [ownerid] uniqueidentifier NULL,
+    [OwnerIdName] nvarchar(200) NULL,
+    [apuk_licencekey] nvarchar(100) NULL
+);
+GO
 -- Subs.tblSubsInvoices (table)
 IF OBJECT_ID(N'[Subs].[tblSubsInvoices]') IS NULL
 CREATE TABLE [Subs].[tblSubsInvoices] (
