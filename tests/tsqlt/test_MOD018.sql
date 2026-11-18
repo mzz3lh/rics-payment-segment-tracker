@@ -805,9 +805,13 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE test_MOD018.[test TC-018-020 loaded daily history keeps the old split until a rebuild from the pending date applies the derived date]
+CREATE PROCEDURE test_MOD018.[test TC-018-020 derived date reaches loaded daily history on the next plain run]
 AS
 BEGIN
+    -- MOD-022 daily count also reads its input basis and writes the adjustment history
+    EXEC tSQLt.FakeTable 'Layercake.etl_daily_count_input_basis';
+    EXEC tSQLt.FakeTable 'Layercake.silv_daily_count_adjustment', @Identity = 1;
+
     INSERT INTO Layercake.brnz_contact (ContactId, Rics_contactno, _is_deleted)
     VALUES ('00000000-0000-0000-0000-000000000005', N'T5', 0);
     INSERT INTO Layercake.brnz_rics_record (Id, apuk_contactid, apuk_ricsmembershipnumber, apuk_retirementdate, ModifiedOn, _is_deleted)
@@ -835,21 +839,10 @@ BEGIN
     VALUES ('2024-06-01', 2024, 'Q3', 'UK', 0, 0, 'election', 2, 1, 0, 0, 0, 0, 0, 0),
            ('2025-02-01', 2025, 'Q2', 'UK', 0, 0, 'election', 2, 1, 0, 0, 0, 0, 0, 0);
 
+    -- one plain run: no @RebuildFrom, no @FullRebuild
     EXEC Layercake.usp_load_silv_member_base;
     EXEC Layercake.usp_load_silv_member_profile;
     EXEC Layercake.usp_load_silv_daily_count;
-
-    -- the daily run does not rebuild loaded dates
-    DECLARE @before_rebuild int = (SELECT membership_status_id FROM Layercake.silv_daily_count_detail WHERE [date] = '2024-06-01');
-    EXEC tSQLt.AssertEquals 2, @before_rebuild;
-
-    -- the profile change registered a pending rebuild from the earlier of the two dates
-    DECLARE @from date = (SELECT affected_from FROM Layercake.etl_daily_count_pending_rebuild WHERE [source] = 'member_profile' AND applied_at IS NULL);
-    DECLARE @from_expected date = '2024-03-01';
-    EXEC tSQLt.AssertEquals @from_expected, @from;
-
-    -- the one-off handover rebuild
-    EXEC Layercake.usp_load_silv_daily_count @RebuildFrom = @from;
 
     SELECT [date], grade, membership_status_id, active_count
     INTO #Actual
@@ -861,6 +854,18 @@ BEGIN
                  (CAST('2025-02-01' AS date), 'election', 2, 1)) AS v([date], grade, membership_status_id, active_count);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
+
+    -- the producer still logs its pending row from the earlier date, and the run marks it applied
+    SELECT affected_from, CASE WHEN applied_at IS NULL THEN 0 ELSE 1 END AS is_applied
+    INTO #ActualPending
+    FROM Layercake.etl_daily_count_pending_rebuild
+    WHERE [source] = 'member_profile';
+
+    SELECT affected_from, is_applied
+    INTO #ExpectedPending
+    FROM (VALUES (CAST('2024-03-01' AS date), 1)) AS v(affected_from, is_applied);
+
+    EXEC tSQLt.AssertEqualsTable '#ExpectedPending', '#ActualPending';
 
     DECLARE @open int = (SELECT COUNT(*) FROM Layercake.etl_daily_count_pending_rebuild WHERE [source] = 'member_profile' AND applied_at IS NULL);
     EXEC tSQLt.AssertEquals 0, @open;
