@@ -6,8 +6,8 @@
 /*====================================================================
     DAILY RUN
     ------------------------------------------------------------------
-    Runs bronze -> silver -> gold under one run_id so the whole run can
-    be traced in Layercake.etl_run_log.
+    Runs bronze -> silver -> gold -> payment segments under one run_id
+    so the whole run can be traced in Layercake.etl_run_log.
 
     * Any layer failure stops the run (a layer must not build on a
       partial predecessor). The failed module, its error and every
@@ -20,6 +20,12 @@
       (and therefore the gold detail fact) to recompute from the start
       of the spine - use after changing business rules, otherwise leave
       at 0.
+    * The payment segment loads (usp_run_payment_segments) run last:
+      they write onto the Phase 1 events and facts (ADR-001), so one
+      call populates Phase 1 and every segment column (RULE-123,
+      RULE-124). No as-of date is passed, so the attributes load uses
+      the run date. usp_run_payment_segments stays callable on its own
+      for a segment-only rerun (RULE-126).
 
     Schedule daily, e.g.:
         exec Layercake.usp_run_daily_load;
@@ -46,6 +52,7 @@ begin
         exec Layercake.usp_load_bronze @run_id = @run_id;
         exec Layercake.usp_load_silver @run_id = @run_id, @FullRebuild = @FullRebuild;
         exec Layercake.usp_load_gold   @run_id = @run_id;
+        exec Layercake.usp_run_payment_segments @run_id = @run_id;
 
         exec Layercake.usp_etl_log_end @log_id, 'Success';
     end try

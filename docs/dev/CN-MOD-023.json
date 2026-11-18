@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-023",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-18T10:44:54Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-023.json",
+      "tests/tsqlt/test_MOD023.sql"
+    ]
+  },
+  "module_id": "MOD-023",
+  "branch": "agent/developer/MOD-023-segment-loads-in-the-daily-run",
+  "commit": "c040ea71e026e6d771f9b09bf07732be77aaa123",
+  "requirement_ids": [
+    "REQ-021",
+    "REQ-018"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_run_daily_load.sql",
+      "object": "Layercake.usp_run_daily_load",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-021"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD023_dev].[test a segment run error fails the daily run row and reaches the caller unchanged]",
+    "[test_MOD023_dev].[test the segment run is called once, last, with the daily run id and no as-of date]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0025",
+      "up_script": "src/sql/deploy/MIG-0025_MOD-023_segment-loads-in-the-daily-run.up.sql",
+      "down_script": "src/sql/deploy/MIG-0025_MOD-023_segment-loads-in-the-daily-run.down.sql",
+      "rollback_test": {
+        "commit": "c040ea71e026e6d771f9b09bf07732be77aaa123",
+        "run_at": "2026-11-18T10:44:48.754999+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "AC-001-04 / MP-001 MOD-023 scope: I could not run the Phase 1 reconciliation scripts reference/phase1/Scripts/Reconciliation/active-member-difference.sql and paid-member-difference.sql. They are SQLCMD files and my tools only run single T-SQL batches, so no PASS verdict is recorded here. As ASM-009 allows, this becomes a handover step for a human: run both scripts after one call of Layercake.usp_run_daily_load on the synthetic data and record both RS-1 verdicts. TC-023-011 covers the tables they compare on the pipeline side, and it passes.",
+    "sqlfluff capitalisation and layout findings (CP01/CP02 and others) on usp_run_daily_load are left as they are. The procedure keeps its Phase 1 lower-case style, following the 'write new code in the style of the code around it' rule for changed existing objects."
+  ],
+  "notes": "Layercake.usp_run_daily_load has one change: after usp_load_gold it calls EXEC Layercake.usp_run_payment_segments @run_id = @run_id. It passes no @as_of_date, so the attributes load uses the run date. The header comment says why the segments run last. Parameters, the run's own logging, the TRY/CATCH (log 'Failed', re-raise the error) and the Phase 1 steps are unchanged, and it still opens no transaction of its own. usp_run_payment_segments is not changed. The down script puts back the Phase 1 definition, and the round-trip passes. Starting point: 4 of the Tester's 13 tests passed and 9 failed. Now all 13, plus 2 developer tests, pass. The developer tests (test_MOD023_dev) check that the segment run is called exactly once, after bronze, silver and gold, with the daily run_id and a NULL as-of date, also under @FullRebuild = 1. They also check that a segment-run error reaches the caller unchanged, that the daily run row ends 'Failed' with the message, and that the Phase 1 steps ran first. For the Technical Writer (MOD-023 documentation update, AC-018-10 / AC-021): the runbook should name usp_run_daily_load as the only procedure to schedule. usp_run_payment_segments, @RebuildFrom and @FullRebuild should be described as optional manual tools, and the one-off rebuild and pending-row steps removed. The header comment in usp_run_payment_segments still says 'A human schedules it after the Phase 1 run'. That object is outside this module's plan, so I left it unchanged; the runbook should take precedence.\n\nTest-first: the first run had 4 of 13 of the Tester's tests passing; the final run passed 13 of 13 and 2 unit test(s), in 4 run(s)."
+}
