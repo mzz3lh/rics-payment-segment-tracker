@@ -198,3 +198,6 @@ the agent's working assumption. Example:
   - A copy with a NULL 'Sub User Created Date' loses to every copy that has a date.
   - 'Round' holds text such as 'Round 1' and 'Round 2' in production, so it is not compared as text and not cast whole. It is compared by the whole number at its end (the digits after the last space, so 'Round 10' beats 'Round 9'). A NULL Round, or one that does not end in a whole number, counts as lowest.
   - Any tie left after that is broken deterministically, as the "Corporate subscription repeated keys" answers say, so the same source data always lands the same row.
+
+## Corporate subscription repeated keys: architecture validation (approved by Mike by merging this PR, 2026-11-18)
+- Q-054: yes, the Architect's reading of how RULE-128 compares Round is right. Leading and trailing spaces are ignored. The part after the last remaining space counts only if it is all digits; a value with no space is used whole. The number is compared by its value, so 'Round 10' and '10' both count as 10. 'Round 1a', 'Round', an empty value and NULL all count as lowest and tie with each other, and that tie goes to the deterministic final tie-break.
