@@ -201,3 +201,11 @@ the agent's working assumption. Example:
 
 ## Corporate subscription repeated keys: architecture validation (approved by Mike by merging this PR, 2026-11-18)
 - Q-054: yes, the Architect's reading of how RULE-128 compares Round is right. Leading and trailing spaces are ignored. The part after the last remaining space counts only if it is all digits; a value with no space is used whole. The number is compared by its value, so 'Round 10' and '10' both count as 10. 'Round 1a', 'Round', an empty value and NULL all count as lowest and tie with each other, and that tie goes to the deterministic final tie-break.
+
+## Corporate subscription rows with no Campaign Year (approved by Mike by merging this PR, 2026-11-18)
+- Mike, 2026-11-18: after MIG-0026 the production corporate subscription load failed with 515 on a NULL 'Sub Campaign Year'. Counts only: 76 source rows have a NULL 'Sub Campaign Year' (none a NULL 'Contact No' or 'Scheme No'), on 3 schemes: two new schemes started 2026-10-19 and 2026-11-02 (60 and 13 subscription users, status Active) and one Inactive scheme that ran 2024-10-01 to 2025-09-30 (3 users). 73 of the 76 are 'Active'/'Active'. The Campaign Year comes from the subscription's licence key in CRM (CE.vwRicsv2Subscription.apuk_licensekey), which is not yet set on these schemes.
+- This replaces the 2026-10-26 answer for 'Sub Campaign Year' only. A source row with a NULL 'Sub Campaign Year' is not landed and does not fail the load. Every run logs the number of such rows, including 0, in the same way as the repeated rows not landed (RULE-129). They are not a data anomaly row of their own; a contact whose invoice says Corporate but has no landed live subscription for that year still raises CORPORATE_FLAG_NO_SCHEME as today.
+- Unchanged: a NULL 'Contact No' or 'Scheme No' still fails the load with 515 (2026-10-26). The Campaign Year is never derived or guessed.
+- When CRM sets the licence key, the next run lands those rows like any other.
+- Handover: the runbook and known limitations say that rows with no Campaign Year are skipped and counted, and that the count should be checked after each run.
+- Recovery after deployment: run EXEC Layercake.usp_run_payment_segments; once, or let the next daily run.
