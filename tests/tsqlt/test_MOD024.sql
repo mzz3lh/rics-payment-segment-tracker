@@ -717,7 +717,7 @@ END;
 GO
 
 --[@tSQLt:NoTransaction](DEFAULT)
-CREATE PROCEDURE test_MOD024.[test TC-024-019 a NULL Sub Campaign Year on a repeated contact fails with 515 and changes nothing]
+CREATE PROCEDURE test_MOD024.[test TC-024-019 a NULL Sub Campaign Year on a repeated contact is skipped and counted and the load succeeds]
 AS
 BEGIN
     INSERT INTO Layercake.brnz_corporate_subscription
@@ -728,32 +728,56 @@ BEGIN
         ([Contact No], [Scheme No], [Scheme Name], [Sub Campaign Year], [Sub Status], [Sub User Status], [Sub User Created Date], [Round])
     VALUES (N'C2203', N'SCH-020', N'Scheme Twenty', NULL, N'Inactive', N'Inactive', '2024-12-01', N'Round 2');
 
-    SELECT * INTO #Before FROM Layercake.brnz_corporate_subscription;
+    EXEC Layercake.usp_load_brnz_corporate_subscription;
 
-    DECLARE @err int = NULL;
-    BEGIN TRY
-        EXEC Layercake.usp_load_brnz_corporate_subscription;
-        EXEC tSQLt.Fail 'Expected error 515 from usp_load_brnz_corporate_subscription, but no error was raised.';
-    END TRY
-    BEGIN CATCH
-        SET @err = ERROR_NUMBER();
-        IF @err <> 515 THROW;
-    END CATCH;
-
-    EXEC tSQLt.AssertEquals 515, @err;
-
-    SELECT r.status, CASE WHEN r.error_message IS NULL THEN 0 ELSE 1 END AS has_error_message
+    -- The load's own log row.
+    SELECT r.status, r.rows_inserted, r.rows_updated, r.rows_deleted,
+           CASE WHEN r.error_message IS NULL THEN 0 ELSE 1 END AS has_error_message
     INTO #ActualLog
     FROM Layercake.etl_run_log AS r
     WHERE r.step_name = 'brnz_corporate_subscription';
 
-    SELECT v.status, v.has_error_message
+    SELECT v.status, v.rows_inserted, v.rows_updated, v.rows_deleted, v.has_error_message
     INTO #ExpectedLog
-    FROM (VALUES ('Failed', 1)) AS v(status, has_error_message);
+    FROM (VALUES ('Success', 7, 0, 0, 0)) AS v(status, rows_inserted, rows_updated, rows_deleted, has_error_message);
     EXEC tSQLt.AssertEqualsTable '#ExpectedLog', '#ActualLog';
 
-    SELECT * INTO #After FROM Layercake.brnz_corporate_subscription;
-    EXEC tSQLt.AssertEqualsTable '#Before', '#After';
+    -- The two sub-steps under the load's log_id.
+    SELECT p.substep, p.rows_affected
+    INTO #ActualSub
+    FROM Layercake.etl_progress_log AS p
+    JOIN Layercake.etl_run_log AS r ON r.log_id = p.log_id
+    WHERE r.step_name = 'brnz_corporate_subscription'
+      AND p.substep IN (N'repeated_key_rows_not_landed', N'no_campaign_year_rows_not_landed');
+
+    SELECT v.substep, v.rows_affected
+    INTO #ExpectedSub
+    FROM (VALUES (N'repeated_key_rows_not_landed', 9),
+                 (N'no_campaign_year_rows_not_landed', 1)) AS v(substep, rows_affected);
+    EXEC tSQLt.AssertEqualsTable '#ExpectedSub', '#ActualSub';
+
+    -- Bronze holds exactly the 8 AC-022-01 rows; nothing with a NULL Campaign Year.
+    SELECT b.contact_no, b.scheme_no, b.scheme_name, b.sub_campaign_year, b._is_deleted,
+           CAST(b.sub_status AS varbinary(100)) AS sub_status_bytes,
+           CAST(b.sub_user_status AS varbinary(100)) AS sub_user_status_bytes
+    INTO #Actual
+    FROM Layercake.brnz_corporate_subscription AS b;
+
+    SELECT v.contact_no, v.scheme_no, v.scheme_name, v.sub_campaign_year, v._is_deleted,
+           CAST(v.sub_status AS varbinary(100)) AS sub_status_bytes,
+           CAST(v.sub_user_status AS varbinary(100)) AS sub_user_status_bytes
+    INTO #Expected
+    FROM (VALUES
+        (N'C2201', N'SCH-020', N'Scheme Twenty', 2025, CAST(0 AS bit), N'Active',   N'Active'),
+        (N'C2202', N'SCH-020', N'Scheme Twenty', 2025, CAST(0 AS bit), N'Active',   N'Active'),
+        (N'C2203', N'SCH-020', N'Scheme Twenty', 2025, CAST(0 AS bit), N'Inactive', N'Inactive'),
+        (N'C2204', N'SCH-020', N'Scheme Twenty', 2025, CAST(0 AS bit), N'Inactive', N'Inactive'),
+        (N'C2205', N'SCH-020', N'Scheme Twenty', 2025, CAST(0 AS bit), N'Inactive', N'Inactive'),
+        (N'C2206', N'SCH-020', N'Scheme Twenty', 2025, CAST(0 AS bit), N'Inactive', N'Inactive'),
+        (N'C2207', N'SCH-020', N'Scheme Twenty', 2025, CAST(0 AS bit), N'Inactive', N'Inactive'),
+        (N'C2208', N'SCH-020', N'Scheme Twenty', 2025, CAST(0 AS bit), N'Active',   N'Active')
+    ) AS v(contact_no, scheme_no, scheme_name, sub_campaign_year, _is_deleted, sub_status, sub_user_status);
+    EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 END;
 GO
 

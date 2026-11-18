@@ -4,20 +4,20 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-024",
-    "version": 1,
+    "version": 2,
     "produced_by": "tester",
-    "produced_at": "2026-11-18T17:15:24Z",
-    "status": "rejected",
+    "produced_at": "2026-11-18T20:30:16Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike",
-      "approved_at": "2026-11-18T20:26:37Z",
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-18T20:30:38Z",
       "gate": "test_design_review",
-      "comments": "Reopened for MOD-025: AMD-005: a NULL Sub Campaign Year is skipped and counted, not a 515; MOD-025 supersedes TC-004-023 and TC-024-019. TC-004-021 and TC-004-022 are restated with the shared helper's assertions written inline, with no change to their data, steps or expected results. TC-004-011's precondition wording is corrected so it no longer says a NULL Sub Campaign Year fails the load; nothing else in it changes."
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
   },
   "module_id": "MOD-024",
@@ -264,15 +264,16 @@
     {
       "id": "TC-024-019",
       "requirement_ids": [
-        "REQ-022"
+        "REQ-022",
+        "REQ-023"
       ],
       "acceptance_criterion_id": "AC-022-09",
       "category": "nulls",
-      "description": "RULE-130: a NULL Sub Campaign Year still fails the load with 515, even on a contact whose other copies repeat a key. No row is skipped, and the repeat handling does not absorb it.",
-      "preconditions": "Runs outside the tSQLt transaction. Bronze holds one earlier row (C2201, 'SCH-020', 'Scheme Twenty', 2025, Active, Active). Source: the 17 standard rows plus (C2203, 'SCH-020', 'Scheme Twenty', NULL, Inactive, Inactive, 2024-12-01, 'Round 2'). One call of the load.",
-      "expected": "Error 515 reaches the caller. The load's log row is 'Failed' with an error message. brnz_corporate_subscription equals its snapshot from before the call (the one C2201 row).",
+      "description": "AMD-005 (RULE-134, RULE-135, RULE-137; supersedes the 2026-10-26 answer for Sub Campaign Year and this condition's approved 515 expectation): only a NULL Contact No or Scheme No fails the load (TC-024-018). A source row with a NULL Sub Campaign Year on a contact whose other copies repeat a key is not landed and does not fail the load. It takes no part in choosing C2203's 2025 copy, is not counted as a repeat, and is counted in the etl_progress_log sub-step 'no_campaign_year_rows_not_landed' under the load's log_id.",
+      "preconditions": "Bronze holds one earlier row (C2201, 'SCH-020', 'Scheme Twenty', 2025, Active, Active). Source: the 17 standard SetUp rows plus (C2203, 'SCH-020', 'Scheme Twenty', NULL, Inactive, Inactive, 2024-12-01, 'Round 2'). One call of usp_load_brnz_corporate_subscription. Sub-steps as DES-001 names them (ADR-010). Statuses compared as bytes.",
+      "expected": "No error. The brnz_corporate_subscription log row is 'Success' with 7 inserted, 0 updated, 0 deleted and no error message. Its sub-steps: 'repeated_key_rows_not_landed' rows_affected 9 (17 dated rows - 8 keys) and 'no_campaign_year_rows_not_landed' rows_affected 1. brnz_corporate_subscription holds exactly 8 rows, all 'SCH-020', 'Scheme Twenty', 2025, _is_deleted 0: C2201, C2202 and C2208 'Active'/'Active'; C2203 to C2207 'Inactive'/'Inactive'. No row has a NULL sub_campaign_year.",
       "framework": "tsqlt",
-      "test_ref": "[test_MOD024].[test TC-024-019 a NULL Sub Campaign Year on a repeated contact fails with 515 and changes nothing]"
+      "test_ref": "[test_MOD024].[test TC-024-019 a NULL Sub Campaign Year on a repeated contact is skipped and counted and the load succeeds]"
     },
     {
       "id": "TC-024-020",
