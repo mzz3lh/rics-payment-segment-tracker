@@ -1,0 +1,87 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-024",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-18T17:35:50Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-024.json",
+      "tests/tsqlt/test_MOD024.sql"
+    ]
+  },
+  "module_id": "MOD-024",
+  "branch": "agent/developer/MOD-024-corporate-subscription-repeated-keys",
+  "commit": "e090bcfa345fb80b1da428c7f4ba0461932eb304",
+  "requirement_ids": [
+    "REQ-022"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_brnz_corporate_subscription.sql",
+      "object": "Layercake.usp_load_brnz_corporate_subscription",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-022"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD024_dev].[test a NULL Contact No fails with 515 logs Failed writes no sub-step and leaves bronze unchanged]",
+    "[test_MOD024_dev].[test a Round number beyond bigint still compares by value]",
+    "[test_MOD024_dev].[test a key repeated only in letter case lands one row with the exactly first contact_no]",
+    "[test_MOD024_dev].[test an empty source logs Success 0 0 0 and 0 rows not landed]",
+    "[test_MOD024_dev].[test final tie-break puts a value before the same value with a trailing space]",
+    "[test_MOD024_dev].[test the active value matches regardless of case as the readers compare it]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0026",
+      "up_script": "src/sql/deploy/MIG-0026_MOD-024_corporate-subscription-repeated-keys.up.sql",
+      "down_script": "src/sql/deploy/MIG-0026_MOD-024_corporate-subscription-repeated-keys.down.sql",
+      "rollback_test": {
+        "commit": "e090bcfa345fb80b1da428c7f4ba0461932eb304",
+        "run_at": "2026-11-18T17:35:44.317376+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "ADR-009's final tie-break (sub_user_status, then sub_status, then scheme_name, in exact order, missing first) gets two more steps: contact_no, then scheme_no, in exact order. The key matches case-insensitively, so copies such as 'c2201' and 'C2201' are one key but would land different bytes in the key columns. Without these steps the landed copy would depend on the order the view returns rows, which breaks RULE-128's determinism. These steps only decide copies the ADR's steps leave tied. 'Exact order' is binary comparison (Latin1_General_BIN2), then DATALENGTH, so a value comes before the same value with a trailing space.",
+    "Step 1 (Active/Active, Q-027) compares the active value under the database collation, not exactly, because that is how the five readers compare it (cs.sub_status = N'Active'). A copy the readers count as active, such as 'ACTIVE'/'active', is therefore always preferred."
+  ],
+  "notes": "The only object changed is Layercake.usp_load_brnz_corporate_subscription; the table, its readers and usp_run_payment_segments are untouched. All source rows go first to #src_all_rows, whose key columns are NOT NULL, so a NULL key still fails with 515 before bronze is touched, even when other keys repeat. One copy per key is then chosen with ROW_NUMBER, in this order: Active/Active (one variable, @active_status), Sub User Created Date DESC with NULL last, the Round number DESC (Q-054: trimmed; the part after the last space, or the whole value; all digits; decimal(38,0), so values beyond bigint still compare by value; anything else NULL and lowest), then the exact-order tie-break. The sub-step 'repeated_key_rows_not_landed' (source rows minus distinct keys) is written under the load's log_id once staging passes and before the sync transaction. A run that fails on a NULL key writes no sub-step row. The row-count check compares distinct source keys with live rows. Starting point: 1 of 24 Tester tests passed and 23 failed with 2627 on #src_corporate_subscription. Now the 24 Tester tests and the 6 dev tests pass, and round-trip and check pass. The sqlfluff findings are advisory and are mostly the lower-case style of the Phase 1 code. Handover documents (06-known-limitations.md, the runbook) are MOD-024's documentation update and are not part of this change. Recovery after deployment: run EXEC Layercake.usp_run_payment_segments once, or let the next daily run do it.\n\nTest-first: the first run had 1 of 24 of the Tester's tests passing; the final run passed 24 of 24 and 6 unit test(s), in 3 run(s)."
+}
