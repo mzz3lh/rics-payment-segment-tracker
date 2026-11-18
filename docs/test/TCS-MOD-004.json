@@ -7,7 +7,7 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-10-26T16:43:21Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,8 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-10-26T17:10:05Z",
-      "gate": "test_design_review"
+      "approved_at": "2026-11-18T19:08:28Z",
+      "gate": "test_design_review",
+      "comments": "Reopened for MOD-025: AMD-005: a NULL Sub Campaign Year is skipped and counted, not a 515; MOD-025 supersedes TC-004-023 and TC-024-019"
     }
   },
   "module_id": "MOD-004",
