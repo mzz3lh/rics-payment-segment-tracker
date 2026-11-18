@@ -1,0 +1,201 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-023",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-18T10:19:52Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-11-18T10:41:26Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-023",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-023-001",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-01",
+      "category": "happy_path",
+      "description": "RULE-123: one call of usp_run_daily_load, with no call of usp_run_payment_segments, logs a 'Success' row for every (layer, step_name) the segment run logs for its loads, all under the same run_id as the Phase 1 step rows and the daily run's own 'run' row.",
+      "preconditions": "Standard SetUp (all tests): every table the segment loads read or write is faked (Subs.tblSubsInvoices, synapse_fo.CUSTTRANS_RICS, Subs.vwCorpSubscriptions, CE.vwConcessionType, the four new bronze tables and brnz_subs_status, the five segment reference lists, the four segment dimensions, ref_campaign_year_config, silv_payment_events, silv_member_year_attributes, silv_event_amount, silv_data_anomaly, silv_membership_events, fact_membership_events, etl_run_log). The Phase 1 orchestrators usp_load_bronze, usp_load_silver and usp_load_gold (unchanged by MOD-023, tested by their own suites) are spied: each logs one 'Success' row (bronze/phase1_bronze_stub, silver/phase1_silver_stub, gold/phase1_gold_stub) under the run_id it receives; the silver stand-in adds P1's 2026 Lapse LA:P1:2026 (event_id 102, 2025-12-31, CY2026, Q1), as the Phase 1 events load would for an event new to the source; the gold stand-in copies every silver event with no fact row, segment columns 0 / NULL. Seeds: payment methods 0, -1, -2, 1 Direct Debit (DD), 2 Card, 3 Bank transfer (Bank), 4 Cheque, 5 Corporate; payer types 0, -1, -2, 1 Individual, 2 Corporate; concession types 0, -1, -2, 1 No concession; Campaign Years 2020 to 2060 (1 Oct to 30 Sep). Sources: invoice 5001 P1 CY2025 'Corporate' GBP 450.00 dated 2024-10-05 and invoice 6001 P2 CY2025 'DD' GBP 300.00 (both not credited, no lines); corporate subscription P1 S-100 CY2025 Active / Active. Phase 1 state: silv_payment_events P1 2025 'Fully Paid'; brnz_subs_status P1 2025 'Fully Paid' inv_total_amount 450.00; Renewal RN:P1:2025 (event_id 101, 2024-10-05, CY2025) in silver and gold with segment columns 0 / NULL. Whether the segment run's own 'run' row is logged is not asserted (the AC names its loads).",
+      "expected": "All etl_run_log rows of the call carry one run_id. Grouped by (layer, step_name, status), apart from any run/usp_run_payment_segments row, exactly these 21, once each, all 'Success': run/usp_run_daily_load; bronze/phase1_bronze_stub, silver/phase1_silver_stub, gold/phase1_gold_stub; bronze/brnz_subs_invoice, brnz_subs_invoice_line, brnz_corporate_subscription, brnz_concession; silver/silv_ref_invoice_line_type, silv_ref_currency, silv_ref_concession_type; gold/dim_payment_method, dim_payer_type, dim_currency, dim_concession_type; silver/silv_member_year_attributes, silv_event_amount, silv_data_anomaly_segment, silv_data_anomaly_invoice, silv_membership_events_segments; gold/fact_membership_events_segments.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-001 one daily run logs every segment load as Success under the daily run id]"
+    },
+    {
+      "id": "TC-023-002",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-01",
+      "category": "happy_path",
+      "description": "RULE-124 and DES-001: the segment loads run as the daily run's last step, after the Phase 1 gold step, so no segment load starts before it.",
+      "preconditions": "Standard SetUp (see TC-023-001). One call of usp_run_daily_load. Start order is read from etl_run_log.log_id (identity, one row per step start).",
+      "expected": "17 segment load rows are logged (the 17 steps of TC-023-001), the gold/phase1_gold_stub row exists, and 0 segment load rows have a log_id lower than the gold step's row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-002 every segment load starts after the Phase 1 gold step]"
+    },
+    {
+      "id": "TC-023-003",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-02",
+      "category": "reconciliation",
+      "description": "AC-021-02: on the same data, one call of usp_run_daily_load leaves silv_member_year_attributes, the segment and amount columns of silv_membership_events and fact_membership_events, and silv_data_anomaly identical to the Phase 1 run followed by a separate usp_run_payment_segments.",
+      "preconditions": "Standard SetUp (see TC-023-001). First the Phase 1 run (usp_load_bronze, usp_load_silver, usp_load_gold with one run_id) then usp_run_payment_segments with that run_id and no as-of date; results snapshotted. Everything either run writes is then cleared (new bronze tables, line-type and currency lists, non-seed concession types, the four dimensions, attributes, event amounts, anomalies, events, facts, run log) and the Phase 1 Renewal 101 restored in silver and gold. Then one call of usp_run_daily_load and the same snapshots. Load ids and timestamps are left out.",
+      "expected": "0 differing rows in each of the four comparisons: attributes (contact, year, the six keys and flags, corporate_account_ref, segment_invoice_rec_id); silver events and gold facts (event_id, the six keys and flags, subs_amount_gbp, invoiced_subtotal_gbp, amount_status); anomalies (anomaly_nk, type, contact, detail, resolved_at). The separate run is not empty: both P1 events have payer type 2 Corporate and exactly 1 anomaly (P2's INVOICE_NO_EVENT) is raised.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-003 one daily run gives the same segment results as Phase 1 then a separate segment run]"
+    },
+    {
+      "id": "TC-023-004",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-03",
+      "category": "happy_path",
+      "description": "AC-021-03 (with AC-006-08): P1's 2026 Lapse, new to the source data in this run, is in silver and gold after one call of usp_run_daily_load and carries payer type Corporate with payer_type_carried 1, not the 0 default. This also shows the segment loads ran after the Phase 1 events and fact loads of the same call.",
+      "preconditions": "assumes Q-006: payment method and payer type carry forward from the latest earlier invoiced year, flagged; concessions only when perpetual. Also assumes Q-002 and Q-027: Corporate needs a Corporate invoice method and a live subscription with Sub Status and Sub User Status 'Active'. Standard SetUp (see TC-023-001); the Lapse 102 exists only once the Phase 1 silver step of this call has run, and its fact row only once the gold step has. One call of usp_run_daily_load.",
+      "expected": "silv_membership_events and fact_membership_events each hold exactly (event_id, payment_method_id, carried, payer_type_id, carried, concession_type_id, carried, subs_amount_gbp, invoiced_subtotal_gbp, amount_status): 101 (5, 0, 2, 0, 1, 0, 450.0000, 450.0000, 'Invoiced'); 102 (5, 1, 2, 1, 0, 0, NULL, NULL, NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-004 a Lapse new in this run carries Corporate carried in silver and gold after one daily run]"
+    },
+    {
+      "id": "TC-023-005",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-03",
+      "category": "boundary",
+      "description": "DES-001: the daily run runs the segment step with no as-of date, so the attributes load uses the run date: P1's contact-years run from its first event year to the Campaign Year covering the day the test runs, every later year carrying 2025's Corporate values.",
+      "preconditions": "assumes Q-006: payment method and payer type carry forward from the latest earlier invoiced year, flagged; concessions only when perpetual, and No concession is not. Standard SetUp (see TC-023-001); ref_campaign_year_config covers 2020 to 2060, so the run date always has a Campaign Year. One call of usp_run_daily_load. The current year is looked up in ref_campaign_year_config for CAST(SYSDATETIME() AS date).",
+      "expected": "P1's attributes start at 2025 and end at the current Campaign Year, one row per year (current year minus 2024 rows); no other contact has attributes; every P1 year after 2025 is (5, carried 1, 2, carried 1, 'S-100', 0, carried 0, segment invoice NULL). Rows up to 2026 are exactly (P1, 2025, 5, 0, 2, 0, 'S-100', 1, 0, 5001) and (P1, 2026, 5, 1, 2, 1, 'S-100', 0, 0, NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-005 the daily run derives attributes up to the Campaign Year of the run date]"
+    },
+    {
+      "id": "TC-023-006",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-04",
+      "category": "negative",
+      "description": "AC-021-04 and RULE-125, failure part: a Subs.vwCorpSubscriptions row with a NULL 'Contact No' fails usp_load_brnz_corporate_subscription with 515 (answers.md, MOD-004 NULL matching key). The daily run fails, its run row ends 'Failed' and the original error reaches the caller; the Phase 1 steps that finished before it keep their 'Success' rows and their data.",
+      "preconditions": "Runs outside the tSQLt transaction. Standard SetUp (see TC-023-001) plus a vwCorpSubscriptions row (NULL, S-200, CY2025, Active, Active). One call of usp_run_daily_load. Which other segment loads ran before the failing one is not asserted.",
+      "expected": "Error 515 reaches the caller. run/usp_run_daily_load is 'Failed' with an error_message; bronze/brnz_corporate_subscription is 'Failed'; every row of the call has one run_id. The three Phase 1 step rows are 'Success'. silv_membership_events still holds 101 RN:P1:2025 Renewal CY2025 and 102 LA:P1:2026 Lapse CY2026, and fact_membership_events holds 101 and 102.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-006 a failing segment load fails the daily run with 515 and keeps the Phase 1 work]"
+    },
+    {
+      "id": "TC-023-007",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-04",
+      "category": "idempotency",
+      "description": "AC-021-04 and RULE-125, recovery part: after the NULL row is corrected, the next usp_run_daily_load ends 'Success' with no manual cleanup and leaves the same segment results as an unbroken run.",
+      "preconditions": "assumes Q-006: payment method and payer type carry forward from the latest earlier invoiced year, flagged. Runs outside the tSQLt transaction. Standard SetUp (see TC-023-001) plus the vwCorpSubscriptions row (NULL, S-200, CY2025, Active, Active). The first call fails with 515; the NULL row is then deleted and usp_run_daily_load is called again. The end state is compared with the literal results of TC-023-004 and TC-023-005, which TC-023-003 shows equal a Phase 1 run followed by a separate segment run.",
+      "expected": "The first call fails with 515. Two daily run rows are logged; the second is 'Success' and every row under its run_id is 'Success'. Silver events and gold facts are exactly 101 (5, 0, 2, 0, 1, 0, 450.0000, 450.0000, 'Invoiced') and 102 (5, 1, 2, 1, 0, 0, NULL, NULL, NULL). Attributes up to 2026: (P1, 2025, 5, 2, 'S-100') and (P1, 2026, 5, 2, 'S-100'). silv_data_anomaly holds exactly one row: INVOICE_NO_EVENT for P2.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-007 after the source row is corrected the next daily run succeeds and fills every segment]"
+    },
+    {
+      "id": "TC-023-008",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-04",
+      "category": "negative",
+      "description": "RULE-125 for a Phase 1 failure: when the Phase 1 gold step fails, the daily run fails and re-raises the original error, and the segment step, which must build on the completed Phase 1 run (RULE-124), does not run.",
+      "preconditions": "Runs outside the tSQLt transaction. Standard SetUp (see TC-023-001) plus the real primary key pk_fact_membership_events applied to the faked fact table and two silver events with event_id 103 (RN:P3:2025, RN:P3:2025b), so the gold stand-in's fact insert fails with 2627. One call of usp_run_daily_load.",
+      "expected": "Error 2627 reaches the caller. run/usp_run_daily_load is 'Failed'. No row is logged for usp_run_payment_segments or any of its 17 loads; silv_member_year_attributes and brnz_subs_invoice are empty. bronze/phase1_bronze_stub and silver/phase1_silver_stub are 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-008 a failing Phase 1 step fails the daily run and no segment load runs]"
+    },
+    {
+      "id": "TC-023-009",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-05",
+      "category": "idempotency",
+      "description": "AC-021-05 and RULE-126: after a usp_run_daily_load, usp_run_payment_segments called on its own on unchanged data logs 'Success' and 0 inserted, 0 updated and 0 deleted for each of its loads, and runs no Phase 1 step.",
+      "preconditions": "Standard SetUp (see TC-023-001). One call of usp_run_daily_load, then usp_run_payment_segments with a new fixed run_id and no as-of date, on the same day.",
+      "expected": "Under the rerun's run_id etl_run_log holds exactly: run/usp_run_payment_segments 'Success' with no row counts, and the 17 load rows of TC-023-001, each 'Success' with rows_inserted 0, rows_updated 0, rows_deleted 0. No Phase 1 step row and no daily run row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-009 a segment-only rerun after the daily run logs Success and 0 0 0 for every load]"
+    },
+    {
+      "id": "TC-023-010",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-05",
+      "category": "idempotency",
+      "description": "A second usp_run_daily_load on unchanged data changes no segment row: the segment loads in the daily run apply only differences (REQ-021, DES-001 idempotency pattern).",
+      "preconditions": "Standard SetUp (see TC-023-001). usp_run_daily_load twice on the same day; whole-table snapshots of silv_member_year_attributes, silv_event_amount, silv_membership_events, fact_membership_events and silv_data_anomaly after the first call.",
+      "expected": "All five tables equal their snapshots in every column after the second call. The second run's 17 segment load rows are each 'Success' with 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-010 a second daily run on unchanged data changes no segment row]"
+    },
+    {
+      "id": "TC-023-011",
+      "requirement_ids": [
+        "REQ-021",
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-021-06",
+      "category": "reconciliation",
+      "description": "AC-021-06, database part: the Phase 1 data the two difference scripts compare (daily counts, paid positions, the status rows they come from, and the Phase 1 columns of the event tables) is exactly what the Phase 1 steps leave; the segment step added to the daily run changes none of it.",
+      "preconditions": "MP-001 MOD-023 scope: the Developer runs reference/phase1/Scripts/Reconciliation/active-member-difference.sql and paid-member-difference.sql (SQLCMD files a tSQLt test cannot run) after one call of usp_run_daily_load on the synthetic data and records both PASS verdicts in the change note, as for MOD-016 (ASM-009); this condition tests the tables their pipeline side reads. Standard SetUp (see TC-023-001) plus silv_daily_count_detail (2025-06-01 UK 0 0 election 1: 1 1 1 0 0 0 0) and silv_daily_count (2025-06-01 UK election: 1 1 1 0 0 0 0), faked in the test; snapshots of those two, silv_payment_events and brnz_subs_status before one call of usp_run_daily_load.",
+      "expected": "The four tables equal their snapshots in every column. Phase 1 columns of silv_membership_events are exactly 101 (RN:P1:2025, Renewal, Standard, 2024-10-05, P1, grade 2, country 0, gender 0, status 1, 2025, Q1) and 102 (LA:P1:2026, Lapse, Standard, 2025-12-31, P1, 2, 0, 0, 1, 2026, Q1); fact_membership_events the same with date_id 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-011 the segment step leaves the Phase 1 data the difference scripts compare unchanged]"
+    },
+    {
+      "id": "TC-023-012",
+      "requirement_ids": [
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-021-07",
+      "category": "happy_path",
+      "description": "AC-021-07, database part (RULE-126): usp_run_payment_segments, which the runbook describes as an optional segment-only rerun, still runs on its own with its unchanged parameters, and runs no daily run or Phase 1 step.",
+      "preconditions": "assumes Q-006: payment method and payer type carry forward from the latest earlier invoiced year, flagged. The runbook text (usp_run_daily_load the only procedure to schedule, no step scheduling usp_run_payment_segments) is MOD-023's documentation update and is checked at the documentation review, as ASM-009 sets for document ACs; TC-023-004 shows one daily call populates every segment with nothing else scheduled. Standard SetUp (see TC-023-001), so only the Renewal 101 exists. usp_run_payment_segments with a fixed run_id and @as_of_date 2026-06-15 (Campaign Year 2026).",
+      "expected": "run/usp_run_payment_segments is 'Success'; no usp_run_daily_load or Phase 1 step row; every row has the given run_id. silv_member_year_attributes is exactly (P1, 2025, 5, 0, 2, 0, 'S-100', 1, 0, 5001) and (P1, 2026, 5, 1, 2, 1, 'S-100', 0, 0, NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-012 usp_run_payment_segments still runs alone as a segment-only rerun]"
+    },
+    {
+      "id": "TC-023-013",
+      "requirement_ids": [
+        "REQ-018",
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-018-10",
+      "category": "happy_path",
+      "description": "AC-018-10, database part (RULE-109, RULE-110): the routine daily run asks the Phase 1 silver step for no rebuild, and @FullRebuild stays an optional manual switch on usp_run_daily_load that is passed through; usp_run_daily_load's parameters are unchanged.",
+      "preconditions": "The runbook text (no step asking a person to run @RebuildFrom or @FullRebuild or to apply etl_daily_count_pending_rebuild rows; both described as optional manual tools) is MOD-023's documentation update and is checked at the documentation review, as ASM-009 sets for document ACs. That past dates are corrected without a rebuild is MOD-022's (REQ-018). Standard SetUp (see TC-023-001); the silver stand-in records the @FullRebuild and @RebuildFrom it receives in #silver_calls. usp_run_daily_load with no arguments, then with @FullRebuild = 1.",
+      "expected": "The silver step is called twice: first FullRebuild 0, RebuildFrom NULL; then FullRebuild 1, RebuildFrom NULL. Both daily run rows are 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD023].[test TC-023-013 a plain daily run asks for no rebuild and FullRebuild stays an optional manual switch]"
+    }
+  ]
+}
