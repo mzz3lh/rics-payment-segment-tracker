@@ -15,9 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-18T19:08:28Z",
+      "approved_at": "2026-11-18T20:26:37Z",
       "gate": "test_design_review",
-      "comments": "Reopened for MOD-025: AMD-005: a NULL Sub Campaign Year is skipped and counted, not a 515; MOD-025 supersedes TC-004-023 and TC-024-019"
+      "comments": "Reopened for MOD-025: AMD-005: a NULL Sub Campaign Year is skipped and counted, not a 515; MOD-025 supersedes TC-004-023 and TC-024-019. TC-004-021 and TC-004-022 are restated with the shared helper's assertions written inline, with no change to their data, steps or expected results. TC-004-011's precondition wording is corrected so it no longer says a NULL Sub Campaign Year fails the load; nothing else in it changes."
     }
   },
   "module_id": "MOD-004",
