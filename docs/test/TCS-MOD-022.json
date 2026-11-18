@@ -1,0 +1,370 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-022",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-18T08:44:17Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-11-18T09:07:17Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-022",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-022-001",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-01",
+      "category": "happy_path",
+      "description": "A Renewal for D1 dated 2025-01-10 (CY2025) is added after the dates are loaded. The next run corrects the past date with no manual step.",
+      "preconditions": "Common SetUp (every test): every table the daily count reads or writes is faked (etl_run_log, etl_progress_log, etl_daily_count_loaded, etl_daily_count_pending_rebuild, etl_daily_count_input_basis, silv_daily_count_adjustment, silv_daily_count_detail, silv_daily_count, ref_date_spine, ref_campaign_year_config, silv_ref_membership_status, silv_ref_membership_grade, silv_membership_events, silv_member_state_ranges, silv_member_profile, silv_payment_events). Status seed 0 N/A, 1 Practising, 2 Retired. Config CY2021 to CY2025 (1 Oct to 30 Sep). Spine 2025-01-09, 2025-01-10 and 2025-01-11 (CY2025, Q2). D1 has an election range in UK from 2015-01-01, open, with profile country 1, gender 1 and no retirement date, and no payment or event. D2 is the same with country 2 and gender 2, plus a CY2025 payment and a Renewal, both dated 2024-10-20. The tests call Layercake.usp_load_silv_daily_count, which usp_run_daily_load reaches through usp_load_silver with the same run_id (existing definition), and set its silver inputs directly. Here: run 1, then the D1 Renewal (event_id 2) is inserted, then run 2.",
+      "expected": "silv_daily_count_detail holds exactly 6 rows, all CY2025 Q2 UK election Practising. Each date has D1's cell (UK, 1, 1) and D2's cell (UK, 2, 2). D1 2025-01-09: active 1, every other measure 0. D1 2025-01-10: active 1, paid_count_event 1, event_renewal_count 1. D1 2025-01-11: active 1, paid_count_event 1, event_renewal_count 0. D2 on every date: active 1, paid 1, paid_count_event 1, flows 0. event_renewal_count is 1 higher on 2025-01-10 only.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-001 a Renewal added to a loaded date raises event_renewal_count on that date only]"
+    },
+    {
+      "id": "TC-022-002",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-02",
+      "category": "reconciliation",
+      "description": "After the second run of TC-022-001, both daily tables equal what @FullRebuild = 1 produces on the same data.",
+      "preconditions": "Common SetUp as in TC-022-001; run 1, D1's Renewal dated 2025-01-10 added, run 2. Both tables are snapshotted on every grain, campaign and measure column, then the load runs with @FullRebuild = 1 and both are snapshotted again. assumes Q-052 (b): silv_daily_count is the detail summed by [date], region and grade (confirmed in CN-MOD-021).",
+      "expected": "silv_daily_count after run 2 is 3 rows (UK, election, CY2025 Q2): 2025-01-09 active 2, paid 1, paid_count_event 1, flows 0; 2025-01-10 active 2, paid 1, paid_count_event 2, renewal 1; 2025-01-11 active 2, paid 1, paid_count_event 2, renewal 0. The detail and daily snapshots after run 2 equal the snapshots after @FullRebuild = 1: 0 rows differ, 0 are missing and 0 are extra.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-002 after the second run both daily tables equal a FullRebuild on the same data]"
+    },
+    {
+      "id": "TC-022-003",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-02",
+      "category": "negative",
+      "description": "A contact whose inputs disappear entirely (ranges, profile, payments and events) has its cells removed from every loaded date, and its basis row is deleted.",
+      "preconditions": "Common SetUp; run 1 loads the 3 dates; then every D2 row is deleted from silv_member_state_ranges, silv_member_profile, silv_payment_events and silv_membership_events; run 2.",
+      "expected": "silv_daily_count_detail holds only D1's 3 rows (UK, 1, 1, election, 1; active 1, all other measures 0) on 2025-01-09, 2025-01-10 and 2025-01-11. No D2 cell remains. etl_daily_count_input_basis has exactly one 'contact' row, input_key 'D1'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-003 a contact removed from every input loses its cells on every loaded date and its basis row]"
+    },
+    {
+      "id": "TC-022-004",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-03",
+      "category": "happy_path",
+      "description": "T5's retirement date moves from 2025-01-15 to 2024-12-01 after the dates are loaded. The next run, with no @RebuildFrom or @FullRebuild, moves the past days to Retired.",
+      "preconditions": "Common SetUp, but the spine is 2024-11-30 and 2024-12-01 (CY2025 Q1) and 2025-01-14 and 2025-01-15 (CY2025 Q2). T5 has an election range in UK from 2015-01-01, open, with profile country 3, gender 1 and retirement_date 2025-01-15. Run 1, then silv_member_profile.retirement_date for T5 is set to 2024-12-01, then run 2 with no rebuild parameter. The changed date is set on silv_member_profile, the copy the daily count reads. Its path from brnz_subs_status 'Renewal Date' through the member base and profile loads belongs to MOD-018 and Phase 1 and is not retested here.",
+      "expected": "T5's rows (country 3) are exactly: 2024-11-30 Practising (membership_status_id 1), active 1; 2024-12-01 Retired (2), active 1; 2025-01-14 Retired (2), active 1; 2025-01-15 Retired (2), active 1. All other measures are 0. There is no Practising row for T5 on 2024-12-01 or 2025-01-14.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-004 a changed retirement date moves past days from Practising to Retired with no rebuild parameter]"
+    },
+    {
+      "id": "TC-022-005",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-04",
+      "category": "boundary",
+      "description": "A Lapse in closed Campaign Year 2021 and a Join on the first spine date, 2020-10-01, are added after those dates were loaded. Both are corrected, and the result equals @FullRebuild.",
+      "preconditions": "Common SetUp, but the spine is 2020-10-01 (CY2021 Q1) and 2021-03-14, 2021-03-15 and 2021-03-16 (CY2021 Q2). D3 has an election range in UK from 2015-01-01 with profile country 4, gender 1, a CY2021 payment on 2020-10-10 and a Renewal on 2020-10-10. Run 1. Then D3's election range ends 2021-03-15, a lapse range starts 2021-03-15, and a Lapse event dated 2021-03-15 is added. D4 is added with an enrolment range from 2020-10-01, profile country 5, gender 2, and a Join dated 2020-10-01 (CY2021). Run 2, then @FullRebuild = 1.",
+      "expected": "Rows for countries 4 and 5 after run 2: 2020-10-01 D3 election Practising active 1, all other measures 0; D4 enrolment (status 0) active 1, paid_count_event 1, event_join_count 1. 2021-03-14 D3 election active 1, paid 1, paid_count_event 1; D4 active 1, paid_count_event 1. 2021-03-15 D3 lapse (status 0) active 0, paid 1, paid_count_event 1, event_lapse_count 1; D4 active 1, paid_count_event 1. 2021-03-16 D3 lapse active 0, paid 1, paid_count_event 1, lapse 0; D4 active 1, paid_count_event 1. event_lapse_count on 2021-03-15 and event_join_count on 2020-10-01 are each 1 higher than before. Detail and daily after run 2 equal the @FullRebuild = 1 result: 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-005 a Lapse in closed CY2021 and a Join on 2020-10-01 added after loading are corrected]"
+    },
+    {
+      "id": "TC-022-006",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-05",
+      "category": "happy_path",
+      "description": "Only silv_membership_events changes for dates already loaded, and no pending-rebuild row exists. The next run corrects it.",
+      "preconditions": "Common SetUp; run 1; then D2's Renewal (event_id 1) moves from 2024-10-20 to 2025-01-10, with no change to ranges, payments or profile; etl_daily_count_pending_rebuild stays empty; run 2, then @FullRebuild = 1.",
+      "expected": "D2's cells (UK, 2, 2, election, 1): 2025-01-09 active 1, paid 1, paid_count_event 0; 2025-01-10 active 1, paid 1, paid_count_event 1, event_renewal_count 1; 2025-01-11 active 1, paid 1, paid_count_event 1, event_renewal_count 0. Detail and daily after run 2 equal the @FullRebuild = 1 result: 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-006 a change to membership events alone is corrected with no pending rebuild row]"
+    },
+    {
+      "id": "TC-022-007",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-05",
+      "category": "happy_path",
+      "description": "An open etl_daily_count_pending_rebuild row whose affected_from the run's correction covers is marked applied by that run, with no manual step.",
+      "preconditions": "Common SetUp; run 1; then D2's CY2025 payment moves to 2025-01-10 (payment_date and renewal_date_adj), and an open pending row is inserted ('payments', affected_from 2025-01-10, applied_at NULL); run 2. The correction starts on or before 2025-01-10 because D2's inputs changed. Only the covered case is tested.",
+      "expected": "The pending row ('payments', 2025-01-10) has applied_at set (not NULL). D2's cells: 2025-01-09 active 1, paid 0, paid_count_event 1; 2025-01-10 active 1, paid 1, paid_count_event 1; 2025-01-11 active 1, paid 1, paid_count_event 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-007 an open pending rebuild row covered by the correction is marked applied]"
+    },
+    {
+      "id": "TC-022-008",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-06",
+      "category": "happy_path",
+      "description": "First run after deployment: Phase 1 has stored and marked every date, the input basis is empty, and the source has changed back to 2022-11-01, 2023-06-15 and 2025-01-10. The run corrects all the drift with no @RebuildFrom.",
+      "preconditions": "Common SetUp, but the spine is 2022-11-01 (CY2023 Q1), 2023-06-15 (CY2023 Q3) and 2025-01-10 (CY2025 Q2). Detail, daily and etl_daily_count_loaded hold, by hand, what the Phase 1 procedure stored from the data before the changes. Detail: D1 active 1 on every date; D2 active 1 on every date, with paid 1 and paid_count_event 1 on 2025-01-10 only. Daily: 2, 0, 0 / 2, 0, 0 / 2, 1, 1. The basis is empty. Source changes: D1 Renewal 2022-11-01 (CY2023), D1 Renewal 2025-01-10 (CY2025), and a D2 CY2023 payment on 2023-06-15. One run, then @FullRebuild = 1.",
+      "expected": "Detail after the run: 2022-11-01 D1 active 1, paid_count_event 1, renewal 1; D2 active 1. 2023-06-15 D1 active 1, paid_count_event 1; D2 active 1, paid 1. 2025-01-10 D1 active 1, paid_count_event 1, renewal 1; D2 active 1, paid 1, paid_count_event 1. All other measures are 0. Detail and daily equal the @FullRebuild = 1 result: 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-008 the first run after deployment corrects Phase 1 drift back to 2022-11-01]"
+    },
+    {
+      "id": "TC-022-009",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-07",
+      "category": "negative",
+      "description": "A run fails through the data after its first date-ordered batch has committed. The error reaches the caller, the step logs 'Failed', the committed date stays corrected, later dates and the basis are unchanged, and the next run completes with no cleanup.",
+      "preconditions": "Runs without tSQLt's transaction. Common SetUp, plus the real primary keys applied to the faked silv_daily_count_detail and silv_daily_count (tSQLt.ApplyConstraint). Run 1 loads the 3 dates. Then a D1 Renewal dated 2025-01-09 is added, which changes every date. D6 is added with an election range from 2025-01-10 whose region is NULL (profile country 7, gender 1). Run 2 with @DailyCountBatchDays = 1 must fail on the 2025-01-10 batch with error 515. D6's region is then corrected to 'UK' and run 3 runs with defaults, then @FullRebuild = 1. AC-018-07 names usp_run_daily_load's run row. Here the daily count's own step row (layer 'silver', step 'silv_daily_count', Phase 1 statuses 'Success' and 'Failed') is asserted. Re-raising from usp_run_daily_load is Phase 1 and MOD-023 behaviour.",
+      "expected": "Run 2 raises error 515 to the caller, and its etl_run_log row ('silver', 'silv_daily_count') has status 'Failed'. After it, 2025-01-09 holds D1 active 1, paid_count_event 1, renewal 1 (committed). 2025-01-10 and 2025-01-11 still hold the old figures: D1 active 1 with every other measure 0, D2 active 1, paid 1, paid_count_event 1. etl_daily_count_input_basis equals its snapshot from before run 2. Run 3 logs 'Success'. Its detail is: 2025-01-09 D1 1/0/1/0/1/0/0 and D2 1/1/1/0/0/0/0; on 2025-01-10 and 2025-01-11, D1 1/0/1/0/0/0/0, D2 1/1/1/0/0/0/0 and D6 (UK, 7, 1, election, 1) 1/0/0/0/0/0/0. That equals @FullRebuild = 1: 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-009 a run failing part way re-raises logs Failed keeps committed dates and the next run completes]"
+    },
+    {
+      "id": "TC-022-010",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-08",
+      "category": "reconciliation",
+      "description": "After the second run of TC-022-001 and the unchanged Phase 1 gold load, fact_daily_member_count_detail summed by date equals silv_daily_count_detail summed by date, including RenewalEvents on 2025-01-10.",
+      "preconditions": "Common SetUp, plus fakes of fact_daily_member_count_detail (identity), dim_date (ids 1 to 3 for the 3 spine dates) and dim_membership_grade (0 N/A, 1 Candidate, 2 Qualified). Run 1 and usp_load_fact_daily_member_count_detail; D1 Renewal 2025-01-10 added; run 2 and the gold load again.",
+      "expected": "By date, gold and silver both give: 2025-01-09 Active 2, Paid 1, PaidEvent 1, Join 0, Renewal 0, Readmission 0, Lapse 0. 2025-01-10: 2, 1, 2, 0, 1, 0, 0. 2025-01-11: 2, 1, 2, 0, 0, 0, 0. 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-010 the gold daily fact follows the corrected silver detail by date]"
+    },
+    {
+      "id": "TC-022-011",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-09",
+      "category": "happy_path",
+      "description": "@RebuildFrom = '2025-01-01', and separately @FullRebuild = 1, still run, log 'Success' and leave the history equal to a full rebuild.",
+      "preconditions": "assumes Q-052 (a): rebuild handling sits in usp_load_silv_daily_count. usp_load_silver passes @run_id, @FullRebuild and @RebuildFrom straight to it (read from its existing definition), so the test calls the daily count load with them. Common SetUp; run 1; D1 Renewal 2025-01-10 added; @RebuildFrom = '2025-01-01'; then @FullRebuild = 1.",
+      "expected": "Both calls log status 'Success' ('silver', 'silv_daily_count'). After @RebuildFrom, the detail equals TC-022-001's 6 expected rows (D1 2025-01-10: active 1, paid_count_event 1, renewal 1; D1 2025-01-11: active 1, paid_count_event 1). @FullRebuild = 1 then leaves detail and daily identical to their state after @RebuildFrom: 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-011 RebuildFrom and FullRebuild still run log Success and leave the correct history]"
+    },
+    {
+      "id": "TC-022-012",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-01",
+      "category": "happy_path",
+      "description": "The second run of TC-022-001 writes exactly one adjustment row per changed cell, with its run_id and new minus old per measure. Stored before plus adjustments equals stored after.",
+      "preconditions": "Common SetUp; run 1 (first load, no adjustment); detail snapshot; D1 Renewal 2025-01-10 added; run 2 with a known run_id.",
+      "expected": "silv_daily_count_adjustment holds exactly 2 rows, both with run 2's run_id and D1's cell (UK, 1, 1, election, 1). 2025-01-10: active 0, paid 0, paid_count_event +1, join 0, renewal +1, readmission 0, lapse 0. 2025-01-11: paid_count_event +1, every other measure 0. Before plus run 2's changes minus after is 0 for every cell and measure. No row has all seven changes 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-012 the second run writes one adjustment row per changed cell and they reconcile before to after]"
+    },
+    {
+      "id": "TC-022-013",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-01",
+      "category": "boundary",
+      "description": "Where a cell has no stored row before the change (new) or after it (removed), that side counts as 0 in the adjustment (RULE-113).",
+      "preconditions": "Same data and runs as TC-022-005: D3 lapses on 2021-03-15, and D4 joins on 2020-10-01. The adjustment table is read after run 2.",
+      "expected": "Exactly 8 rows, all with run 2's run_id, given as active/paid/paid_event/join/renewal/readmission/lapse. 2020-10-01 D4 enrolment (UK, 5, 2, status 0): +1/0/+1/+1/0/0/0. 2021-03-14 D4: +1/0/+1/0/0/0/0. 2021-03-15 D3 election (UK, 4, 1, 1): -1/-1/-1/0/0/0/0. 2021-03-15 D3 lapse (UK, 4, 1, 0): 0/+1/+1/0/0/0/+1. 2021-03-15 D4: +1/0/+1/0/0/0/0. 2021-03-16 D3 election: -1/-1/-1/0/0/0/0. 2021-03-16 D3 lapse: 0/+1/+1/0/0/0/0. 2021-03-16 D4: +1/0/+1/0/0/0/0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-013 a cell missing before or after the change counts as 0 in its adjustment]"
+    },
+    {
+      "id": "TC-022-014",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-02",
+      "category": "negative",
+      "description": "The first run on a database where no date has been loaded, including today, writes no adjustment row.",
+      "preconditions": "Common SetUp, plus today's date (CAST(SYSDATETIME() AS date)) added to the spine with its Campaign Year and quarter, and a config row for that year if missing. etl_daily_count_loaded is empty. One run.",
+      "expected": "silv_daily_count_adjustment is empty. silv_daily_count_detail holds 8 rows: D1's and D2's cells on each of the 4 dates.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-014 the first run on a database with no loaded date writes no adjustment row]"
+    },
+    {
+      "id": "TC-022-015",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-03",
+      "category": "boundary",
+      "description": "Two runs on the same day, with a Join for D5 dated today added between them. The first load of today writes nothing, and the reload of today records D5's change.",
+      "preconditions": "Common SetUp, plus today in the spine as in TC-022-014. D5 has an enrolment range in UK from 2024-01-01 with profile country 6, gender 1. Run 1. A Join for D5 dated today, in today's Campaign Year, is added. Run 2.",
+      "expected": "silv_daily_count_adjustment holds exactly 1 row: run 2's run_id, today, D5's cell (UK, 6, 1, enrolment, status 0), with active 0, paid 0, paid_count_event +1, event_join_count +1, renewal 0, readmission 0, lapse 0. Run 1 wrote no row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-015 a Join added today between two same-day runs is recorded only by the second run]"
+    },
+    {
+      "id": "TC-022-016",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-019-04",
+      "category": "idempotency",
+      "description": "A second run on the same day with no source change writes no adjustment row and changes no daily count row, today included.",
+      "preconditions": "Common SetUp, plus today in the spine as in TC-022-014. Run 1; whole-table snapshots of detail and daily; run 2.",
+      "expected": "Run 2 logs 'Success'. silv_daily_count_adjustment is empty. silv_daily_count_detail and silv_daily_count are identical to their snapshots.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-016 a second same-day run with no source change writes nothing and changes no daily row]"
+    },
+    {
+      "id": "TC-022-017",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-05",
+      "category": "happy_path",
+      "description": "With AC-018-01's source change made but no daily run yet, @RebuildFrom = '2025-01-01' records the changes under its own run_id. A following @FullRebuild = 1 on unchanged data records nothing.",
+      "preconditions": "assumes Q-052 (a), as in TC-022-011. Common SetUp; run 1; D1 Renewal 2025-01-10 added; @RebuildFrom = '2025-01-01' with run_id R2; @FullRebuild = 1 with run_id R3.",
+      "expected": "After @RebuildFrom, the adjustment table holds exactly 2 rows with R2, both D1's cell: 2025-01-10 paid_count_event +1, event_renewal_count +1; 2025-01-11 paid_count_event +1. Every other change is 0. After @FullRebuild, no row has run_id R3.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-017 RebuildFrom records its changes under its own run_id and a following FullRebuild records none]"
+    },
+    {
+      "id": "TC-022-018",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-06",
+      "category": "reconciliation",
+      "description": "For the run failing part way of TC-022-009, the history holds exactly the committed changes and nothing from the rolled-back batch. Across the failed run and its completing run, before plus adjustments equals after.",
+      "preconditions": "Runs without tSQLt's transaction. Same data, constraints and failure as TC-022-009: run 1, a detail snapshot, then D1 Renewal 2025-01-09 and D6 with a NULL region. Run 2 (batch size 1) fails with 515. D6's region is set to 'UK', then run 3.",
+      "expected": "After run 2, the adjustment table holds exactly 1 row: R2, 2025-01-09, D1's cell, with paid_count_event +1 and event_renewal_count +1. Before plus R2's changes minus after is 0 for every cell and measure. Run 3 writes exactly 4 rows: 2025-01-10 D1 paid_count_event +1; 2025-01-10 D6 (UK, 7, 1, election, 1) active +1; 2025-01-11 D1 paid_count_event +1; 2025-01-11 D6 active +1. It writes none for 2025-01-09. Before plus R2's and R3's changes minus after run 3 is 0 for every cell and measure.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-018 a failed run and its completing run hold exactly the committed changes in the history]"
+    },
+    {
+      "id": "TC-022-019",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-07",
+      "category": "reconciliation",
+      "description": "The first run after deployment (TC-022-008) records its catch-up as adjustment rows for cells on 2022-11-01, 2023-06-15 and 2025-01-10, equal to after minus what Phase 1 stored.",
+      "preconditions": "Same Phase 1 stored rows, loaded marks, empty basis and source changes as TC-022-008; a snapshot of the stored detail; one run with run_id R1.",
+      "expected": "Exactly 4 rows, all with R1. 2022-11-01 D1 (UK, 1, 1, election, 1): paid_count_event +1, renewal +1. 2023-06-15 D1: paid_count_event +1. 2023-06-15 D2 (UK, 2, 2, election, 1): paid_count +1. 2025-01-10 D1: paid_count_event +1, renewal +1. Every other change is 0. Phase 1 stored plus R1's changes minus after is 0 for every cell and measure.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-019 the first run after deployment records the drift it corrects as adjustments]"
+    },
+    {
+      "id": "TC-022-020",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-08",
+      "category": "negative",
+      "description": "A change to segment and amount columns on an event alone (payment method Card to Direct Debit) changes no daily count and writes no adjustment row.",
+      "preconditions": "Common SetUp; run 1; whole-table snapshots of detail and daily. D2's Renewal (event_id 1) is updated: payment_method_id 3 to 1, payer_type_id 1, amounts 100.0000 to 120.0000. Run 2.",
+      "expected": "silv_daily_count_adjustment is empty. Detail and daily equal their snapshots.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-020 a change to segment columns on events alone writes no adjustment and no daily change]"
+    },
+    {
+      "id": "TC-022-021",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-09",
+      "category": "negative",
+      "description": "Adjustment rows are never updated or deleted. The rows written by the first of four count-changing runs are still present and unchanged after the fourth.",
+      "preconditions": "Common SetUp; initial run R0. Then R1: D1 Renewal 2025-01-10 added. R2: the Renewal moves to 2025-01-11. R3: D1's retirement_date is set to 2025-01-09. R4: the Renewal is deleted. A whole-row snapshot of R1's adjustment rows is taken right after R1.",
+      "expected": "Adjustment rows exist for exactly 4 distinct run_ids (R1 to R4; R0 wrote none). R1's rows after R4 are identical to the snapshot in every column, including adjustment_id and written_at.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-021 the first adjusting run of four keeps its rows unchanged after the fourth]"
+    },
+    {
+      "id": "TC-022-022",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-10",
+      "category": "nulls",
+      "description": "No adjustment row the load writes has a NULL in run_id, load_id, written_at, date, a grain column or a change column.",
+      "preconditions": "Common SetUp; run 1; D1 Renewal 2025-01-10 added; run 2; D1's retirement_date set to 2025-01-09; run 3. Unit data stands in for the synthetic set; the faked table drops NOT NULL, so the load's own values are checked.",
+      "expected": "8 adjustment rows exist: 2 from run 2 and 6 from run 3 (D1's Practising cell removed and its Retired cell added on each of the 3 dates). None has a NULL in any column.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-022 no adjustment row written by the load has a NULL in any column]"
+    },
+    {
+      "id": "TC-022-023",
+      "requirement_ids": [
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-019-10",
+      "category": "duplicates",
+      "description": "Two runs that change the same cells write one row per run and cell. No two rows share run_id, date and grain.",
+      "preconditions": "Common SetUp; run 1; D1 Renewal 2025-01-10 added; run R2; the Renewal moves to 2025-01-11; run R3.",
+      "expected": "No (run_id, date, region, country_id, gender_id, grade, membership_status_id) occurs twice. Exactly 4 rows, all D1's cell (UK, 1, 1, election, 1). R2 2025-01-10: paid_count_event +1, renewal +1. R2 2025-01-11: paid_count_event +1. R3 2025-01-10: paid_count_event -1, renewal -1. R3 2025-01-11: renewal +1. Every other change is 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-023 two runs changing the same cell write one row each and never two for one run and cell]"
+    },
+    {
+      "id": "TC-022-024",
+      "requirement_ids": [
+        "REQ-020",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-020-08",
+      "category": "happy_path",
+      "description": "For the retirement date run of TC-022-004, the adjustments review view lists, for 2024-12-01 and that run's run_id, active_count -1 under T5's Practising cell and +1 under T5's Retired cell.",
+      "preconditions": "Same data and runs as TC-022-004 (T5 in country 3, retirement date 2025-01-15 moved to 2024-12-01, run 2 with run_id R2). Layercake.vw_silv_daily_count_adjustment_review (MOD-021) is read for run R2 and date 2024-12-01. assumes Q-051: one row per cell, run and non-zero measure.",
+      "expected": "Exactly 2 rows: (UK, 3, 1, election, status 1, 'active_count', -1) and (UK, 3, 1, election, status 2, 'active_count', +1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-024 the review view lists the retirement date move as Practising -1 and Retired +1]"
+    },
+    {
+      "id": "TC-022-025",
+      "requirement_ids": [
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-020-09",
+      "category": "reconciliation",
+      "description": "After several adjusting runs of the load, the figures as known at a time T after the latest adjustment equal the stored daily counts at both grains.",
+      "preconditions": "Common SetUp; run 1; D1 Renewal 2025-01-10 added; run 2; D1's retirement_date set to 2025-01-09; run 3, giving 8 adjustment rows. T = SYSDATETIME() + 1 second. Layercake.fn_silv_daily_count_detail_as_known_at and fn_silv_daily_count_as_known_at (MOD-021) are read for 2020-10-01 to 2025-12-31. Unit data stands in for the synthetic set's AC-018-01 to AC-018-07 runs. assumes Q-049: only changes written strictly after T are subtracted.",
+      "expected": "The detail function's rows equal silv_daily_count_detail (date, grain and the seven measures), and the daily function's rows equal silv_daily_count (date, region, grade and the seven measures): 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-025 figures as known at a time after the last adjustment equal the stored daily counts]"
+    },
+    {
+      "id": "TC-022-026",
+      "requirement_ids": [
+        "REQ-018"
+      ],
+      "acceptance_criterion_id": "AC-018-01",
+      "category": "happy_path",
+      "description": "After a completed run, etl_daily_count_input_basis holds one 'contact' row per contact with daily count inputs. Each carries the run's run_id and its earliest affected date: the start of the Campaign Year of its earliest input row, never before 2020-10-01.",
+      "preconditions": "Common SetUp, plus D7 with an enrolment range in UK from 2024-11-05 (profile country 8, gender 1) and a Join dated 2024-11-05 (CY2025). One run with run_id R1. Reference-input rows are not asserted, because the design does not fix their input_name values. Fingerprints are not asserted.",
+      "expected": "Exactly 3 'contact' rows: ('D1', 2020-10-01, R1), ('D2', 2020-10-01, R1) and ('D7', 2024-10-01, R1). D1's and D2's earliest rows are 2015 ranges, clamped to 2020-10-01. D7's is in CY2025, which starts 2024-10-01.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD022].[test TC-022-026 a completed run records each contact in the input basis with its earliest affected date]"
+    }
+  ]
+}
