@@ -4,20 +4,21 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "MP-001",
-    "version": 5,
+    "version": 6,
     "produced_by": "technical_architect",
-    "produced_at": "2026-11-18T17:08:31Z",
+    "produced_at": "2026-11-18T18:30:13Z",
     "status": "approved",
     "source_artefacts": [
       "docs/design/DES-001.json",
       "docs/amendments/AMD-001.json",
       "docs/amendments/AMD-002.json",
       "docs/amendments/AMD-003.json",
-      "docs/amendments/AMD-004.json"
+      "docs/amendments/AMD-004.json",
+      "docs/amendments/AMD-005.json"
     ],
     "approval": {
       "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-18T17:08:48Z",
+      "approved_at": "2026-11-18T18:30:28Z",
       "gate": "architecture_validation",
       "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
@@ -821,6 +822,53 @@
         "AC-022-11",
         "AC-022-12",
         "AC-022-13"
+      ],
+      "objects": [
+        "Layercake.usp_load_brnz_corporate_subscription"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-025",
+      "title": "Corporate subscription rows with no Campaign Year",
+      "sequence": 25,
+      "scope": "Changes the MOD-024 Layercake.usp_load_brnz_corporate_subscription (REQ-023): a source row with a NULL Sub Campaign Year is not landed and does not fail the load, takes no part in the RULE-128 choice or the repeat count, and is counted on every run as the etl_progress_log sub-step 'no_campaign_year_rows_not_landed' (0 when none) beside 'repeated_key_rows_not_landed'. The row-count check uses the distinct keys of the rows that have a Sub Campaign Year. A NULL Contact No or Scheme No still fails with 515. The table's structure, its readers and usp_run_payment_segments are unchanged, and the down script restores the MOD-024 procedure. Tests cover AC-023-01 to AC-023-07 on synthetic data, including full usp_run_payment_segments and usp_run_daily_load runs. The Tester amends the conditions built on the 2026-10-26 answer for Sub Campaign Year (TC-004-023 and TC-024-019, a NULL Sub Campaign Year failing with 515) to the new rule; the NULL Contact No and Scheme No conditions stay. The documentation update changes docs/handover/04-runbook.md and docs/handover/06-known-limitations.md, including the recovery step (AC-023-08).",
+      "requirement_ids": [
+        "REQ-023"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006",
+        "MOD-007",
+        "MOD-008",
+        "MOD-009",
+        "MOD-010",
+        "MOD-011",
+        "MOD-012",
+        "MOD-014",
+        "MOD-016",
+        "MOD-017",
+        "MOD-018",
+        "MOD-019",
+        "MOD-020",
+        "MOD-021",
+        "MOD-022",
+        "MOD-023",
+        "MOD-024"
+      ],
+      "acceptance_criteria": [
+        "AC-023-01",
+        "AC-023-02",
+        "AC-023-03",
+        "AC-023-04",
+        "AC-023-05",
+        "AC-023-06",
+        "AC-023-07",
+        "AC-023-08"
       ],
       "objects": [
         "Layercake.usp_load_brnz_corporate_subscription"
