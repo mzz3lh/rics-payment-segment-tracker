@@ -192,3 +192,9 @@ the agent's working assumption. Example:
 - Handover: docs/handover/06-known-limitations.md (the Q-033 entry and the "one incomplete or repeated corporate subscription row stops the whole load" limitation) and the runbook are updated.
 - Recovery after deployment: run EXEC Layercake.usp_run_payment_segments; once (or let the next Layercake.usp_run_daily_load run). Every segment load applies only differences, so no manual cleanup is needed.
 - Out of scope: landing every subscription-user record (the view has no subscription-user key) and any change to Subs.vwCorpSubscriptions or the CRM data.
+
+## Corporate subscription repeated keys: spec sign-off (approved by Mike by merging this PR, 2026-11-18)
+- Q-053 (RULE-128 tie-breaks when no copy of a repeated key is 'Active'/'Active'):
+  - A copy with a NULL 'Sub User Created Date' loses to every copy that has a date.
+  - 'Round' holds text such as 'Round 1' and 'Round 2' in production, so it is not compared as text and not cast whole. It is compared by the whole number at its end (the digits after the last space, so 'Round 10' beats 'Round 9'). A NULL Round, or one that does not end in a whole number, counts as lowest.
+  - Any tie left after that is broken deterministically, as the "Corporate subscription repeated keys" answers say, so the same source data always lands the same row.
