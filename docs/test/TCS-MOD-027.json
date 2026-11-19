@@ -7,7 +7,7 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-11-19T14:09:32Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,8 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-19T14:19:56Z",
-      "gate": "test_design_review"
+      "approved_at": "2026-11-19T14:35:57Z",
+      "gate": "test_design_review",
+      "comments": "Reopened: TC-027-012: the index check fails with error 451 (collation conflict) on any implementation because sys.indexes.type_desc has a system collation. In #ActualIndexes select CAST(i.type_desc AS nvarchar(60)) COLLATE DATABASE_DEFAULT AS index_type, as test_MOD009 TC-009-003 does. Nothing else changes: same expected rows, same column half, same condition text."
     }
   },
   "module_id": "MOD-027",
