@@ -28,7 +28,7 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-19T12:11:11Z",
+      "approved_at": "2026-11-19T12:14:13Z",
       "gate": "spec_signoff"
     }
   },
@@ -2477,7 +2477,7 @@
         },
         {
           "id": "RULE-147",
-          "rule": "A changed reference table (Layercake.ref_date_spine, Layercake.ref_campaign_year_config or Layercake.silv_ref_membership_status) still makes the run recompute the whole spine. The routine extension of ref_date_spine with dates after the run date, and the addition of a Campaign Year that starts after the run date, are not a change for this rule (assumes Q-058)."
+          "rule": "A changed reference table (Layercake.ref_date_spine, Layercake.ref_campaign_year_config or Layercake.silv_ref_membership_status) still makes the run recompute the whole spine. Only reference rows up to the latest date already marked in Layercake.etl_daily_count_loaded count: ref_date_spine rows dated from 2020-10-01 to that date, ref_campaign_year_config rows whose campaign_year_start is on or before that date, and silv_ref_membership_status in full. The routine extension of ref_date_spine with dates after the latest loaded date, and the addition of a Campaign Year that starts after the latest loaded date, are not a change for this rule."
         },
         {
           "id": "RULE-148",
@@ -2565,7 +2565,7 @@
         },
         {
           "id": "AC-024-10",
-          "criterion": "A usp_run_daily_load whose only reference table change is ref_date_spine extended with dates after the run date, and ref_campaign_year_config gaining a Campaign Year that starts after the run date, logs the normal path and the number of changed contacts (assumes Q-058)."
+          "criterion": "A usp_run_daily_load whose only reference table change is ref_date_spine extended with dates after the latest loaded date, and ref_campaign_year_config gaining a Campaign Year that starts after the latest loaded date, logs the normal path and the number of changed contacts."
         },
         {
           "id": "AC-024-11",
@@ -3149,10 +3149,11 @@
       "id": "Q-058",
       "question": "A changed reference table (ref_date_spine, ref_campaign_year_config, silv_ref_membership_status) recomputes the whole spine. Every silver run extends ref_date_spine to two years past today and adds any missing Campaign Year to ref_campaign_year_config. Does that routine extension count as a change? Working default: no. Only a change to reference data covering dates from 2020-10-01 to the run date triggers the full recompute; dates after the run date, or a new Campaign Year starting after it, do not.",
       "raised_by": "analyst",
-      "status": "open",
+      "status": "answered",
       "blocks": [
         "REQ-024"
-      ]
+      ],
+      "answer": "No. The routine extension does not count as a change (ASM-014, answers 'Daily load speed: spec sign-off'). Only reference rows from 2020-10-01 up to the latest date marked in etl_daily_count_loaded count (campaign_year_start on or before it for ref_campaign_year_config; silv_ref_membership_status in full); later spine dates and future Campaign Years are not a change."
     }
   ]
 }
