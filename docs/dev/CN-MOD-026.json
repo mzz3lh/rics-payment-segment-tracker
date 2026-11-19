@@ -1,0 +1,131 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-026",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-19T13:45:13Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-026.json",
+      "tests/tsqlt/test_MOD026.sql"
+    ]
+  },
+  "module_id": "MOD-026",
+  "branch": "agent/developer/MOD-026-daily-count-recomputes-only-the-contacts",
+  "commit": "e59e4f9b0ca21f7ffa570f190a755bf8e35b291e",
+  "requirement_ids": [
+    "REQ-024",
+    "REQ-018",
+    "REQ-019"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_applied_contact.sql",
+      "object": "Layercake.etl_daily_count_applied_contact",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-024"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_applied_state_range.sql",
+      "object": "Layercake.etl_daily_count_applied_state_range",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-024"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_applied_payment.sql",
+      "object": "Layercake.etl_daily_count_applied_payment",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-024"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_applied_event.sql",
+      "object": "Layercake.etl_daily_count_applied_event",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-024"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_cell_contacts.sql",
+      "object": "Layercake.etl_daily_count_cell_contacts",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-024"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_daily_count.sql",
+      "object": "Layercake.usp_load_silv_daily_count",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-018",
+        "REQ-019",
+        "REQ-024"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD026_dev].[test a FullRebuild with no input change leaves every snapshot row as the first run wrote it]",
+    "[test_MOD026_dev].[test a contact applied with no profile moves from country 0 when its profile arrives]",
+    "[test_MOD026_dev].[test a failed run that only adds contacts sends the next run down the full path and counts each once]",
+    "[test_MOD026_dev].[test a new lapsed contact with no measures gets its cell and a contact count of 1 and no adjustment]",
+    "[test_MOD026_dev].[test a normal run that empties a cell logs 3 inserted 0 updated 3 deleted]",
+    "[test_MOD026_dev].[test the guard names the first overlapping contact by contact_no with the number affected and logs no path]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0028",
+      "up_script": "src/sql/deploy/MIG-0028_MOD-026_daily-count-recomputes-only-the-contacts.up.sql",
+      "down_script": "src/sql/deploy/MIG-0028_MOD-026_daily-count-recomputes-only-the-contacts.down.sql",
+      "rollback_test": {
+        "commit": "e59e4f9b0ca21f7ffa570f190a755bf8e35b291e",
+        "run_at": "2026-11-19T13:45:05.537382+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Withdrawing a snapshot only covers contacts that already have one. A contact that is new in a run has no snapshot rows to remove. So in the first batch transaction, each new contact (no basis row yet) gets a header-only row in etl_daily_count_applied_contact, with its current profile. This puts the snapshot out of step (the 'reverse' case of the design's rule). Without it, a run that only adds contacts, commits a batch and then fails would leave the snapshot in step, and the next normal run would count those contacts a second time on the committed dates. With it, RULE-149 holds: the next run takes the full-recompute path. The final transaction replaces these header-only rows. The design describes this step only as withdrawing rows. test_MOD026_dev covers the case.",
+    "When the full-recompute path brings the snapshot into line, it rewrites only the contacts the run applied (changed, new or removed) and the contacts that were out of step. It does not rewrite every contact. For every other contact the basis and the snapshot already describe the same inputs, because both are only ever written together in the final transaction. So after a @FullRebuild with no input change, every snapshot row keeps the run_id that first wrote it (test_MOD026_dev covers this)."
+  ],
+  "notes": "Test-first: before the build all 27 test_MOD026 tests failed because the five new tables did not exist. Final run: 27/27 Tester tests and 6 test_MOD026_dev tests pass. The MIG-0028 round-trip passes and check passes. The sqlfluff findings are advisory: mostly capitalisation, because the procedure keeps its Phase 1 lower-case style (as CN-MOD-022 did).\n\nQ-059 confirmed from the code: (a) the detail insert groups ranges by dates with no HAVING, so a cell exists while at least one contact sits in it, even when all seven measures are 0. (b) Each join is one-to-one per contact and day: payments on contact + Campaign Year, #ev_paid on contact + Campaign Year, #ev_day on contact + date, and the guard rules out two ranges on one day. So SUM of the 0-or-1 contributions equals the Phase 1 COUNT(DISTINCT).\n\nHow usp_load_silv_daily_count now works:\n- **Staging and guard.** The current inputs are staged once in temp tables as side 'C'. The overlap guard runs on them before anything is written (error 50026; the message names the first contact by contact_no and gives the number affected). The fingerprint text is unchanged from MOD-022, so the existing basis stays valid.\n- **Full-recompute path.** Taken for @FullRebuild, @RebuildFrom, a changed reference fingerprint, or a snapshot not in step. Otherwise the run takes the normal path.\n- **Normal path.** The changed contacts' snapshot rows are staged as side 'O' with weight -1. One derivation, written once, runs per batch in mode F (all contacts, current inputs) or mode D (changed contacts, current minus old). Mode D applies to loaded dates from the changed contacts' earliest affected date up to today. Dates not yet loaded are first-loaded in mode F.\n- **Mode D writes.** New minus old is added to detail and to etl_daily_count_cell_contacts. A cell whose count reaches 0 is deleted from both tables. Adjustment rows record stored new minus stored old. The touched silv_daily_count rows are recomputed from their detail rows.\n- **Mode F writes.** As MOD-022, plus the cell counts written as differences.\n- **Batches and final transaction.** The first batch transaction withdraws the snapshot rows of the changed contacts. The final transaction advances the basis (MOD-022 code), rewrites the snapshot and stamps the pending rows as before.\n- **Logging.** 'contacts_recomputed' and 'full_recompute_path' are logged once per run, after the guard.\n\nRegression: in dev I ran every test of test_MOD016, 018, 022, 022_dev, 023, 023_dev, 024 and 025 that calls the daily count and runs inside a transaction. All pass except test_MOD018 TC-018-020, which fails by design: ASM-010 says the Tester amends it. The NoTransaction tests of those suites (for example TC-022-009 and TC-022-018) cannot be run from my tools. I traced them against the code: the committed 2025-01-09 batch, the unchanged basis and the completing run's adjustment rows come out as those tests expect. The MOD-021 tests do not call the load.\n\nFor the Tester:\n- The earlier suites do not fake the five new tables. Their NoTransaction tests therefore leave rows in the real snapshot and cell-count tables of the database they run in. This fixes itself: the next run whose basis differs is out of step and takes the full path, which rewrites the snapshot and the cell counts.\n\nHandover:\n- The first run after deployment takes the full path from 2020-10-01. The snapshot is empty, so it takes about as long as @FullRebuild, and it writes no adjustment rows if the stored figures are right.\n- The speed target is a human check on production (RULE-142). Read the 'contacts_recomputed' and 'full_recompute_path' sub-steps under the 'silver' / 'silv_daily_count' step row.\n- The runbook text for AC-024-14 belongs to the documentation update.\n\nNo grant script: the design says the new tables are internal.\n\nTest-first: the first run had 0 of 27 of the Tester's tests passing; the final run passed 27 of 27 and 6 unit test(s), in 3 run(s)."
+}
