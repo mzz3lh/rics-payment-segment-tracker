@@ -34,11 +34,14 @@
     usp_load_silv_daily_count; nothing is re-derived here.
 
     BATCHING: the silver date span is walked in @DetailBatchDays
-    windows. Per window: stage the silver aggregate, find the date_ids
-    where gold differs in either direction, delete + re-insert only
-    those dates, COMMIT. Small transactions, small scans, steady
-    progress in etl_progress_log - built for Azure SQL. Windows already
-    in sync cost one indexed comparison and write nothing.
+    windows. Per window: stage the silver aggregate, then sync the fact
+    CELL BY CELL (MOD-027, RULE-150): a fact cell with no silver cell is
+    deleted, a cell whose measures differ is updated in place and keeps
+    its id, a new cell is inserted, an unchanged cell is not touched.
+    COMMIT per window. rows_inserted / rows_updated / rows_deleted count
+    exactly those cells, so a rerun on unchanged silver logs 0 / 0 / 0.
+    Small transactions, small scans, steady progress in etl_progress_log
+    - built for Azure SQL.
     First run after deploy: the fact is empty, every window backfills -
     one-off, expected.
 ====================================================================*/
@@ -55,8 +58,10 @@ begin
 
     declare @log_id     bigint,
             @ins        int,
+            @upd        int,
             @del        int,
             @rc         int,
+            @win_cells  int,
             @note       nvarchar(128),
             @substep_ts datetime2(3),
             @src_count  bigint,
@@ -78,7 +83,7 @@ begin
                 @win_from  date,
                 @win_to    date;
 
-        select @ins = 0, @del = 0, @src_count = 0;
+        select @ins = 0, @upd = 0, @del = 0, @src_count = 0;
 
         -- gold rows for dates silver no longer covers at all (span moved, or
         -- silver emptied) - outside the window walk, so trimmed up front
@@ -94,7 +99,7 @@ begin
         commit;
         exec Layercake.usp_etl_log_progress @log_id, N'trim rows outside the silver date span', @rc, @substep_ts output;
 
-        -- window work tables, created once, truncated per window
+        -- window work table, created once, truncated per window
         create table #det_stage
         (
             date_id              int not null,
@@ -111,7 +116,6 @@ begin
             LapseEvents          int not null,
             primary key clustered (date_id, country_id, gender_id, membership_grade_id, membership_status_id)
         );
-        create table #det_affected (date_id int not null primary key clustered);
 
         set @win_from = @span_from;
         while @win_from is not null and @win_from <= @span_to
@@ -120,7 +124,7 @@ begin
             if @win_to > @span_to set @win_to = @span_to;
 
             truncate table #det_stage;
-            truncate table #det_affected;
+            set @win_cells = @ins + @upd + @del;
 
             begin tran;
 
@@ -166,45 +170,47 @@ begin
             set @rc = @@rowcount;
             set @src_count = @src_count + @rc;
 
-            -- date_ids where gold differs from silver in either direction
-            -- (covers new dates, changed cells, and rows that should disappear)
-            insert into #det_affected (date_id)
-            select date_id
-            from (
-                select date_id from (
-                    select date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-                           ActiveMembers, PaidMembers, PaidMembersEvent,
-                           JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents
-                    from #det_stage
-                    except
-                    select f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-                           f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent,
-                           f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
-                    from Layercake.fact_daily_member_count_detail f
-                    join Layercake.dim_date d on d.id = f.date_id
-                    where d.[date] between @win_from and @win_to
-                ) a
-                union
-                select date_id from (
-                    select f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-                           f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent,
-                           f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
-                    from Layercake.fact_daily_member_count_detail f
-                    join Layercake.dim_date d on d.id = f.date_id
-                    where d.[date] between @win_from and @win_to
-                    except
-                    select date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-                           ActiveMembers, PaidMembers, PaidMembersEvent,
-                           JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents
-                    from #det_stage
-                ) b
-            ) v;
-
+            -- fact cells in this window that silver no longer holds
             delete tgt
             from Layercake.fact_daily_member_count_detail tgt
-            join #det_affected a on a.date_id = tgt.date_id;
+            join Layercake.dim_date d on d.id = tgt.date_id
+            where d.[date] between @win_from and @win_to
+              and not exists (select 1
+                              from #det_stage s
+                              where s.date_id              = tgt.date_id
+                                and s.country_id           = tgt.country_id
+                                and s.gender_id            = tgt.gender_id
+                                and s.membership_grade_id  = tgt.membership_grade_id
+                                and s.membership_status_id = tgt.membership_status_id);
             set @del = @del + @@rowcount;
 
+            -- changed cells: updated in place, so they keep their id; the
+            -- measures are int not null, so <> sees every change
+            update tgt
+            set tgt.ActiveMembers     = s.ActiveMembers,
+                tgt.PaidMembers       = s.PaidMembers,
+                tgt.PaidMembersEvent  = s.PaidMembersEvent,
+                tgt.JoinEvents        = s.JoinEvents,
+                tgt.RenewalEvents     = s.RenewalEvents,
+                tgt.ReadmissionEvents = s.ReadmissionEvents,
+                tgt.LapseEvents       = s.LapseEvents
+            from Layercake.fact_daily_member_count_detail tgt
+            join #det_stage s
+              on  s.date_id              = tgt.date_id
+              and s.country_id           = tgt.country_id
+              and s.gender_id            = tgt.gender_id
+              and s.membership_grade_id  = tgt.membership_grade_id
+              and s.membership_status_id = tgt.membership_status_id
+            where tgt.ActiveMembers     <> s.ActiveMembers
+               or tgt.PaidMembers       <> s.PaidMembers
+               or tgt.PaidMembersEvent  <> s.PaidMembersEvent
+               or tgt.JoinEvents        <> s.JoinEvents
+               or tgt.RenewalEvents     <> s.RenewalEvents
+               or tgt.ReadmissionEvents <> s.ReadmissionEvents
+               or tgt.LapseEvents       <> s.LapseEvents;
+            set @upd = @upd + @@rowcount;
+
+            -- new cells
             insert into Layercake.fact_daily_member_count_detail
             (date_id, country_id, gender_id, membership_grade_id, membership_status_id,
              ActiveMembers, PaidMembers, PaidMembersEvent,
@@ -213,21 +219,27 @@ begin
                    s.ActiveMembers, s.PaidMembers, s.PaidMembersEvent,
                    s.JoinEvents, s.RenewalEvents, s.ReadmissionEvents, s.LapseEvents
             from #det_stage s
-            join #det_affected a on a.date_id = s.date_id;
+            where not exists (select 1
+                              from Layercake.fact_daily_member_count_detail tgt
+                              where tgt.date_id              = s.date_id
+                                and tgt.country_id           = s.country_id
+                                and tgt.gender_id            = s.gender_id
+                                and tgt.membership_grade_id  = s.membership_grade_id
+                                and tgt.membership_status_id = s.membership_status_id);
             set @ins = @ins + @@rowcount;
 
             commit;    -- one transaction per window: small, quick, self-healing
 
+            set @win_cells = @ins + @upd + @del - @win_cells;
             set @note = concat(N'window ', convert(nvarchar(10), @win_from, 23),
                                N' -> ',    convert(nvarchar(10), @win_to,  23),
-                               N' (', (select count(*) from #det_affected), N' dates resynced)');
+                               N' (', @win_cells, N' cells synced)');
             exec Layercake.usp_etl_log_progress @log_id, @note, @rc, @substep_ts output;
 
             set @win_from = dateadd(day, 1, @win_to);
         end
 
         drop table #det_stage;
-        drop table #det_affected;
 
         -- gold should reconcile exactly back to silver: the accumulated stage
         -- rowcount across all windows is the full silver aggregate at the
@@ -236,13 +248,13 @@ begin
         if @src_count <> @tgt_count
             raiserror('Row count mismatch after sync of Layercake.fact_daily_member_count_detail vs silv_daily_count_detail aggregate: %I64d vs %I64d.', 16, 1, @src_count, @tgt_count);
 
-        exec Layercake.usp_etl_log_end @log_id, 'Success', @ins, 0, @del;
+        exec Layercake.usp_etl_log_end @log_id, 'Success', @ins, @upd, @del;
     end try
     begin catch
         if xact_state() <> 0 rollback;
         set @err = concat(error_message(), ' (error ', error_number(), ', line ', error_line(), ')');
         if @log_id is not null
-            exec Layercake.usp_etl_log_end @log_id, 'Failed', @ins, 0, @del, @err;
+            exec Layercake.usp_etl_log_end @log_id, 'Failed', @ins, @upd, @del, @err;
         throw;
     end catch
 end

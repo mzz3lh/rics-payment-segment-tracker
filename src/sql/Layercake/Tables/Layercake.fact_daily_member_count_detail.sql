@@ -8,6 +8,8 @@
 --  Every key a dim surrogate; identity id kept as a NONCLUSTERED pk, and
 --  the natural star grain is the unique CLUSTERED index so the window
 --  diff/delete/insert works off a single date_id-leading b-tree.
+--  id is bigint (MOD-027, RULE-152, Q-056): kept because the repository
+--  cannot show that nothing outside the database reads it.
 --
 --  PaidMembers vs PaidMembersEvent are two independent readings of the
 --  same question, carried side by side so a report can show either or
@@ -25,7 +27,7 @@
 ----------------------------------------------------
 create table Layercake.fact_daily_member_count_detail
 (
-    id                   int identity not null
+    id                   bigint identity not null
         constraint pk_fact_daily_member_count_detail primary key nonclustered,
     date_id              int not null,    -- -> dim_date
     country_id           int not null,    -- -> dim_country (region rolls up here)

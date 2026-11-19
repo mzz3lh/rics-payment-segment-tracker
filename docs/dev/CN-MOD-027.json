@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-027",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-19T14:42:26Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-027.json",
+      "tests/tsqlt/test_MOD027.sql"
+    ]
+  },
+  "module_id": "MOD-027",
+  "branch": "agent/developer/MOD-027-gold-daily-fact-synced-cell-by-cell",
+  "commit": "58356b5a76ae1acb716c10d650732e141b848e43",
+  "requirement_ids": [
+    "REQ-025"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.fact_daily_member_count_detail.sql",
+      "object": "Layercake.fact_daily_member_count_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-025"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_fact_daily_member_count_detail.sql",
+      "object": "Layercake.usp_load_fact_daily_member_count_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-025"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD027_dev].[test an overflow in a later window keeps the committed window and logs Failed with its counts]",
+    "[test_MOD027_dev].[test counts add up across one-day windows and each window logs its synced cells]",
+    "[test_MOD027_dev].[test rows_deleted counts the span trim and the in-window deletes together]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0029",
+      "up_script": "src/sql/deploy/MIG-0029_MOD-027_gold-daily-fact-synced-cell-by-cell.up.sql",
+      "down_script": "src/sql/deploy/MIG-0029_MOD-027_gold-daily-fact-synced-cell-by-cell.down.sql",
+      "rollback_test": {
+        "commit": "58356b5a76ae1acb716c10d650732e141b848e43",
+        "run_at": "2026-11-19T14:42:20.842901+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "notes": "MOD-027 (REQ-025). Layercake.fact_daily_member_count_detail: change script widens id from int to bigint (drop and recreate pk_fact_daily_member_count_detail as nonclustered; identity and values kept; grain clustered index untouched). The down script narrows it back to int. It stops first with THROW 50027, changing nothing, if any id is outside the int range. If the identity has already issued a value above the int range (rows since deleted), it reseeds to MAX(id) so the narrowing doesn't fail with 8115. Layercake.usp_load_fact_daily_member_count_detail: Phase 1 derivation, signature, batching (@DetailBatchDays windows, one commit per window), logging and the final row-count check are unchanged. Per window it now deletes cells silver no longer holds, updates in place only the cells whose seven measures differ (so they keep their id), and inserts new cells. Dates outside the silver span are trimmed first. rows_inserted / rows_updated / rows_deleted count exactly those cells, so a rerun on unchanged silver logs 0/0/0. Each window's progress row reports the cells it synced. Phase 1 lower-case style kept, as in the surrounding code. Dev unit tests cover: span trim and in-window deletes counted together in rows_deleted; counts accumulating across one-day windows with per-window progress notes; error path (overflow in a later window: the earlier committed window stays, as in Phase 1 resume, the log row ends Failed with the counts so far, and 8115 is re-raised). Regression checked in dev: every MOD-016, MOD-022 and MOD-026 test that touches the fact passes (TC-016-010/011/014, TC-022-010, TC-026-002 to TC-026-012).\n\nTest-first: the first run had 13 of 13 of the Tester's tests passing; the final run passed 13 of 13 and 3 unit test(s), in 1 run(s)."
+}
