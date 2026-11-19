@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "SPEC-001",
-    "version": 6,
+    "version": 7,
     "produced_by": "analyst",
-    "produced_at": "2026-11-18T18:27:07Z",
+    "produced_at": "2026-11-19T11:48:13Z",
     "status": "approved",
     "source_artefacts": [
       "docs/requirements/BR-001-payment-segments-tracker.md",
@@ -23,16 +23,16 @@
       "docs/amendments/AMD-002.json",
       "docs/amendments/AMD-003.json",
       "docs/amendments/AMD-004.json",
-      "docs/amendments/AMD-005.json"
+      "docs/amendments/AMD-005.json",
+      "docs/amendments/AMD-006.json"
     ],
     "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-18T18:27:23Z",
-      "gate": "spec_signoff",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+      "approved_by": "Mike",
+      "approved_at": "2026-11-19T12:11:11Z",
+      "gate": "spec_signoff"
     }
   },
-  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status. It is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. Corporate subscriptions are landed one row per contact, scheme and Campaign Year: where the source repeats a key, a fixed order picks the copy to keep, and the load no longer fails on it. A corporate subscription row with no Campaign Year is skipped and counted rather than landed, and does not stop the load. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. The daily load keeps every past daily count in line with the current silver data on every run, from 2020-10-01, with no manual step. It records each change to a past or repeated day in an adjustment history that gives the figures as known at any time. One call of Layercake.usp_run_daily_load also runs the payment and invoice segment loads. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09), AMD-002 (invoice line grain, Mike, 2026-11-11), AMD-003 (daily load accuracy, Mike, 2026-11-17), AMD-004 (corporate subscription repeated keys, Mike, 2026-11-18) and AMD-005 (corporate subscription rows with no Campaign Year, Mike, 2026-11-18) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
+  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status. It is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. Corporate subscriptions are landed one row per contact, scheme and Campaign Year: where the source repeats a key, a fixed order picks the copy to keep, and the load no longer fails on it. A corporate subscription row with no Campaign Year is skipped and counted rather than landed, and does not stop the load. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. The daily load keeps every past daily count in line with the current silver data on every run, from 2020-10-01, with no manual step. It records each change to a past or repeated day in an adjustment history that gives the figures as known at any time. One call of Layercake.usp_run_daily_load also runs the payment and invoice segment loads. On a normal day the daily count recomputes only the contacts whose inputs changed, and the gold daily fact is synced cell by cell, with results identical to a full recompute. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09), AMD-002 (invoice line grain, Mike, 2026-11-11), AMD-003 (daily load accuracy, Mike, 2026-11-17), AMD-004 (corporate subscription repeated keys, Mike, 2026-11-18), AMD-005 (corporate subscription rows with no Campaign Year, Mike, 2026-11-18) and AMD-006 (daily load speed, Mike, 2026-11-19) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
   "glossary": {
     "Campaign Year": "The RICS subscription year, as held in Layercake.ref_campaign_year_config and on the invoice source (Subs.tblSubsInvoices.Campaign_Year).",
     "Eligible invoice": "A subscription invoice that may set a contact-year's segments and be matched to an event for the invoice checks (RULE-014, RULE-084). Credit notes and enrolment- or application-fee-only invoices are never eligible. A fully credited invoice is eligible only when the contact-year has no other eligible invoice.",
@@ -1881,7 +1881,7 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "Today Layercake.usp_load_silv_daily_count derives a past date once and never again unless someone runs usp_load_silver @RebuildFrom or @FullRebuild, while the silver it reads is re-derived on every run, so stored daily history drifts away from it (Mike, AMD-003, 2026-11-17). From this change, every run of Layercake.usp_run_daily_load brings every date whose stored daily counts no longer match the current silver data back into line, in the same run, with no manual step. This covers silv_daily_count_detail and silv_daily_count (and so fact_daily_member_count_detail, which already follows silver), all seven daily measures and every cause, including changes to events alone that log no pending rebuild today. The horizon is the whole date spine from 2020-10-01. How changed dates are found is the design's decision. A run takes longer on days when a change reaches far back, and that is accepted.",
+      "description": "Today Layercake.usp_load_silv_daily_count derives a past date once and never again unless someone runs usp_load_silver @RebuildFrom or @FullRebuild, while the silver it reads is re-derived on every run, so stored daily history drifts away from it (Mike, AMD-003, 2026-11-17). From this change, every run of Layercake.usp_run_daily_load brings every date whose stored daily counts no longer match the current silver data back into line, in the same run, with no manual step. This covers silv_daily_count_detail and silv_daily_count (and so fact_daily_member_count_detail, which already follows silver), all seven daily measures and every cause, including changes to events alone that log no pending rebuild today. The horizon is the whole date spine from 2020-10-01. How changed dates are found is the design's decision. A run takes longer on days when a change reaches far back, and that is accepted. AMD-006 (2026-11-19) changes how the work is done, not the results: a normal run recomputes only the contacts whose inputs changed (REQ-024) and the gold fact is synced cell by cell (REQ-025). Everything this requirement sets still holds.",
       "business_rules": [
         {
           "id": "RULE-106",
@@ -1889,7 +1889,7 @@
         },
         {
           "id": "RULE-107",
-          "rule": "After any completed run, silv_daily_count_detail and silv_daily_count are identical to what Layercake.usp_load_silver @FullRebuild = 1 produces on the same data. fact_daily_member_count_detail follows silver as it does today."
+          "rule": "After any completed run, silv_daily_count_detail and silv_daily_count are identical to what Layercake.usp_load_silver @FullRebuild = 1 produces on the same data. fact_daily_member_count_detail follows silver, synced cell by cell (REQ-025), and is identical in every column except id to what the full recompute and the gold load produce on the same data (AMD-006)."
         },
         {
           "id": "RULE-108",
@@ -2440,6 +2440,205 @@
           "criterion": "docs/handover/06-known-limitations.md and docs/handover/04-runbook.md each state that corporate subscription rows with no Campaign Year are skipped and counted, not landed, and do not stop the load, and that the count should be checked after each run. Neither says that a row with a missing Sub Campaign Year stops the load. The runbook gives the recovery step: run Layercake.usp_run_payment_segments once, or let the next Layercake.usp_run_daily_load run."
         }
       ]
+    },
+    {
+      "id": "REQ-024",
+      "title": "Daily count recomputes only the contacts that changed",
+      "type": "non_functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Mike asked for a faster daily load (AMD-006, 2026-11-19). In production Layercake.usp_run_daily_load took 70 minutes at 06:00 and 39 minutes at 08:20 on 2026-11-19, of which Layercake.usp_load_silv_daily_count took 50 and 32 minutes. The last four daily count runs all corrected the whole spine from 2020-10-01 (2,241 dates), because a contact's earliest affected date is the start of the Campaign Year of the contact's earliest input row ever, while only 394 of 178,751 contacts changed at 08:20 (67 at 06:00). From this change, a normal run of usp_load_silv_daily_count recomputes only the contacts whose inputs changed and the dates those inputs reach, using the fact that the count rule is additive per contact. The results do not change: the tables and the adjustment history are exactly what the current method gives (REQ-018 to REQ-020 unchanged). The full recompute stays for @FullRebuild, @RebuildFrom and changed reference tables. How a changed contact's old contribution is known and how an emptied cell is recognised and removed are the design's decisions. The speed target is the one real-data check in this release: a human checks it on production at handover, and the agents' tests set no time limit (Q-057). Q-026 still holds for data results.",
+      "business_rules": [
+        {
+          "id": "RULE-141",
+          "rule": "On a normal run (no @FullRebuild, no @RebuildFrom and no reference table change, RULE-147), usp_load_silv_daily_count recomputes only the contacts whose inputs (their rows in Layercake.silv_membership_events, silv_member_state_ranges, silv_payment_events and silv_member_profile) changed since they were last applied, and only for the dates their old and new inputs reach. The work done is proportional to the changed contacts and those dates, not to the whole spine. Dates never loaded before, including the run date on its first run, are first-loaded as today and write no adjustment rows (RULE-114)."
+        },
+        {
+          "id": "RULE-142",
+          "rule": "Speed target: on a normal day (no more than 394 changed contacts, the 08:20 run of 2026-11-19), the usp_load_silv_daily_count step takes under 5 minutes and the whole usp_run_daily_load run takes under 15 minutes, measured on a run that does not overlap Subs.usp_Subs_Refresh_Data. A human checks it on production from Layercake.etl_run_log, on a normal run after the first post-deployment run, as a listed handover step. If it is missed, the human records the timings and the logged count (RULE-153) and raises it with Mike; it is not a reason to roll back (Q-057)."
+        },
+        {
+          "id": "RULE-143",
+          "rule": "Results do not change. After any run, silv_daily_count_detail, silv_daily_count and fact_daily_member_count_detail are identical to what @FullRebuild = 1 produces on the same data (for the fact, every column except id). The adjustment history holds exactly the rows the current method would write: the same cells, the same new-minus-old changes, and no rows for first loads. REQ-018, REQ-019 and REQ-020 still hold in full: the whole spine from 2020-10-01, no closed-year freeze, every measure and every cause, and the 'as known at' objects and adjustments review view unchanged."
+        },
+        {
+          "id": "RULE-144",
+          "rule": "The count rule is additive per contact: on any day a contact sits in at most one daily count cell, so each of the seven daily measures in a cell is the sum of its contacts' contributions. The design may rely on this."
+        },
+        {
+          "id": "RULE-145",
+          "rule": "usp_load_silv_daily_count fails with a clear error, writing nothing, if any contact holds two overlapping non-zero-length ranges in Layercake.silv_member_state_ranges. A range covers [valid_from, valid_to), with a NULL valid_to open-ended. It is non-zero-length when valid_to is NULL or later than valid_from. Two non-zero-length ranges of one contact overlap when each starts before the other ends. Ranges that meet (one's valid_to equals the next's valid_from) do not overlap, and a zero-length range never overlaps (Q-055). The check applies on every path, normal or full."
+        },
+        {
+          "id": "RULE-146",
+          "rule": "The full recompute stays: usp_load_silver @FullRebuild = 1 and @RebuildFrom keep working as today, and may use the faster count form. Their changes are written to the adjustment history as today (RULE-115)."
+        },
+        {
+          "id": "RULE-147",
+          "rule": "A changed reference table (Layercake.ref_date_spine, Layercake.ref_campaign_year_config or Layercake.silv_ref_membership_status) still makes the run recompute the whole spine. The routine extension of ref_date_spine with dates after the run date, and the addition of a Campaign Year that starts after the run date, are not a change for this rule (assumes Q-058)."
+        },
+        {
+          "id": "RULE-148",
+          "rule": "The first run after deployment may run a full recompute to set up whatever the new method stores. That run writes no adjustment rows if the stored figures are already right, and otherwise records the drift as RULE-109 and RULE-115 say."
+        },
+        {
+          "id": "RULE-149",
+          "rule": "Failure and resume are as today: a run that fails part way re-raises the error, and the next run resumes with no manual cleanup, recomputing every contact whose change was not applied. The adjustment history never holds a change that was rolled back (RULE-111, RULE-116)."
+        },
+        {
+          "id": "RULE-153",
+          "rule": "Every run of usp_load_silv_daily_count logs the number of contacts it recomputed, including 0, and whether it took the full-recompute path (@FullRebuild, @RebuildFrom or a reference table change). How it is logged is the design's decision, for example a Layercake.etl_progress_log sub-step (as RULE-129 and RULE-135)."
+        },
+        {
+          "id": "RULE-154",
+          "rule": "The existing MOD-021 and MOD-022 parity tests keep passing. New tests show that the changed-contacts path gives exactly the same tables and adjustment rows as a full recompute, for at least: a new contact, a removed contact, a backdated enrolment, a lapse, a renewal, a country or gender change (which moves a member's whole history), a retirement date change, a contact moving cell, and a cell that empties."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.silv_member_state_ranges.valid_from",
+          "target": "Overlap check in Layercake.usp_load_silv_daily_count (fails the load)",
+          "transformation": "With valid_to: two ranges a and b of one contact_no, both non-zero-length (valid_to NULL or valid_to > valid_from), overlap when a.valid_from < ISNULL(b.valid_to, open end) and b.valid_from < ISNULL(a.valid_to, open end) (RULE-145, Q-055)."
+        },
+        {
+          "source": "Layercake.silv_member_state_ranges.valid_to",
+          "target": "Overlap check in Layercake.usp_load_silv_daily_count (fails the load)",
+          "transformation": "Exclusive end; NULL means open-ended (RULE-145, Q-055).",
+          "nullable": true
+        },
+        {
+          "source": "derived",
+          "target": "Run log of Layercake.usp_load_silv_daily_count: contacts recomputed (how it is logged is the design's decision)",
+          "transformation": "Count of contacts whose inputs the run recomputed. 0 when none changed (RULE-153).",
+          "nullable": false
+        },
+        {
+          "source": "derived",
+          "target": "Run log of Layercake.usp_load_silv_daily_count: full-recompute path taken (how it is logged is the design's decision)",
+          "transformation": "Yes when the run recomputed the whole spine because of @FullRebuild, @RebuildFrom or a reference table change (RULE-146, RULE-147); otherwise no (RULE-153).",
+          "nullable": false
+        },
+        {
+          "source": "derived",
+          "target": "Layercake.silv_daily_count_detail and Layercake.silv_daily_count (the seven daily measures)",
+          "transformation": "On a normal run, each changed contact's old contribution is taken out of its cells and its new contribution added, for the dates its old and new inputs reach (RULE-141, RULE-144). The result equals the Phase 1 derivation over all contacts (RULE-143)."
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-024-01",
+          "criterion": "The synthetic set is fully loaded by usp_run_daily_load. Source changes are then made that alter the silver inputs of exactly 3 contacts: a Renewal for D1 dated 2025-01-10, a Lapse for L1 dated 2024-02-10, and a country change for G1. The next usp_run_daily_load, with no @RebuildFrom or @FullRebuild, logs for usp_load_silv_daily_count 3 contacts recomputed and that it did not take the full-recompute path."
+        },
+        {
+          "id": "AC-024-02",
+          "criterion": "A following usp_run_daily_load on the same day with no source change logs 0 contacts recomputed and the normal path, writes 0 adjustment rows, and changes no row of silv_daily_count_detail, silv_daily_count or fact_daily_member_count_detail."
+        },
+        {
+          "id": "AC-024-03",
+          "criterion": "Starting each time from the same fully loaded synthetic state, each of these source changes is made on its own, and usp_run_daily_load runs with no @RebuildFrom or @FullRebuild: (a) new contact N1 with a Join dated 2023-05-10; (b) contact R1, active from 2021-01-15, removed from the source; (c) a backdated enrolment for E1 dated 2021-02-01 (AC-024-04); (d) a Lapse for L1 dated 2024-02-10; (e) a Renewal for D1 dated 2025-01-10 (AC-018-01); (f) G1's country_id changed from 1 to 2 (AC-024-05), and separately G2's gender_id changed from 1 to 2; (g) T5's derived retirement date changed from 2025-01-15 to 2024-12-01 (AC-018-03); (h) contact V1 moving from grade 'enrolment' to 'election' on 2023-09-01; (i) cell E emptying (AC-024-06). After each run, silv_daily_count_detail and silv_daily_count equal the result of usp_load_silver @FullRebuild = 1 on the same data, and fact_daily_member_count_detail equals the full recompute followed by the gold load in every column except id: 0 rows differ, 0 missing, 0 extra. The adjustment rows the run wrote equal, cell by cell and measure by measure, the stored silv_daily_count_detail figures after the run minus before it, for every date loaded before the run, with no row whose seven changes are all 0 and no row for a date first loaded by the run: 0 mismatches."
+        },
+        {
+          "id": "AC-024-04",
+          "criterion": "Contact E1 has no inputs, and every date from 2020-10-01 to the run date is loaded. A backdated enrolment for E1 dated 2021-02-01 is added. After the next usp_run_daily_load, active_count in E1's cell is 1 higher on 2021-02-01 and on the run date and unchanged on 2021-01-31. Every adjustment row the run wrote is in E1's cell, dated 2021-02-01 or later, with an active_count change of +1, and the run logs 1 contact recomputed and the normal path."
+        },
+        {
+          "id": "AC-024-05",
+          "criterion": "Contact G1 is active in grade 'election', Practising, country_id 1, gender_id 1, on every date from 2020-10-01 to the run date, and every such date is loaded. Only G1's country_id changes, to 2. After the next usp_run_daily_load, on every loaded date active_count is 1 lower in G1's country_id 1 cell and 1 higher in its country_id 2 cell. The run writes exactly 2 adjustment rows per loaded date, with active_count changes of -1 and +1 (other measures as AC-024-03 requires), and logs 1 contact recomputed and the normal path."
+        },
+        {
+          "id": "AC-024-06",
+          "criterion": "Cell E (2022-03-01, region 'UK', country_id 3, gender_id 2, grade 'election', membership_status_id 1) holds only contact M1, with active_count 1. M1's country_id changes to 4. After the next usp_run_daily_load, neither silv_daily_count_detail nor fact_daily_member_count_detail holds a row for cell E with a non-zero measure, and both hold for 2022-03-01 exactly the rows the full recompute produces. The run writes an adjustment row for cell E on 2022-03-01 with an active_count change of -1."
+        },
+        {
+          "id": "AC-024-07",
+          "criterion": "Contact S9 has two ranges in silv_member_state_ranges: valid_from 2023-01-01 with valid_to NULL, and valid_from 2024-01-01 with valid_to 2024-06-01. usp_load_silv_daily_count fails and re-raises an error, logs 'Failed' with an error_message naming the contact (S9), and leaves silv_daily_count_detail, silv_daily_count, the adjustment history and Layercake.etl_daily_count_loaded exactly as they were. The same holds for usp_load_silver @FullRebuild = 1 (assumes Q-055)."
+        },
+        {
+          "id": "AC-024-08",
+          "criterion": "Contact S10 has ranges valid_from 2023-01-01 to valid_to 2024-01-01 and valid_from 2024-01-01 with valid_to NULL. Contact S11 has a range valid_from 2023-01-01 with valid_to NULL and a zero-length range valid_from 2024-03-01, valid_to 2024-03-01. With S10 and S11 in the synthetic set and no S9, usp_load_silv_daily_count logs 'Success' (assumes Q-055)."
+        },
+        {
+          "id": "AC-024-09",
+          "criterion": "usp_load_silver @FullRebuild = 1, and separately @RebuildFrom = '2025-01-01', each log that the daily count took the full-recompute path and leave AC-018-02's comparison with 0 differences. After a column of an existing row is changed, in turn, in ref_date_spine (a date from 2020-10-01 to the run date), ref_campaign_year_config (Campaign Year 2023) and silv_ref_membership_status, the next usp_run_daily_load logs the full-recompute path and leaves AC-018-02's comparison with 0 differences."
+        },
+        {
+          "id": "AC-024-10",
+          "criterion": "A usp_run_daily_load whose only reference table change is ref_date_spine extended with dates after the run date, and ref_campaign_year_config gaining a Campaign Year that starts after the run date, logs the normal path and the number of changed contacts (assumes Q-058)."
+        },
+        {
+          "id": "AC-024-11",
+          "criterion": "The synthetic set is loaded by the procedures as they are before this change, with no source change since that load. The first usp_run_daily_load after deployment logs 'Success', writes 0 adjustment rows and leaves AC-018-02's comparison with 0 differences. AC-018-06 and AC-019-07 still pass when there is drift."
+        },
+        {
+          "id": "AC-024-12",
+          "criterion": "A normal run with the AC-024-01 changes is made to fail after it has applied some, but not all, of the changed contacts. usp_run_daily_load re-raises the error and its run row has status 'Failed'. For every cell and measure, the figure stored before the failed run plus its adjustment rows equals the figure stored after it: 0 mismatches. The next run, with no manual cleanup, ends 'Success', leaves AC-018-02's comparison with 0 differences, and its tables and adjustment rows together with the failed run's equal those of a single successful run on the same changes."
+        },
+        {
+          "id": "AC-024-13",
+          "criterion": "After the change, every test in the MOD-021 and MOD-022 tSQLt suites passes, and AC-018-01 to AC-018-09, AC-019-01 to AC-019-10 and AC-020-01 to AC-020-09 still pass. The definitions of the 'as known at' view or function and of the adjustments review view are identical before and after the change."
+        },
+        {
+          "id": "AC-024-14",
+          "criterion": "The handover runbook (docs/handover/04-runbook.md) lists the speed check as a human step: on production, after the first post-deployment run, pick a usp_run_daily_load run that logged 394 or fewer contacts recomputed, did not take the full-recompute path and did not overlap Subs.usp_Subs_Refresh_Data, and confirm from Layercake.etl_run_log that the usp_load_silv_daily_count step took under 5 minutes and the run under 15 minutes. It says that if the target is missed, the timings and count are recorded and raised with Mike, and that this is not a reason to roll back (Q-057)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-025",
+      "title": "Gold daily fact synced cell by cell",
+      "type": "data",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Today Layercake.usp_load_fact_daily_member_count_detail deletes and re-inserts every date that has any changed cell (1.82M rows at 06:00 on 2026-11-19, 10 minutes), and its int identity column grows by every re-inserted row, with about 1,177 days of headroom left at that rate (Mike, AMD-006, 2026-11-19). From this change, the fact is synced from silver at cell level: changed cells are updated, new cells inserted and cells no longer in silver deleted, and unchanged cells and dates are not touched. The final row-count check against silver stays. The id column is widened to bigint, so it cannot run out (Q-056).",
+      "business_rules": [
+        {
+          "id": "RULE-150",
+          "rule": "usp_load_fact_daily_member_count_detail syncs fact_daily_member_count_detail with silver cell by cell: a cell whose figures changed is updated, a new cell is inserted and a cell no longer in silver is deleted. Rows for unchanged cells, and for dates with no changed cell, are not touched."
+        },
+        {
+          "id": "RULE-151",
+          "rule": "The final row-count check of the fact against silver stays."
+        },
+        {
+          "id": "RULE-152",
+          "rule": "fact_daily_member_count_detail.id is widened from int to bigint and kept (Q-056). How it is widened is the design's decision."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.silv_daily_count_detail.active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count",
+          "target": "Layercake.fact_daily_member_count_detail.ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents",
+          "transformation": "The existing gold derivation, unchanged, applied as a cell-level sync on (date_id, country_id, gender_id, membership_grade_id, membership_status_id): update changed cells, insert new cells, delete cells no longer in silver, leave unchanged cells alone (RULE-150)."
+        },
+        {
+          "source": "Layercake.fact_daily_member_count_detail.id",
+          "target": "Layercake.fact_daily_member_count_detail.id",
+          "transformation": "Data type widened from int to bigint (RULE-152, Q-056).",
+          "nullable": false
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-025-01",
+          "criterion": "In each case of AC-024-03, every fact_daily_member_count_detail row whose (date_id, country_id, gender_id, membership_grade_id, membership_status_id) figures are the same before and after the run keeps its id and all its values. The gold load's rows_updated, rows_inserted and rows_deleted equal the number of fact cells whose figures changed, that are new and that are gone."
+        },
+        {
+          "id": "AC-025-02",
+          "criterion": "In case (i) of AC-024-03 (AC-024-06), the fact row for cell E's date, country_id 3, gender_id 2, grade and status is deleted, and every other fact row dated 2022-03-01 keeps its id unless its own figures changed."
+        },
+        {
+          "id": "AC-025-03",
+          "criterion": "A fact_daily_member_count_detail row is added by hand for a (date_id, country_id, gender_id, membership_grade_id, membership_status_id) that silver does not hold. The next usp_run_daily_load deletes it, logs 'Success' for usp_load_fact_daily_member_count_detail with its row-count check against silver passing, and changes no other fact row."
+        },
+        {
+          "id": "AC-025-04",
+          "criterion": "Layercake.fact_daily_member_count_detail.id is bigint, and no Layercake view, function or procedure other than usp_load_fact_daily_member_count_detail references the column."
+        }
+      ]
     }
   ],
   "assumptions": [
@@ -2466,7 +2665,11 @@
     "subs_amount_gbp and invoiced_subtotal_gbp hold the same value on every event, because the view supplies a single invoiced amount (Q-044, answered by Product Owner assumption ASM-001).",
     "The time an adjustment is written and the time T of an 'as known at' query use the database server's local time (SYSDATETIME(), as Layercake.etl_run_log does). Only adjustments written strictly after T are subtracted, so a change written exactly at T is part of the figure at T (Q-049).",
     "An 'as known at T' query returns its first-load figures for a date first loaded after T, following the formula 'today's stored figure minus the changes written after T' literally (Q-050).",
-    "The adjustments review view has one row per cell, run and measure with a non-zero change, keeping the cell's grain columns and the time written, so changes that cancel out across cells stay visible (Q-051)."
+    "The adjustments review view has one row per cell, run and measure with a non-zero change, keeping the cell's grain columns and the time written, so changes that cancel out across cells stay visible (Q-051).",
+    "In Layercake.silv_member_state_ranges, valid_to is exclusive: a range covers [valid_from, valid_to), and a NULL valid_to is open-ended. A range is non-zero-length when valid_to is NULL or later than valid_from. Two non-zero-length ranges of one contact overlap when each starts before the other ends. Ranges that meet do not overlap, and a zero-length range never overlaps (Q-055, answered by Product Owner assumption ASM-012).",
+    "The repository holds no Power BI model or extract definition, so it cannot be shown that nothing outside the database reads fact_daily_member_count_detail.id. The design widens it to bigint and keeps it (Q-056, answered by Product Owner assumption ASM-012).",
+    "The AMD-006 speed target (daily count under 5 minutes, whole daily run under 15 minutes on a normal day) is the one real-data check in this release. A human checks it on production from Layercake.etl_run_log as a listed handover step. The agents' tests check on synthetic data that a normal run recomputes only the changed contacts and gives the same results as a full recompute, with no time limit. Q-026 still holds for data results (Q-057, answered by Product Owner assumption ASM-013).",
+    "Only a change to reference data covering dates from 2020-10-01 to the run date makes the daily count recompute the whole spine. The routine extension of ref_date_spine with dates after the run date, and the addition of a Campaign Year to ref_campaign_year_config that starts after the run date, do not (Q-058)."
   ],
   "out_of_scope": [
     "Power BI work: semantic model, DAX and report pages.",
@@ -2488,7 +2691,10 @@
     "Any change to Subs.vwCorpSubscriptions or the CRM data behind it (AMD-004).",
     "Deriving or guessing the Campaign Year of a corporate subscription row whose 'Sub Campaign Year' is NULL, for example from Sub Start Date or Sub End Date (AMD-005).",
     "Setting the licence key (CE.vwRicsv2Subscription.apuk_licensekey) on CRM schemes, which is a CRM data change (AMD-005).",
-    "A data anomaly type for corporate subscription rows with no Campaign Year (AMD-005)."
+    "A data anomaly type for corporate subscription rows with no Campaign Year (AMD-005).",
+    "Speeding up the payment segment loads (about 3.5 minutes) and the bronze loads (AMD-006).",
+    "The run schedule, including moving usp_run_daily_load after Subs.usp_Subs_Refresh_Data, which is a scheduling change (AMD-006).",
+    "Any change to the daily count rule or its results, the adjustment history, or the 'as known at' and adjustments review objects (AMD-006)."
   ],
   "open_questions": [
     {
@@ -2872,29 +3078,32 @@
       "id": "Q-049",
       "question": "'As known at' time T: the figure is today's stored figure minus the changes written after T. Which clock do 'written at' and T use: the database server's local time (SYSDATETIME(), as etl_run_log and the bronze audit columns use) or UTC? Is a change written exactly at T part of the figure at T, so that only changes written strictly after T are subtracted? Working default: server local time, and only changes written after T are subtracted.",
       "raised_by": "analyst",
-      "status": "open",
+      "status": "answered",
       "blocks": [
         "REQ-019",
         "REQ-020"
-      ]
+      ],
+      "answer": "Server local time (SYSDATETIME(), as Layercake.etl_run_log does). A change written exactly at T is part of the figure at T, so only changes written strictly after T are subtracted (Mike, 2026-11-17)."
     },
     {
       "id": "Q-050",
       "question": "'As known at' time T for a date that had not been loaded yet at T: a first load writes no adjustment, so 'today's figure minus changes written after T' gives that date its first-load figure, as if it had been known at T. Should the view or function return those figures, or no figures for dates first loaded after T? Working default: follow the formula literally and return the first-load figures.",
       "raised_by": "analyst",
-      "status": "open",
+      "status": "answered",
       "blocks": [
         "REQ-020"
-      ]
+      ],
+      "answer": "For a date first loaded after T, return its first-load figures, following 'today's stored figure minus the changes written after T' literally. No first-load time is tracked to hide them (Mike, 2026-11-17)."
     },
     {
       "id": "Q-051",
       "question": "Should the adjustments review view keep the cell's grain columns, with one row per cell, run and measure whose change is not zero? Or should it sum to one row per date, run and measure? Summing hides changes that cancel out, such as a corrected retirement date moving a member from Practising (-1) to Retired (+1). Working default: one row per cell, run and measure with a non-zero change.",
       "raised_by": "analyst",
-      "status": "open",
+      "status": "answered",
       "blocks": [
         "REQ-020"
-      ]
+      ],
+      "answer": "Keep the cell's grain columns, with one row per cell, run and measure whose change is not zero. It does not sum to date level, so changes that cancel out across cells stay visible (Mike, 2026-11-17)."
     },
     {
       "id": "Q-053",
@@ -2904,6 +3113,45 @@
       "answer": "A copy with a NULL 'Sub User Created Date' loses to every copy that has a date. 'Round' holds text such as 'Round 1' and 'Round 2' in production, so it is not compared as text and not cast whole. It is compared by the whole number at its end (the digits after the last space, so 'Round 10' beats 'Round 9'). A NULL Round, or one that does not end in a whole number, counts as lowest. Any tie left after that is broken deterministically, so the same source data always lands the same row (Mike, 2026-11-18).",
       "blocks": [
         "REQ-022"
+      ]
+    },
+    {
+      "id": "Q-055",
+      "question": "For the overlap check (RULE-145): is valid_to in Layercake.silv_member_state_ranges exclusive, so that a range with valid_from = valid_to is zero-length and two ranges that meet do not overlap?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "Yes, exclusive (Product Owner, ASM-012). usp_load_silv_daily_count counts a day in a range when [date] >= valid_from and [date] < ISNULL(valid_to, today + 1), the half-open interval [valid_from, valid_to). A range is non-zero-length when valid_to is NULL or after valid_from; two such ranges overlap when each starts before the other ends; a NULL valid_to is open-ended. Ranges that meet, and zero-length ranges, do not overlap.",
+      "blocks": [
+        "REQ-024"
+      ]
+    },
+    {
+      "id": "Q-056",
+      "question": "Does anything outside the database (for example the Power BI model or an extract) read fact_daily_member_count_detail.id, so that removing it would be unsafe?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "Unknown from the repository, which holds no Power BI model or extract definition; nothing inside it reads id (Product Owner, ASM-012). The column is widened to bigint and kept, which meets Mike's condition whatever the answer. If Mike confirms nothing outside reads it, removing it later is a small follow-up.",
+      "blocks": [
+        "REQ-025"
+      ]
+    },
+    {
+      "id": "Q-057",
+      "question": "How is the AMD-006 speed target (daily count under 5 minutes, whole daily run under 15 minutes on a normal day, not overlapping Subs.usp_Subs_Refresh_Data) accepted, given that agents never run anything on production and dev and test hold only synthetic data?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "A human checks it on production at handover from Layercake.etl_run_log, on a normal run after the first post-deployment run that logged 394 or fewer contacts recomputed, did not take the full-recompute path and did not overlap the Subs refresh (Product Owner, ASM-013). The agents' tests set no time limit. Every run logs the contacts recomputed and whether it took the full path. A miss is recorded and raised with Mike, not a reason to roll back. Q-026 still holds for data results.",
+      "blocks": [
+        "REQ-024"
+      ]
+    },
+    {
+      "id": "Q-058",
+      "question": "A changed reference table (ref_date_spine, ref_campaign_year_config, silv_ref_membership_status) recomputes the whole spine. Every silver run extends ref_date_spine to two years past today and adds any missing Campaign Year to ref_campaign_year_config. Does that routine extension count as a change? Working default: no. Only a change to reference data covering dates from 2020-10-01 to the run date triggers the full recompute; dates after the run date, or a new Campaign Year starting after it, do not.",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-024"
       ]
     }
   ]
