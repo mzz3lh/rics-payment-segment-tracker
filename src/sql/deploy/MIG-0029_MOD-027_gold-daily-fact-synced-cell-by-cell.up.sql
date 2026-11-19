@@ -116,14 +116,12 @@ begin
         select @ins = 0, @upd = 0, @del = 0, @src_count = 0;
 
         -- gold rows for dates silver no longer covers at all (span moved, or
-        -- silver emptied), or on a date_id dim_date does not know, have no
-        -- silver cell - outside the window walk, so trimmed up front
+        -- silver emptied) - outside the window walk, so trimmed up front
         begin tran;
         delete tgt
         from Layercake.fact_daily_member_count_detail tgt
-        left join Layercake.dim_date d on d.id = tgt.date_id
+        join Layercake.dim_date d on d.id = tgt.date_id
         where @span_from is null
-           or d.id is null
            or d.[date] < @span_from
            or d.[date] > @span_to;
         set @rc = @@rowcount;
