@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-027",
-    "version": 1,
+    "version": 2,
     "produced_by": "tester",
-    "produced_at": "2026-11-19T14:09:32Z",
+    "produced_at": "2026-11-19T14:36:44Z",
     "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
@@ -15,7 +15,7 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-19T14:19:56Z",
+      "approved_at": "2026-11-19T14:38:42Z",
       "gate": "test_design_review"
     }
   },
