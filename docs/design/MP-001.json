@@ -4,24 +4,19 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "MP-001",
-    "version": 6,
+    "version": 7,
     "produced_by": "technical_architect",
-    "produced_at": "2026-11-18T18:30:13Z",
-    "status": "approved",
+    "produced_at": "2026-11-19T12:29:34Z",
+    "status": "for_review",
     "source_artefacts": [
       "docs/design/DES-001.json",
       "docs/amendments/AMD-001.json",
       "docs/amendments/AMD-002.json",
       "docs/amendments/AMD-003.json",
       "docs/amendments/AMD-004.json",
-      "docs/amendments/AMD-005.json"
-    ],
-    "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-18T18:30:28Z",
-      "gate": "architecture_validation",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
-    }
+      "docs/amendments/AMD-005.json",
+      "docs/amendments/AMD-006.json"
+    ]
   },
   "design_ref": "docs/design/DES-001.json",
   "max_test_loops": 3,
@@ -872,6 +867,111 @@
       ],
       "objects": [
         "Layercake.usp_load_brnz_corporate_subscription"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-026",
+      "title": "Daily count recomputes only the contacts that changed",
+      "sequence": 26,
+      "scope": "Adds Layercake.etl_daily_count_applied_contact, etl_daily_count_applied_state_range, etl_daily_count_applied_payment, etl_daily_count_applied_event and etl_daily_count_cell_contacts. Changes the MOD-022 Layercake.usp_load_silv_daily_count in three ways (ADR-011). (1) On every path, each measure is the sum of the contacts' 0-or-1 contributions (daily count form pattern). (2) On every path, the overlapping range guard runs before anything is written (RULE-145). (3) On a normal run, the changed-contacts path (daily count changed-contacts path pattern): only the changed contacts are applied, old contribution out and new in, on the loaded dates they reach, in date-ordered batches with their adjustment rows and cell counts. Dates not yet loaded are first-loaded from all contacts. The basis and snapshot are written in one final transaction, and the 'contacts_recomputed' and 'full_recompute_path' etl_progress_log sub-steps are logged. These keep the MOD-022 full-recompute path, which now also maintains the cell counts and the snapshot: @FullRebuild, @RebuildFrom, a changed reference input (RULE-147, Q-058) and a snapshot not in step with the basis. The Developer first confirms Q-059 from the Phase 1 code. The structure of etl_daily_count_input_basis, the daily tables and the adjustment table is unchanged, as are the as-known-at functions, the review view, usp_load_silver and the gold load. Tests cover AC-024-01 to AC-024-13 on synthetic data. They compare every AC-024-03 case with @FullRebuild = 1 (tables, gold fact except id, adjustment rows), and include the first run after deployment, a run failing part way and the overlap boundaries. The MOD-021 and MOD-022 suites must still pass. The documentation update adds the speed check to the runbook as a human handover step (AC-024-14), and says that the first run after deployment takes the full path. The down script restores the MOD-022 procedure. It renames each new table that holds rows to <table>_rolledback_MIGnnnn, and drops it otherwise.",
+      "requirement_ids": [
+        "REQ-024",
+        "REQ-018",
+        "REQ-019"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006",
+        "MOD-007",
+        "MOD-008",
+        "MOD-009",
+        "MOD-010",
+        "MOD-011",
+        "MOD-012",
+        "MOD-016",
+        "MOD-017",
+        "MOD-018",
+        "MOD-019",
+        "MOD-020",
+        "MOD-021",
+        "MOD-022",
+        "MOD-023",
+        "MOD-024",
+        "MOD-025"
+      ],
+      "acceptance_criteria": [
+        "AC-024-01",
+        "AC-024-02",
+        "AC-024-03",
+        "AC-024-04",
+        "AC-024-05",
+        "AC-024-06",
+        "AC-024-07",
+        "AC-024-08",
+        "AC-024-09",
+        "AC-024-10",
+        "AC-024-11",
+        "AC-024-12",
+        "AC-024-13",
+        "AC-024-14"
+      ],
+      "objects": [
+        "Layercake.etl_daily_count_applied_contact",
+        "Layercake.etl_daily_count_applied_state_range",
+        "Layercake.etl_daily_count_applied_payment",
+        "Layercake.etl_daily_count_applied_event",
+        "Layercake.etl_daily_count_cell_contacts",
+        "Layercake.usp_load_silv_daily_count"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-027",
+      "title": "Gold daily fact synced cell by cell",
+      "sequence": 27,
+      "scope": "Changes the Phase 1 Layercake.fact_daily_member_count_detail through a change script that widens id from int to bigint, keeping it an identity, its values and its nonclustered primary key (RULE-152). Changes the Phase 1 Layercake.usp_load_fact_daily_member_count_detail to sync the fact with silver cell by cell across the whole span: changed cells updated in place, new cells inserted, cells no longer in silver deleted, unchanged cells untouched, with row counts that count those cells and the final row-count check kept (gold daily fact cell sync pattern). The gold derivation, the other columns, the grain and the silver daily count are unchanged. Tests cover AC-025-01 to AC-025-04, using the AC-024-03 cases through usp_run_daily_load. They show that the MOD-016 and MOD-022 tests on the fact still pass. The down script restores the Phase 1 procedure and narrows id back to int, keeping the values. If any id is beyond the int range, it stops with a clear error and changes nothing.",
+      "requirement_ids": [
+        "REQ-025"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006",
+        "MOD-007",
+        "MOD-008",
+        "MOD-009",
+        "MOD-010",
+        "MOD-011",
+        "MOD-012",
+        "MOD-016",
+        "MOD-017",
+        "MOD-018",
+        "MOD-019",
+        "MOD-020",
+        "MOD-021",
+        "MOD-022",
+        "MOD-023",
+        "MOD-024",
+        "MOD-025",
+        "MOD-026"
+      ],
+      "acceptance_criteria": [
+        "AC-025-01",
+        "AC-025-02",
+        "AC-025-03",
+        "AC-025-04"
+      ],
+      "objects": [
+        "Layercake.fact_daily_member_count_detail",
+        "Layercake.usp_load_fact_daily_member_count_detail"
       ],
       "status": "planned",
       "build_tool": "migrations"
