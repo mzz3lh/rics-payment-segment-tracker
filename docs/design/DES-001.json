@@ -19,7 +19,7 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-19T12:43:14Z",
+      "approved_at": "2026-11-19T12:45:48Z",
       "gate": "architecture_validation"
     }
   },
@@ -2940,10 +2940,11 @@
       "id": "Q-059",
       "question": "The changed-contacts path (ADR-011) relies on two facts about the Phase 1 daily derivation, which the Developer confirms from its code at the start of MOD-026 and records in the change note. (a) A detail cell exists on a date exactly when at least one contact sits in it that day, holding a non-zero-length state range that places it there, whatever its seven measures. (b) A contact contributes at most 1 to each measure on a day, however many qualifying events or payments it has that day. The design assumes both. If Phase 1 also drops cells whose seven measures are all 0, a cell exists when its contact count is above 0 and a measure is not 0. etl_daily_count_cell_contacts is kept either way, and only the existence test in usp_load_silv_daily_count changes. If (b) does not hold, the faster count form must count such a contact once per day before adding.",
       "raised_by": "technical_architect",
-      "status": "open",
+      "status": "answered",
       "blocks": [
         "MOD-026"
-      ]
+      ],
+      "answer": "Yes to both, confirmed from the Phase 1 code (usp_load_silv_daily_count). (a) A detail cell exists on a date exactly when at least one contact's non-zero-length state range places it there, whatever its seven measures: the insert groups the range x date join with no HAVING, so all-zero cells (e.g. lapse cells with no paid) are kept. (b) A contact contributes at most 1 to each measure per day: the measures are COUNT(DISTINCT contact) today, and with SUM(CASE) the joins stay 1:1 (silv_payment_events PK contact_no+campaign_year, #ev_paid unique on contact_no+campaign_year, #ev_day unique on contact_no+event_date, and the RULE-145 guard excludes overlapping ranges)."
     }
   ]
 }
