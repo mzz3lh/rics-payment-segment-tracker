@@ -660,7 +660,7 @@ BEGIN
 
     EXEC tSQLt.AssertEqualsTable '#ExpectedColumns', '#ActualColumns';
 
-    SELECT CAST(i.type_desc AS nvarchar(60)) AS index_type, i.is_primary_key, i.is_unique,
+    SELECT CAST(i.type_desc AS nvarchar(60)) COLLATE DATABASE_DEFAULT AS index_type, i.is_primary_key, i.is_unique,
            CAST(c.name AS nvarchar(128)) AS column_name, CAST(ic.key_ordinal AS int) AS key_ordinal
     INTO #ActualIndexes
     FROM sys.indexes AS i
