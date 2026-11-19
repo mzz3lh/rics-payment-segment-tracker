@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-19T14:49:42Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-027-1",
+    "source_artefacts": [
+      "CN-MOD-027",
+      "TCS-MOD-027",
+      "tests/tsqlt/test_MOD027.sql"
+    ]
+  },
+  "module_id": "MOD-027",
+  "loop_number": 1,
+  "run": {
+    "environment": "test",
+    "commit": "58356b5a76ae1acb716c10d650732e141b848e43",
+    "started_at": "2026-11-19T14:43:07Z",
+    "finished_at": "2026-11-19T14:49:38Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-027-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-027-013",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-025",
+      "status": "met"
+    }
+  ],
+  "regression": {
+    "ran": 705,
+    "failed": []
+  },
+  "verdict": "pass"
+}
