@@ -4,10 +4,10 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "SPEC-001",
-    "version": 7,
+    "version": 8,
     "produced_by": "analyst",
-    "produced_at": "2026-11-19T11:48:13Z",
-    "status": "approved",
+    "produced_at": "2026-11-20T14:58:04Z",
+    "status": "for_review",
     "source_artefacts": [
       "docs/requirements/BR-001-payment-segments-tracker.md",
       "docs/reviews/SPEC-001-review-1.md",
@@ -24,15 +24,11 @@
       "docs/amendments/AMD-003.json",
       "docs/amendments/AMD-004.json",
       "docs/amendments/AMD-005.json",
-      "docs/amendments/AMD-006.json"
-    ],
-    "approval": {
-      "approved_by": "Mike",
-      "approved_at": "2026-11-19T12:14:13Z",
-      "gate": "spec_signoff"
-    }
+      "docs/amendments/AMD-006.json",
+      "docs/amendments/AMD-007.json"
+    ]
   },
-  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status. It is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. Corporate subscriptions are landed one row per contact, scheme and Campaign Year: where the source repeats a key, a fixed order picks the copy to keep, and the load no longer fails on it. A corporate subscription row with no Campaign Year is skipped and counted rather than landed, and does not stop the load. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. The daily load keeps every past daily count in line with the current silver data on every run, from 2020-10-01, with no manual step. It records each change to a past or repeated day in an adjustment history that gives the figures as known at any time. One call of Layercake.usp_run_daily_load also runs the payment and invoice segment loads. On a normal day the daily count recomputes only the contacts whose inputs changed, and the gold daily fact is synced cell by cell, with results identical to a full recompute. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09), AMD-002 (invoice line grain, Mike, 2026-11-11), AMD-003 (daily load accuracy, Mike, 2026-11-17), AMD-004 (corporate subscription repeated keys, Mike, 2026-11-18), AMD-005 (corporate subscription rows with no Campaign Year, Mike, 2026-11-18) and AMD-006 (daily load speed, Mike, 2026-11-19) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
+  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status. It is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. Corporate subscriptions are landed one row per contact, scheme and Campaign Year: where the source repeats a key, a fixed order picks the copy to keep, and the load no longer fails on it. A corporate subscription row with no Campaign Year is skipped and counted rather than landed, and does not stop the load. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. The daily load keeps every past daily count in line with the current silver data on every run, from 2020-10-01, with no manual step. It records each change to a past or repeated day in an adjustment history that gives the figures as known at any time. One call of Layercake.usp_run_daily_load also runs the payment and invoice segment loads. On a normal day the daily count recomputes only the contacts whose inputs changed, and the gold daily fact is synced cell by cell, with results identical to a full recompute. The daily member counts (silv_daily_count_detail and fact_daily_member_count_detail) are also split by payment method, payer type and concession type, taken from each contact's attributes for the Campaign Year of the day, with every total at the old grain unchanged. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09), AMD-002 (invoice line grain, Mike, 2026-11-11), AMD-003 (daily load accuracy, Mike, 2026-11-17), AMD-004 (corporate subscription repeated keys, Mike, 2026-11-18), AMD-005 (corporate subscription rows with no Campaign Year, Mike, 2026-11-18), AMD-006 (daily load speed, Mike, 2026-11-19) and AMD-007 (daily count payment segments, Mike, 2026-11-20) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
   "glossary": {
     "Campaign Year": "The RICS subscription year, as held in Layercake.ref_campaign_year_config and on the invoice source (Subs.tblSubsInvoices.Campaign_Year).",
     "Eligible invoice": "A subscription invoice that may set a contact-year's segments and be matched to an event for the invoice checks (RULE-014, RULE-084). Credit notes and enrolment- or application-fee-only invoices are never eligible. A fully credited invoice is eligible only when the contact-year has no other eligible invoice.",
@@ -45,7 +41,7 @@
     "Invoice source coverage": "Campaign Year 2022 onward. Subs.usp_Refresh_SubsInvoices keeps only Campaign_Year >= 2022.",
     "Derived retirement date": "The 'Renewal Date' of a contact's earliest Campaign Year that has a retired concession and a payment or settlement date (RULE-099). It drives Practising / Retired in place of apuk_retirementdate.",
     "Invoice line": "One row of Layercake.brnz_subs_invoice_line: one ledger distribution of an F&O customer transaction in synapse_fo.CUSTTRANS_RICS, identified by (recid, postingtype, accountdisplayvalue). One customer transaction (one recid) can have many lines, for example one per cost centre or Campaign Year (RULE-104).",
-    "Daily count cell": "One row of Layercake.silv_daily_count_detail: a [date] with its region, country_id, gender_id, grade and membership_status_id.",
+    "Daily count cell": "One row of Layercake.silv_daily_count_detail: a [date] with its region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id and concession_type_id (REQ-026).",
     "Seven daily measures": "active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count on silv_daily_count_detail and silv_daily_count.",
     "Adjustment": "A change to a daily count cell's figures on a date that was already loaded, recorded once per run that made it as new minus old for each of the seven daily measures (REQ-019). The first load of a date is not an adjustment.",
     "As known at": "The figure for a date as it stood at a time T: today's stored figure minus the adjustments written after T (REQ-020).",
@@ -73,7 +69,7 @@
         },
         {
           "id": "RULE-003",
-          "rule": "Under the working default for Q-007, fact_daily_member_count_detail, fact_annual_rate_base, silv_daily_count_detail and silv_annual_rate_base keep their current grain and columns."
+          "rule": "fact_annual_rate_base, silv_annual_rate_base and silv_daily_count keep their current grain and columns. fact_daily_member_count_detail and silv_daily_count_detail keep their current columns and gain only payment_method_id, payer_type_id and concession_type_id in their grain (REQ-026; Q-007, answered by Mike, AMD-007). Summed over those three columns, their figures are unchanged."
         },
         {
           "id": "RULE-102",
@@ -99,7 +95,7 @@
         },
         {
           "id": "AC-001-05",
-          "criterion": "The column lists of fact_daily_member_count_detail, fact_annual_rate_base, silv_daily_count_detail and silv_annual_rate_base are identical before and after the change (assumes Q-007). Summed over membership_status_id, every measure in each table is identical before and after the change for each value of its other grain columns (for example campaign_year, grade_id, country_id and gender_id in silv_annual_rate_base) (Q-046)."
+          "criterion": "The column lists of fact_annual_rate_base, silv_annual_rate_base and silv_daily_count are identical before and after the change. Those of fact_daily_member_count_detail and silv_daily_count_detail are identical except that each gains exactly payment_method_id, payer_type_id and concession_type_id (Q-007). Summed over membership_status_id, and for those two tables also over payment_method_id, payer_type_id and concession_type_id, every measure in each table is identical before and after the change for each value of its other grain columns (for example campaign_year, grade_id, country_id and gender_id in silv_annual_rate_base) (Q-046)."
         }
       ]
     },
@@ -1970,7 +1966,7 @@
       "business_rules": [
         {
           "id": "RULE-112",
-          "rule": "The adjustment history holds one row per daily count cell ([date], region, country_id, gender_id, grade, membership_status_id) per run that changed any of the cell's seven daily measures. Each row holds the run_id, the time it was written, the date and grain columns, and new minus old for active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count. A measure the run did not change holds 0. A cell whose seven measures are all unchanged gets no row."
+          "rule": "The adjustment history holds one row per daily count cell ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id) per run that changed any of the cell's seven daily measures. Each row holds the run_id, the time it was written, the date and grain columns, and new minus old for active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count. A measure the run did not change holds 0. A cell whose seven measures are all unchanged gets no row. Rows written before AMD-007 was deployed hold -2 Not applicable in payment_method_id, payer_type_id and concession_type_id (RULE-162)."
         },
         {
           "id": "RULE-113",
@@ -1994,7 +1990,7 @@
         },
         {
           "id": "RULE-118",
-          "rule": "The history covers the seven daily measures of silv_daily_count_detail only. Changes to segment columns on events, and to the annual rate base, write no adjustment row."
+          "rule": "The history covers the seven daily measures of silv_daily_count_detail only. Changes to segment or amount columns on events, and to the annual rate base, write no adjustment row of their own. A change to a contact's attributes writes adjustment rows only for the daily count cells it moves the contact out of and into (REQ-026)."
         }
       ],
       "mappings": [
@@ -2051,6 +2047,24 @@
           "target": "Daily count adjustment history: one change column per measure",
           "transformation": "New value minus old value for the run (RULE-112, RULE-113). 0 where the measure did not change.",
           "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.payment_method_id",
+          "target": "Daily count adjustment history.payment_method_id",
+          "transformation": "Copy of the changed cell's grain column (REQ-026). -2 Not applicable on rows written before AMD-007 was deployed (RULE-162).",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.payer_type_id",
+          "target": "Daily count adjustment history.payer_type_id",
+          "transformation": "Copy of the changed cell's grain column (REQ-026). -2 Not applicable on rows written before AMD-007 was deployed (RULE-162).",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.concession_type_id",
+          "target": "Daily count adjustment history.concession_type_id",
+          "transformation": "Copy of the changed cell's grain column (REQ-026). -2 Not applicable on rows written before AMD-007 was deployed (RULE-162).",
+          "nullable": false
         }
       ],
       "acceptance_criteria": [
@@ -2084,7 +2098,7 @@
         },
         {
           "id": "AC-019-08",
-          "criterion": "A source change that alters only a segment column on events (for example a contact-year's payment method from Card to Direct Debit), and no daily count, writes 0 adjustment rows on the next run."
+          "criterion": "A source change that alters only an amount column on events (for example a contact-year's Inv Total Amount from 450.00 to 500.00), and no daily count, writes 0 adjustment rows on the next run."
         },
         {
           "id": "AC-019-09",
@@ -2092,7 +2106,7 @@
         },
         {
           "id": "AC-019-10",
-          "criterion": "In the synthetic set, no adjustment row has a null run_id, written_at, date, grain column or change column, and no two rows share run_id, [date], region, country_id, gender_id, grade and membership_status_id."
+          "criterion": "In the synthetic set, no adjustment row has a null run_id, written_at, date, grain column or change column, and no two rows share run_id, [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id and concession_type_id."
         }
       ]
     },
@@ -2112,7 +2126,7 @@
         },
         {
           "id": "RULE-120",
-          "rule": "A Layercake view or function returns the figures as known at T for a date range (from and to dates inclusive) and a time T, for all seven daily measures. It works at the detail grain ([date], region, country_id, gender_id, grade, membership_status_id) and at the silv_daily_count grain ([date], region, grade). At the silv_daily_count grain the figures are the detail-grain figures summed over country_id, gender_id and membership_status_id."
+          "rule": "A Layercake view or function returns the figures as known at T for a date range (from and to dates inclusive) and a time T, for all seven daily measures. It works at the detail grain ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id) and at the silv_daily_count grain ([date], region, grade). At the silv_daily_count grain the figures are the detail-grain figures summed over country_id, gender_id, membership_status_id, payment_method_id, payer_type_id and concession_type_id."
         },
         {
           "id": "RULE-121",
@@ -2127,7 +2141,7 @@
         {
           "source": "Layercake.silv_daily_count_detail.active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count",
           "target": "As-known-at view or function (Layercake, named by the design), detail grain and silv_daily_count grain",
-          "transformation": "Stored figure minus the sum of the adjustment history's change for the same cell and measure written after T (RULE-119 to RULE-121); summed over country_id, gender_id and membership_status_id for the silv_daily_count grain."
+          "transformation": "Stored figure minus the sum of the adjustment history's change for the same cell and measure written after T (RULE-119 to RULE-121); summed over country_id, gender_id, membership_status_id, payment_method_id, payer_type_id and concession_type_id for the silv_daily_count grain."
         },
         {
           "source": "Daily count adjustment history (REQ-019): run_id, written_at, date, grain columns, change columns",
@@ -2138,7 +2152,7 @@
       "acceptance_criteria": [
         {
           "id": "AC-020-01",
-          "criterion": "Cell X is 2025-01-10, region 'UK', country_id 1, gender_id 1, grade 'Qualified', membership_status_id 1. Run R1, written 2026-11-01 06:00, first loads it with active_count 10. Run R2, written 2026-11-02 06:00, changes it to 12 (adjustment +2), and run R3, written 2026-11-03 06:00, changes it to 11 (adjustment -1). For cell X, active_count as known at 2026-11-01 12:00 is 10, at 2026-11-02 12:00 it is 12, and at 2026-11-03 12:00 it is 11. The other six measures equal the stored figures at all three times."
+          "criterion": "Cell X is 2025-01-10, region 'UK', country_id 1, gender_id 1, grade 'Qualified', membership_status_id 1, payment_method_id 0, payer_type_id 0, concession_type_id 0. Run R1, written 2026-11-01 06:00, first loads it with active_count 10. Run R2, written 2026-11-02 06:00, changes it to 12 (adjustment +2), and run R3, written 2026-11-03 06:00, changes it to 11 (adjustment -1). For cell X, active_count as known at 2026-11-01 12:00 is 10, at 2026-11-02 12:00 it is 12, and at 2026-11-03 12:00 it is 11. The other six measures equal the stored figures at all three times."
         },
         {
           "id": "AC-020-02",
@@ -2150,7 +2164,7 @@
         },
         {
           "id": "AC-020-04",
-          "criterion": "Cell Z (2025-01-10, 'UK', country_id 1, gender_id 1, 'Qualified', membership_status_id 2) is first loaded by R1 with active_count 1, and R3 changes it to 0 (adjustment -1), with or without a stored row afterwards. As known at 2026-11-02 12:00, cell Z has active_count 1."
+          "criterion": "Cell Z (2025-01-10, 'UK', country_id 1, gender_id 1, 'Qualified', membership_status_id 2, payment_method_id 0, payer_type_id 0, concession_type_id 0) is first loaded by R1 with active_count 1, and R3 changes it to 0 (adjustment -1), with or without a stored row afterwards. As known at 2026-11-02 12:00, cell Z has active_count 1."
         },
         {
           "id": "AC-020-05",
@@ -2190,7 +2204,7 @@
         },
         {
           "id": "RULE-124",
-          "rule": "The segment loads run after the Phase 1 loads they read and write onto (silv_membership_events and fact_membership_events, ADR-001), so the run ends with every segment column populated. The exact order is the design's decision."
+          "rule": "The segment loads run after the Phase 1 loads they read and write onto (silv_membership_events and fact_membership_events, ADR-001), so the run ends with every segment column populated. From AMD-007, silv_member_year_attributes is also loaded before the daily count of the same run (RULE-158). The exact order is the design's decision."
         },
         {
           "id": "RULE-125",
@@ -2453,7 +2467,7 @@
       "business_rules": [
         {
           "id": "RULE-141",
-          "rule": "On a normal run (no @FullRebuild, no @RebuildFrom and no reference table change, RULE-147), usp_load_silv_daily_count recomputes only the contacts whose inputs (their rows in Layercake.silv_membership_events, silv_member_state_ranges, silv_payment_events and silv_member_profile) changed since they were last applied, and only for the dates their old and new inputs reach. The work done is proportional to the changed contacts and those dates, not to the whole spine. Dates never loaded before, including the run date on its first run, are first-loaded as today and write no adjustment rows (RULE-114)."
+          "rule": "On a normal run (no @FullRebuild, no @RebuildFrom and no reference table change, RULE-147), usp_load_silv_daily_count recomputes only the contacts whose inputs (their rows in Layercake.silv_membership_events, silv_member_state_ranges, silv_payment_events, silv_member_profile and, from AMD-007, silv_member_year_attributes, RULE-160) changed since they were last applied, and only for the dates their old and new inputs reach. The work done is proportional to the changed contacts and those dates, not to the whole spine. Dates never loaded before, including the run date on its first run, are first-loaded as today and write no adjustment rows (RULE-114)."
         },
         {
           "id": "RULE-142",
@@ -2549,7 +2563,7 @@
         },
         {
           "id": "AC-024-06",
-          "criterion": "Cell E (2022-03-01, region 'UK', country_id 3, gender_id 2, grade 'election', membership_status_id 1) holds only contact M1, with active_count 1. M1's country_id changes to 4. After the next usp_run_daily_load, neither silv_daily_count_detail nor fact_daily_member_count_detail holds a row for cell E with a non-zero measure, and both hold for 2022-03-01 exactly the rows the full recompute produces. The run writes an adjustment row for cell E on 2022-03-01 with an active_count change of -1."
+          "criterion": "Cell E (2022-03-01, region 'UK', country_id 3, gender_id 2, grade 'election', membership_status_id 1, with M1's 2022 payment method, payer type and concession type) holds only contact M1, with active_count 1. M1's country_id changes to 4. After the next usp_run_daily_load, neither silv_daily_count_detail nor fact_daily_member_count_detail holds a row for cell E with a non-zero measure, and both hold for 2022-03-01 exactly the rows the full recompute produces. The run writes an adjustment row for cell E on 2022-03-01 with an active_count change of -1."
         },
         {
           "id": "AC-024-07",
@@ -2577,7 +2591,7 @@
         },
         {
           "id": "AC-024-13",
-          "criterion": "After the change, every test in the MOD-021 and MOD-022 tSQLt suites passes, and AC-018-01 to AC-018-09, AC-019-01 to AC-019-10 and AC-020-01 to AC-020-09 still pass. The definitions of the 'as known at' view or function and of the adjustments review view are identical before and after the change."
+          "criterion": "After the change, every test in the MOD-021 and MOD-022 tSQLt suites passes, and AC-018-01 to AC-018-09, AC-019-01 to AC-019-10 and AC-020-01 to AC-020-09 still pass. The AMD-006 change leaves the definitions of the 'as known at' functions and of the adjustments review view unchanged; AMD-007 changes them only by adding payment_method_id, payer_type_id and concession_type_id to the detail grain (REQ-026)."
         },
         {
           "id": "AC-024-14",
@@ -2612,7 +2626,7 @@
         {
           "source": "Layercake.silv_daily_count_detail.active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count",
           "target": "Layercake.fact_daily_member_count_detail.ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents",
-          "transformation": "The existing gold derivation, unchanged, applied as a cell-level sync on (date_id, country_id, gender_id, membership_grade_id, membership_status_id): update changed cells, insert new cells, delete cells no longer in silver, leave unchanged cells alone (RULE-150)."
+          "transformation": "The existing gold derivation, unchanged, applied as a cell-level sync on (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id) (REQ-026): update changed cells, insert new cells, delete cells no longer in silver, leave unchanged cells alone (RULE-150)."
         },
         {
           "source": "Layercake.fact_daily_member_count_detail.id",
@@ -2624,19 +2638,227 @@
       "acceptance_criteria": [
         {
           "id": "AC-025-01",
-          "criterion": "In each case of AC-024-03, every fact_daily_member_count_detail row whose (date_id, country_id, gender_id, membership_grade_id, membership_status_id) figures are the same before and after the run keeps its id and all its values. The gold load's rows_updated, rows_inserted and rows_deleted equal the number of fact cells whose figures changed, that are new and that are gone."
+          "criterion": "In each case of AC-024-03, every fact_daily_member_count_detail row whose (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id) figures are the same before and after the run keeps its id and all its values. The gold load's rows_updated, rows_inserted and rows_deleted equal the number of fact cells whose figures changed, that are new and that are gone."
         },
         {
           "id": "AC-025-02",
-          "criterion": "In case (i) of AC-024-03 (AC-024-06), the fact row for cell E's date, country_id 3, gender_id 2, grade and status is deleted, and every other fact row dated 2022-03-01 keeps its id unless its own figures changed."
+          "criterion": "In case (i) of AC-024-03 (AC-024-06), the fact row for cell E's date, country_id 3, gender_id 2, grade, status and segment columns is deleted, and every other fact row dated 2022-03-01 keeps its id unless its own figures changed."
         },
         {
           "id": "AC-025-03",
-          "criterion": "A fact_daily_member_count_detail row is added by hand for a (date_id, country_id, gender_id, membership_grade_id, membership_status_id) that silver does not hold. The next usp_run_daily_load deletes it, logs 'Success' for usp_load_fact_daily_member_count_detail with its row-count check against silver passing, and changes no other fact row."
+          "criterion": "A fact_daily_member_count_detail row is added by hand for a (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id) that silver does not hold. The next usp_run_daily_load deletes it, logs 'Success' for usp_load_fact_daily_member_count_detail with its row-count check against silver passing, and changes no other fact row."
         },
         {
           "id": "AC-025-04",
           "criterion": "Layercake.fact_daily_member_count_detail.id is bigint, and no Layercake view, function or procedure other than usp_load_fact_daily_member_count_detail references the column."
+        }
+      ]
+    },
+    {
+      "id": "REQ-026",
+      "title": "Payment method, payer type and concession in the daily member counts",
+      "type": "functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Mike, 2026-11-20 (AMD-007): 'We need to update the fact fact_daily_member_count_detail to add the new segmentation for payer type, payment method and concession. It will increase the row count, but that's fine.' Today Layercake.fact_daily_member_count_detail is at the grain date x country x gender x membership grade x membership status. Each contact's payment method, payer type and concession type are held per contact and Campaign Year in Layercake.silv_member_year_attributes and reach only the event tables, and Layercake.usp_run_daily_load runs the daily count before the attributes of the same run are loaded. From this change the daily count detail, its adjustment history, its cell counts, the detail 'as known at' function, the adjustments review view and the gold daily fact gain payment_method_id, payer_type_id and concession_type_id in their grain. A contact-day takes the values of its attributes row for the Campaign Year of the day. The seven measures and every total at the old grain stay exactly as they are, and Layercake.silv_daily_count keeps its grain. The run loads the attributes before the daily count, the changed-contacts path (REQ-024) treats an attribute change like any other input change, and the gold fact is synced cell by cell on the new key (REQ-025). This answers Q-007 for the daily count; the annual rate base keeps its grain.",
+      "business_rules": [
+        {
+          "id": "RULE-155",
+          "rule": "Layercake.silv_daily_count_detail gains payment_method_id, payer_type_id and concession_type_id (silver ids, never null) in its grain, which becomes ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id). Layercake.fact_daily_member_count_detail gains the same three columns (int not null, keys of dim_payment_method, dim_payer_type and dim_concession_type), and they join the star grain and its unique clustered index. The same three columns join the grain of Layercake.silv_daily_count_adjustment, Layercake.etl_daily_count_cell_contacts, Layercake.fn_silv_daily_count_detail_as_known_at and Layercake.vw_silv_daily_count_adjustment_review. Layercake.silv_daily_count and Layercake.fn_silv_daily_count_as_known_at keep their grain and their figures."
+        },
+        {
+          "id": "RULE-156",
+          "rule": "A contact-day takes payment_method_id, payer_type_id and concession_type_id from the contact's silv_member_year_attributes row for the Campaign Year of the day, for every grade (enrolment, election and lapse) and for every measure counted for the contact that day (assumes Q-060). Carried values count as the value: the payment_method_carried, payer_type_carried and concession_type_carried flags are not part of the grain. A contact-day with no attributes row takes 0 Unknown for all three, as silv_membership_events does. Before 2022 the attributes hold -2 Not applicable (RULE-080), and that value is used. Corporate account (employer) is not added."
+        },
+        {
+          "id": "RULE-157",
+          "rule": "The seven daily measures keep their rules. Every total at the old detail grain (summed over payment_method_id, payer_type_id and concession_type_id), and every figure of silv_daily_count, stays exactly what it is without this change. On any day a contact still sits in one cell, because the attributes are one row per contact and Campaign Year, so the additive count rule (RULE-144) still holds."
+        },
+        {
+          "id": "RULE-158",
+          "rule": "The daily count uses the attributes as loaded earlier in the same Layercake.usp_run_daily_load run: the run loads silv_member_year_attributes before the daily count. The exact order is the design's decision. A failure anywhere still fails the run and is re-raised, and the next run recovers with no manual step (RULE-125)."
+        },
+        {
+          "id": "RULE-159",
+          "rule": "Layercake.usp_run_payment_segments stays callable on its own (RULE-126). If it is run on its own and changes attributes, the next usp_run_daily_load brings the daily count into line."
+        },
+        {
+          "id": "RULE-160",
+          "rule": "A change to a contact's attributes (payment_method_id, payer_type_id or concession_type_id, in any Campaign Year) makes that contact a changed contact, so the changed-contacts path (RULE-141) recomputes it like any other input change, and the result stays identical to @FullRebuild = 1 (RULE-143). A changed attribute moves that contact's days of that Campaign Year from one cell to another, which writes adjustment rows like a country or gender change does."
+        },
+        {
+          "id": "RULE-161",
+          "rule": "A change to Layercake.silv_ref_payment_method, silv_ref_payer_type or silv_ref_concession_type does not by itself make the daily count take the full-recompute path, because the ids are carried from the attributes, not derived from these lists."
+        },
+        {
+          "id": "RULE-162",
+          "rule": "On deployment, silv_daily_count_detail, fact_daily_member_count_detail and etl_daily_count_cell_contacts are restated at the new grain (the first run after deployment may take the full-recompute path to do it, and to set up whatever the changed-contacts snapshot now stores). The restatement is a change of grain, not of numbers, and writes no adjustment rows. Adjustment rows written before the deployment keep their figures and take -2 Not applicable in payment_method_id, payer_type_id and concession_type_id, because the segment was not recorded then."
+        },
+        {
+          "id": "RULE-163",
+          "rule": "'As known at' a time before the deployment is exact at the silv_daily_count grain and at the old detail grain (summed over the three new columns), but is not split by segment."
+        },
+        {
+          "id": "RULE-164",
+          "rule": "The gold cell-by-cell sync (RULE-150, RULE-151) uses the eight-column key (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id): changed cells updated, new cells inserted, cells no longer in silver deleted, unchanged cells not touched, and the final row-count check against silver stays. id stays bigint (RULE-152). No foreign keys are added for the three new columns, as on the segment columns of fact_membership_events."
+        },
+        {
+          "id": "RULE-165",
+          "rule": "The migration and its rollback are safe to run on production outside the 06:00 run, create no schema and work in the existing Layercake schema. The migration comes after MIG-0028 and MIG-0029, which may not yet be on production."
+        },
+        {
+          "id": "RULE-166",
+          "rule": "Downstream readers are checked and changed where the grain matters. Check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql rebuilds the expected star from silver, so it gains the three columns. active-member-difference.sql and paid-member-difference.sql only sum by date, so they are not changed, but are re-checked."
+        },
+        {
+          "id": "RULE-167",
+          "rule": "The handover (docs/handover/02-architecture.md, 03-data-lineage.md, 04-runbook.md, 06-known-limitations.md and 07-glossary.md) describes the new grain and says that any report reading fact_daily_member_count_detail must sum over payment_method_id, payer_type_id and concession_type_id. The known limitations say that 'as known at' a time before the deployment is not split by segment (RULE-163)."
+        },
+        {
+          "id": "RULE-168",
+          "rule": "The MOD-021, MOD-022, MOD-026 and MOD-027 tests keep passing, changed only where they name the grain. New tests show at least: a contact-day takes the attributes of the day's Campaign Year (a contact whose method changes between years splits across cells at 1 October); no attributes row gives 0; before 2022 gives -2; an attribute change alone is picked up by the changed-contacts path and gives exactly the @FullRebuild result and adjustment rows; totals at the old grain are unchanged by the new columns; gold carries the dim keys and syncs cell by cell on the new key."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "Layercake.silv_member_year_attributes.payment_method_id",
+          "target": "Layercake.silv_daily_count_detail.payment_method_id",
+          "transformation": "The contact's attributes row with campaign_year equal to the day's Campaign Year (silv_daily_count_detail.campaign_year), for every grade and every measure counted that day (RULE-156, assumes Q-060). Taken as held, carried or not. 0 where no row matches. Part of the grain.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_member_year_attributes.payer_type_id",
+          "target": "Layercake.silv_daily_count_detail.payer_type_id",
+          "transformation": "Same attributes row as payment_method_id (RULE-156). 0 where no row matches. Part of the grain.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_member_year_attributes.concession_type_id",
+          "target": "Layercake.silv_daily_count_detail.concession_type_id",
+          "transformation": "Same attributes row as payment_method_id (RULE-156). 0 where no row matches. Part of the grain.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.payment_method_id",
+          "target": "Layercake.fact_daily_member_count_detail.payment_method_id",
+          "transformation": "Copy. Equals the dim_payment_method key, whose ids are copied from silv_ref_payment_method (RULE-010). int not null; part of the star grain and the unique clustered index; no foreign key (RULE-155, RULE-164).",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.payer_type_id",
+          "target": "Layercake.fact_daily_member_count_detail.payer_type_id",
+          "transformation": "Copy. Equals the dim_payer_type key. int not null; part of the star grain and the unique clustered index; no foreign key (RULE-155, RULE-164).",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.concession_type_id",
+          "target": "Layercake.fact_daily_member_count_detail.concession_type_id",
+          "transformation": "Copy. Equals the dim_concession_type key. int not null; part of the star grain and the unique clustered index; no foreign key (RULE-155, RULE-164).",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.payment_method_id, payer_type_id, concession_type_id",
+          "target": "Layercake.etl_daily_count_cell_contacts (same columns)",
+          "transformation": "Part of the grain: one row per cell on the new grain with its contact count (RULE-155, RULE-162).",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_daily_count_detail.payment_method_id, payer_type_id, concession_type_id",
+          "target": "Layercake.fn_silv_daily_count_detail_as_known_at and Layercake.vw_silv_daily_count_adjustment_review (same columns)",
+          "transformation": "Grain columns, from the stored cell and the adjustment history (RULE-120, RULE-122, RULE-155). Adjustment rows written before the deployment carry -2 (RULE-162, RULE-163).",
+          "nullable": false
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-026-01",
+          "criterion": "After deployment, silv_daily_count_detail and fact_daily_member_count_detail each have exactly their earlier columns plus payment_method_id, payer_type_id and concession_type_id, all not null (int on the fact). silv_daily_count_adjustment, etl_daily_count_cell_contacts, vw_silv_daily_count_adjustment_review and the result of fn_silv_daily_count_detail_as_known_at each gain the same three columns. The unique clustered index of fact_daily_member_count_detail covers exactly date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id and concession_type_id. No foreign key is defined on the fact's three new columns, and id is still bigint. The column list of silv_daily_count and the result columns of fn_silv_daily_count_as_known_at are unchanged."
+        },
+        {
+          "id": "AC-026-02",
+          "criterion": "Contact Y1 is active in grade 'election', Practising, region 'UK', country_id 1, gender_id 1, from 2023-10-01 onward, and dates 2024-09-01 to 2025-03-31 are loaded. Y1's attributes are 2024: Direct Debit, Individual, No concession; 2025: Card, Individual, No concession. In silv_daily_count_detail, Y1 is counted (active_count) on 2024-09-30 in the cell with the Direct Debit id and on 2024-10-01 in the cell with the Card id, both with the Individual and No concession ids. Y1 is the only contact in (date, 'UK', 1, 1, 'election', 1), and summed over the three new columns its active_count is 1 on every loaded date. fact_daily_member_count_detail holds the same split under the matching dim_payment_method, dim_payer_type and dim_concession_type keys."
+        },
+        {
+          "id": "AC-026-03",
+          "criterion": "Contact Y2 is active in grade 'election' on 2025-01-10 and has no silv_member_year_attributes row for any Campaign Year. In silv_daily_count_detail and fact_daily_member_count_detail, Y2 is counted on 2025-01-10 in a cell with payment_method_id 0, payer_type_id 0 and concession_type_id 0."
+        },
+        {
+          "id": "AC-026-04",
+          "criterion": "Contact Y3 is active in grade 'election' on 2021-05-01, and Y3's 2021 attributes row holds -2 for payment method, payer type and concession type. Y3 is counted on 2021-05-01 in a cell with payment_method_id -2, payer_type_id -2 and concession_type_id -2 (assumes Q-011)."
+        },
+        {
+          "id": "AC-026-05",
+          "criterion": "Contacts Y4 and Y5 are active in grade 'election', Practising, region 'UK', country_id 1, gender_id 1, on 2025-11-01 (Campaign Year 2026), and are the only contacts there. Both have 2026 attributes of Card, Individual and No concession; Y4's payment method is carried (payment_method_carried 1) and Y5's is not (0). On 2025-11-01 both are counted in one cell with active_count 2. Neither silv_daily_count_detail nor fact_daily_member_count_detail has a payment_method_carried, payer_type_carried or concession_type_carried column."
+        },
+        {
+          "id": "AC-026-06",
+          "criterion": "Contact Y6 is in grade 'enrolment' on 2025-01-10 with 2025 attributes of payment method Corporate, payer type Corporate and No concession, and is counted on that date in the cell with those three ids. Contact Y7's Lapse dated 2025-06-01 is counted (event_lapse_count 1) on 2025-06-01 in the cell with Y7's 2025 attributes, payment method Card."
+        },
+        {
+          "id": "AC-026-07",
+          "criterion": "Contact Y8 has a Join dated 2024-06-01 (Campaign Year 2024) and a first paid position in Campaign Year 2025, with attributes 2024: Card and 2025: Direct Debit. In silv_daily_count_detail on 2024-06-01, Y8's active_count and event_join_count are both in the cell with the Card id, and in no other cell. In fact_membership_events, Y8's Join carries Direct Debit (RULE-017) (assumes Q-060)."
+        },
+        {
+          "id": "AC-026-08",
+          "criterion": "On the same synthetic source data, compare the result before and after the change. silv_daily_count_detail summed over payment_method_id, payer_type_id and concession_type_id equals silv_daily_count_detail before the change, matching on [date], region, country_id, gender_id, grade and membership_status_id: 0 rows differ in any of the seven measures, 0 missing, 0 extra. silv_daily_count is identical: 0 differences. fact_daily_member_count_detail summed over the three new columns equals the fact before the change on (date_id, country_id, gender_id, membership_grade_id, membership_status_id): 0 differences."
+        },
+        {
+          "id": "AC-026-09",
+          "criterion": "From a fully loaded synthetic state, the payment mode of Y1's 2025 segment invoice in Subs.tblSubsInvoices changes from Card to DD, and nothing else in the source changes. After one call of usp_run_daily_load, with no @RebuildFrom or @FullRebuild and no second run: (a) the silv_member_year_attributes step row under that run_id has status 'Success' and a finished_at no later than the started_at of the usp_load_silv_daily_count step row; (b) usp_load_silv_daily_count logs 1 contact recomputed and the normal path; (c) on every loaded date from 2024-10-01 to 2025-03-31, Y1 is counted in the Direct Debit cell and not in the Card cell, and Y1's cells on dates up to 2024-09-30 are unchanged; (d) silv_daily_count_detail and silv_daily_count equal the result of usp_load_silver @FullRebuild = 1 on the same data, and fact_daily_member_count_detail equals the full recompute followed by the gold load in every column except id: 0 rows differ, 0 missing, 0 extra; (e) silv_daily_count is unchanged by the run."
+        },
+        {
+          "id": "AC-026-10",
+          "criterion": "For each loaded date from 2024-10-01 to 2025-03-31, the run in AC-026-09 writes one adjustment row for Y1's Card cell with active_count_change -1 and one for Y1's Direct Debit cell with active_count_change +1, with the other measures as the stored figures require. Each row carries its cell's actual payment_method_id, payer_type_id and concession_type_id, not -2. The run writes no adjustment row dated before 2024-10-01. For every cell and measure, the run's changes equal the stored figure after the run minus before it: 0 mismatches. Summed to the silv_daily_count grain, the run's changes are 0 for every measure."
+        },
+        {
+          "id": "AC-026-11",
+          "criterion": "Starting each time from the same fully loaded synthetic state: (a) contact Y10's 2023 segment invoice gains an Exceptional Hardship concession line, which changes only Y10's 2023 concession_type_id, from No concession to Exceptional Hardship; (b) contact Y11, whose 2025 segment invoice has payment mode Corporate and who has a 2025 paid position, gains a 2025 corporate subscription row with Sub Status and Sub User Status 'Active', which changes only Y11's 2025 payer_type_id, from Individual to Corporate. After one usp_run_daily_load, each case logs 1 contact recomputed and the normal path. Y10's loaded dates from 2022-10-01 to 2023-09-30, and Y11's loaded dates in Campaign Year 2025, move to the cell with the new id. The comparison in AC-026-09 (d) shows 0 differences (assumes Q-002, Q-027)."
+        },
+        {
+          "id": "AC-026-12",
+          "criterion": "A new concession type is added to the source concession reference. This adds one row to silv_ref_concession_type and dim_concession_type and changes no contact's attributes. The next usp_run_daily_load logs 0 contacts recomputed and the normal path for usp_load_silv_daily_count, writes 0 adjustment rows, and changes no row of silv_daily_count_detail, silv_daily_count or fact_daily_member_count_detail."
+        },
+        {
+          "id": "AC-026-13",
+          "criterion": "After a successful usp_run_daily_load, the AC-026-09 source change is made, and Layercake.usp_run_payment_segments is called on its own, which changes Y1's 2025 attributes row to Direct Debit. The next usp_run_daily_load, with no manual step, logs 1 contact recomputed and the normal path, counts Y1 in the Direct Debit cell on every loaded date from 2024-10-01, and leaves the comparison in AC-026-09 (d) with 0 differences."
+        },
+        {
+          "id": "AC-026-14",
+          "criterion": "The AC-026-09 source change is made, and Subs.vwCorpSubscriptions holds a row whose 'Contact No' is NULL. usp_run_daily_load fails, re-raises error 515 to the caller, and its run row in etl_run_log has status 'Failed'. After the row is corrected, the next usp_run_daily_load, with no manual cleanup, ends 'Success', counts Y1 in the Direct Debit cell on every loaded date from 2024-10-01, and leaves the comparison in AC-026-09 (d) with 0 differences."
+        },
+        {
+          "id": "AC-026-15",
+          "criterion": "On the synthetic set after usp_run_daily_load, no fact_daily_member_count_detail row has a null payment_method_id, payer_type_id or concession_type_id, and every value resolves to a row of dim_payment_method, dim_payer_type and dim_concession_type respectively: 0 orphans. Matching each silv_daily_count_detail cell to the fact through the existing gold keys for date, country, gender, grade and status and the three new ids, the fact holds exactly the silver cells with the same seven measures: 0 differ, 0 missing, 0 extra. The gold load's row-count check against silver passes."
+        },
+        {
+          "id": "AC-026-16",
+          "criterion": "In the AC-026-09 run, every fact_daily_member_count_detail row whose eight-column key has the same figures before and after keeps its id and all its values. The gold load's rows_updated, rows_inserted and rows_deleted equal the number of fact cells, on the eight-column key, whose figures changed, that are new and that are gone. A fact row added by hand that matches a silver cell in every grain column except payment_method_id is deleted by the next usp_run_daily_load. That run logs 'Success' for usp_load_fact_daily_member_count_detail, with the row-count check passing, and changes no other fact row."
+        },
+        {
+          "id": "AC-026-17",
+          "criterion": "The synthetic set is loaded by the procedures as they are before this change, over at least three runs that write adjustment rows. The migration is applied, and then the first usp_run_daily_load runs with no source change since the last load. The migration and that run write 0 adjustment rows. Every adjustment row written before the deployment is still present with the same run_id, written_at, date, old grain columns and seven changes, and holds -2 in payment_method_id, payer_type_id and concession_type_id. silv_daily_count is identical to before: 0 differences. Summed over the three new columns, silv_daily_count_detail (seven measures), etl_daily_count_cell_contacts (contact_count) and fact_daily_member_count_detail equal their contents before the deployment on the old grain: 0 differences. silv_daily_count_detail, silv_daily_count and fact_daily_member_count_detail (except id) equal the result of usp_load_silver @FullRebuild = 1 and the gold load on the same data: 0 differences."
+        },
+        {
+          "id": "AC-026-18",
+          "criterion": "In AC-026-17, take a time T between two of the pre-deployment runs and the date range 2020-10-01 to the run date. After the deployment, fn_silv_daily_count_as_known_at returns exactly the figures it returned for the same T and range before the deployment: 0 differences. fn_silv_daily_count_detail_as_known_at, summed over the three new columns, returns exactly the figures the detail function returned before the deployment: 0 differences."
+        },
+        {
+          "id": "AC-026-19",
+          "criterion": "migrations.py check passes, and migrations.py roundtrip passes for the migration of this change. Its MIG number is higher than MIG-0029, it creates no schema, and every object it creates or changes is in the Layercake schema."
+        },
+        {
+          "id": "AC-026-20",
+          "criterion": "After one usp_run_daily_load on the test database loaded with the synthetic data, check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql compares fact_daily_member_count_detail with the star it rebuilds from silver, including payment_method_id, payer_type_id and concession_type_id, and reports no difference. active-member-difference.sql and paid-member-difference.sql, unchanged, both read PASS."
+        },
+        {
+          "id": "AC-026-21",
+          "criterion": "docs/handover/02-architecture.md, 03-data-lineage.md, 04-runbook.md, 06-known-limitations.md and 07-glossary.md each describe the grain of fact_daily_member_count_detail including payment_method_id, payer_type_id and concession_type_id. Each states that any report reading the fact must sum over those three columns. 06-known-limitations.md states that adjustment rows written before the deployment hold -2 in the three columns, so 'as known at' a time before the deployment is not split by segment."
+        },
+        {
+          "id": "AC-026-22",
+          "criterion": "After the change, every test in the MOD-021, MOD-022, MOD-026 and MOD-027 tSQLt suites passes. Each test differs from its version before the change only where it names the grain of the daily detail tables, the adjustment history, the cell counts, the 'as known at' functions, the review view or the gold fact."
         }
       ]
     }
@@ -2647,7 +2869,7 @@
     "A contact is in a live corporate subscription for a Campaign Year when they exist in Subs.vwCorpSubscriptions for that Sub Campaign Year and both 'Sub Status' and 'Sub User Status' are active. 'Round' is not used, because a round is a tranche of processing corporate records and later rounds may change it (Mike, 2026-10-23), except as the third tie-break for a repeated key (RULE-128). The active value is taken to be 'Active' (Q-027), and the same value picks the copy of a repeated corporate subscription key that bronze lands (RULE-128).",
     "Corporate firm-level discounts are not spread to individuals. The event carries the source's amount for the individual's own invoices, and the discount is a stated known gap (Q-005).",
     "Payment method and payer type carry forward from the latest earlier invoiced year to years with no invoice. Concessions carry forward only when perpetual. Every carried value is flagged (Q-006).",
-    "Segment keys are added to the event fact only. Daily detail and the annual rate base keep their grain (Q-007).",
+    "Paid members by payment method, payer type and concession type are needed day by day. The daily count detail and the gold daily fact gain the three segment keys in their grain, and the annual rate base keeps its grain (Q-007, answered by Mike, AMD-007).",
     "The concession reference is CE.vwConcessionType (Q-008).",
     "Employer findings use the top 25 employers by paid members in the last full Campaign Year, and count individually funded members with a contact-record employer separately (Q-010).",
     "Campaign Years before 2022, which the invoice source does not hold, get Not applicable (-2) for payment method, payer type and concession. They raise no invoice anomalies (Q-011).",
@@ -2669,11 +2891,12 @@
     "In Layercake.silv_member_state_ranges, valid_to is exclusive: a range covers [valid_from, valid_to), and a NULL valid_to is open-ended. A range is non-zero-length when valid_to is NULL or later than valid_from. Two non-zero-length ranges of one contact overlap when each starts before the other ends. Ranges that meet do not overlap, and a zero-length range never overlaps (Q-055, answered by Product Owner assumption ASM-012).",
     "The repository holds no Power BI model or extract definition, so it cannot be shown that nothing outside the database reads fact_daily_member_count_detail.id. The design widens it to bigint and keeps it (Q-056, answered by Product Owner assumption ASM-012).",
     "The AMD-006 speed target (daily count under 5 minutes, whole daily run under 15 minutes on a normal day) is the one real-data check in this release. A human checks it on production from Layercake.etl_run_log as a listed handover step. The agents' tests check on synthetic data that a normal run recomputes only the changed contacts and gives the same results as a full recompute, with no time limit. Q-026 still holds for data results (Q-057, answered by Product Owner assumption ASM-013).",
-    "Only a change to reference data covering dates from 2020-10-01 to the run date makes the daily count recompute the whole spine. The routine extension of ref_date_spine with dates after the run date, and the addition of a Campaign Year to ref_campaign_year_config that starts after the run date, do not (Q-058)."
+    "Only a change to reference data covering dates from 2020-10-01 to the run date makes the daily count recompute the whole spine. The routine extension of ref_date_spine with dates after the run date, and the addition of a Campaign Year to ref_campaign_year_config that starts after the run date, do not (Q-058).",
+    "Every measure counted for a contact on a day, including the Join, Renewal, Readmission and Lapse counts, sits in the cell of the contact's attributes for that day's Campaign Year, so a contact stays in one cell per day. A Join whose first paid position is in a later Campaign Year is therefore counted in the daily fact under the attributes of the Join day's Campaign Year, while fact_membership_events carries the later year's (RULE-017). Daily Join counts by segment therefore need not match the event fact (Q-060)."
   ],
   "out_of_scope": [
     "Power BI work: semantic model, DAX and report pages.",
-    "Payment method, payer type and concession keys on fact_daily_member_count_detail, fact_annual_rate_base, silv_daily_count_detail and silv_annual_rate_base (working default for Q-007).",
+    "Payment method, payer type and concession keys on the annual rate base tables, fact_annual_rate_base and silv_annual_rate_base (AMD-007; Q-007).",
     "Building the employer segment (landing, grouping, key and dimension). This release delivers findings only; full employer segmentation is planned for early 2027 (Q-020).",
     "Spreading corporate firm-level discounts across individuals (working default for Q-005).",
     "Any change to the Practising / Retired status logic other than replacing the retirement date it reads (REQ-017).",
@@ -2694,7 +2917,9 @@
     "A data anomaly type for corporate subscription rows with no Campaign Year (AMD-005).",
     "Speeding up the payment segment loads (about 3.5 minutes) and the bronze loads (AMD-006).",
     "The run schedule, including moving usp_run_daily_load after Subs.usp_Subs_Refresh_Data, which is a scheduling change (AMD-006).",
-    "Any change to the daily count rule or its results, the adjustment history, or the 'as known at' and adjustments review objects (AMD-006)."
+    "Any change to the daily count rule or its results at the old grain, to the adjustment history, or to the 'as known at' and adjustments review objects, beyond adding payment_method_id, payer_type_id and concession_type_id to their detail grain (AMD-006, AMD-007).",
+    "Further segments on the daily counts: employer (corporate account), currency and amounts (AMD-007).",
+    "The payment_method_carried, payer_type_carried and concession_type_carried flags on the daily count tables and the gold daily fact (AMD-007)."
   ],
   "open_questions": [
     {
@@ -2760,10 +2985,11 @@
       "id": "Q-007",
       "question": "Are paid members by payment method, payer type or concession needed day by day? That would change the grain of fact_daily_member_count_detail and fact_annual_rate_base and need a deliberate rebuild. Or are the event and annual views enough? (Finance, Membership Growth; BR-001 question 7)",
       "raised_by": "analyst",
-      "status": "open",
+      "status": "answered",
       "blocks": [
         "REQ-001"
-      ]
+      ],
+      "answer": "Yes, day by day, for the daily counts (Mike, AMD-007, 2026-11-20): fact_daily_member_count_detail and silv_daily_count_detail gain payment_method_id, payer_type_id and concession_type_id in their grain, and the larger row count is accepted. silv_daily_count keeps its grain and figures. The annual rate base (fact_annual_rate_base, silv_annual_rate_base) keeps its grain (REQ-026)."
     },
     {
       "id": "Q-008",
@@ -3154,6 +3380,15 @@
         "REQ-024"
       ],
       "answer": "No. The routine extension does not count as a change (ASM-014, answers 'Daily load speed: spec sign-off'). Only reference rows from 2020-10-01 up to the latest date marked in etl_daily_count_loaded count (campaign_year_start on or before it for ref_campaign_year_config; silv_ref_membership_status in full); later spine dates and future Campaign Years are not a change."
+    },
+    {
+      "id": "Q-060",
+      "question": "A contact-day takes the attributes of the Campaign Year of the day, and a contact sits in one cell per day. The event tables put a Join under the attributes of the contact's first paid position's Campaign Year (RULE-017). So a Join on 2024-06-01 (CY2024) whose first paid position is in CY2025 is counted in the daily fact (JoinEvents and ActiveMembers that day) under the CY2024 attributes, while fact_membership_events shows it under the CY2025 attributes. Daily Join counts by payment method, payer type or concession then need not match fact_membership_events. Is that acceptable? Working default: yes. Every measure on a day uses that day's Campaign Year, so the one-cell rule holds.",
+      "raised_by": "analyst",
+      "status": "open",
+      "blocks": [
+        "REQ-026"
+      ]
     }
   ]
 }
