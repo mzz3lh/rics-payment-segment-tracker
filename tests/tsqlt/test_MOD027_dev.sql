@@ -28,17 +28,17 @@ CREATE PROCEDURE test_MOD027_dev.[test rows_deleted counts the span trim and the
 AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
-        ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
+        ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 4, 4, 4, 0, 0, 0, 0);
+    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
-        (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
+        (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (9201, 7001, 1, 1, 2, 1, 4, 4, 4, 0, 0, 0, 0),
-           (9202, 7001, 2, 1, 2, 1, 1, 1, 1, 0, 0, 0, 0),
-           (9203, 7000, 1, 1, 2, 1, 4, 4, 4, 0, 0, 0, 0);
+    VALUES (9201, 7001, 1, 1, 2, 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0),
+           (9202, 7001, 2, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
+           (9203, 7000, 1, 1, 2, 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     EXEC Layercake.usp_load_fact_daily_member_count_detail;
@@ -70,19 +70,19 @@ CREATE PROCEDURE test_MOD027_dev.[test counts add up across one-day windows and 
 AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
-        ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
+        ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 2, 2, 2, 0, 0, 0, 0),
-           ('2022-03-02', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 3, 3, 3, 0, 0, 0, 0),
-           ('2022-03-03', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 5, 5, 5, 0, 0, 0, 0);
+    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0),
+           ('2022-03-02', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0),
+           ('2022-03-03', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
-        (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
+        (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (9301, 7001, 1, 1, 2, 1, 1, 1, 1, 0, 0, 0, 0),
-           (9302, 7002, 1, 1, 2, 1, 3, 3, 3, 0, 0, 0, 0),
-           (9303, 7002, 7, 1, 2, 1, 1, 1, 1, 0, 0, 0, 0);
+    VALUES (9301, 7001, 1, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
+           (9302, 7002, 1, 1, 2, 1, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0),
+           (9303, 7002, 7, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     EXEC Layercake.usp_load_fact_daily_member_count_detail @DetailBatchDays = 1;
@@ -131,18 +131,18 @@ CREATE PROCEDURE test_MOD027_dev.[test an overflow in a later window keeps the c
 AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
-        ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
+        ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2022-03-01', 2022, 'Q2', 'UK',       1, 1, 'election', 1, 2, 2, 2, 0, 0, 0, 0),
-           ('2022-03-02', 2022, 'Q2', 'UK',       1, 1, 'election', 1, 2147483647, 1, 1, 0, 0, 0, 0),
-           ('2022-03-02', 2022, 'Q2', 'Overseas', 1, 1, 'election', 1, 2147483647, 1, 1, 0, 0, 0, 0);
+    VALUES ('2022-03-01', 2022, 'Q2', 'UK',       1, 1, 'election', 1, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0),
+           ('2022-03-02', 2022, 'Q2', 'UK',       1, 1, 'election', 1, 0, 0, 0, 2147483647, 1, 1, 0, 0, 0, 0),
+           ('2022-03-02', 2022, 'Q2', 'Overseas', 1, 1, 'election', 1, 0, 0, 0, 2147483647, 1, 1, 0, 0, 0, 0);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
-        (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
+        (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (9401, 7001, 1, 1, 2, 1, 1, 1, 1, 0, 0, 0, 0),
-           (9402, 7002, 1, 1, 2, 1, 5, 2, 2, 0, 0, 0, 0);
+    VALUES (9401, 7001, 1, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
+           (9402, 7002, 1, 1, 2, 1, 0, 0, 0, 5, 2, 2, 0, 0, 0, 0);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     BEGIN TRY
