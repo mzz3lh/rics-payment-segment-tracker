@@ -183,7 +183,7 @@ BEGIN
     SELECT v.object_name, v.column_count, v.segment_int_columns, v.segment_not_null_columns
     INTO #Expected
     FROM (VALUES (N'silv_daily_count_adjustment', 20, 3, 3),
-                 (N'etl_daily_count_cell_contacts', 15, 3, 3),
+                 (N'etl_daily_count_cell_contacts', 12, 3, 3),
                  (N'vw_silv_daily_count_adjustment_review', 14, 3, NULL),
                  (N'fn_silv_daily_count_detail_as_known_at', 16, 3, NULL)) AS v(object_name, column_count, segment_int_columns, segment_not_null_columns);
 
@@ -543,11 +543,14 @@ BEGIN
            (3, N'Y7', '2025-06-01', NULL, 2025, 'lapse', 'UK', 2);
     INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date)
     VALUES (N'Y6', 6, 1, NULL), (N'Y7', 7, 1, NULL);
+    INSERT INTO Layercake.silv_payment_events (contact_no, campaign_year, payment_date, renewal_date_adj, invoice_position)
+    VALUES (N'Y7', 2025, '2024-10-20', '2024-10-20', N'Fully Paid');
     INSERT INTO Layercake.silv_membership_events
         (event_id, event_nk, event_type, event_subtype, event_date, contact_no, grade_id, assessment_route_id, rpq_variant_id, hpb_id,
          country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
          payment_method_id, payment_method_carried, payer_type_id, payer_type_carried, concession_type_id, concession_type_carried)
-    VALUES (701, N'LA:Y7:2025', 'Lapse', 'Standard', '2025-06-01', N'Y7', 0, 0, 0, 0, 7, 1, 0, 2025, 'Q3', 0, 0, 0, 0, 0, 0);
+    VALUES (700, N'RN:Y7:2025', 'Renewal', 'Standard', '2024-10-20', N'Y7', 2, 0, 0, 0, 7, 1, 1, 2025, 'Q1', 0, 0, 0, 0, 0, 0),
+           (701, N'LA:Y7:2025', 'Lapse', 'Standard', '2025-06-01', N'Y7', 0, 0, 0, 0, 7, 1, 0, 2025, 'Q3', 0, 0, 0, 0, 0, 0);
     INSERT INTO Layercake.silv_member_year_attributes (contact_no, campaign_year, payment_method_id, payment_method_carried, payer_type_id, payer_type_carried, concession_type_id, concession_type_carried, load_id)
     VALUES (N'Y6', 2025, 5, 0, 2, 0, 1, 0, 1),
            (N'Y7', 2025, 2, 0, 1, 0, 1, 0, 1);
@@ -561,8 +564,8 @@ BEGIN
     INTO #Expected
     FROM (VALUES ('2025-01-10', 'UK', 6, 1, 'enrolment', 0, 5, 2, 1, 1, 0, 0, 0, 0, 0, 0),
                  ('2025-06-01', 'UK', 6, 1, 'enrolment', 0, 5, 2, 1, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 7, 1, 'election', 1, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-06-01', 'UK', 7, 1, 'lapse', 0, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1))
+                 ('2025-01-10', 'UK', 7, 1, 'election', 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
+                 ('2025-06-01', 'UK', 7, 1, 'lapse', 0, 2, 1, 1, 0, 1, 1, 0, 0, 0, 1))
          AS v([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
               active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count);
 
@@ -579,8 +582,8 @@ BEGIN
     INTO #ExpectedFact
     FROM (VALUES (1, 6, 1, 1, 0, 5, 2, 1, 1, 0, 0, 0, 0, 0, 0),
                  (2, 6, 1, 1, 0, 5, 2, 1, 1, 0, 0, 0, 0, 0, 0),
-                 (1, 7, 1, 2, 1, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0),
-                 (2, 7, 1, 0, 0, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1))
+                 (1, 7, 1, 2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
+                 (2, 7, 1, 0, 0, 2, 1, 1, 0, 1, 1, 0, 0, 0, 1))
          AS v(date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
               ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents);
 

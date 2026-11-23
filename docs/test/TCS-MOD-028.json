@@ -4,20 +4,20 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-028",
-    "version": 1,
+    "version": 2,
     "produced_by": "tester",
-    "produced_at": "2026-11-23T14:41:30Z",
-    "status": "rejected",
+    "produced_at": "2026-11-23T16:05:14Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike",
-      "approved_at": "2026-11-23T16:03:54Z",
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-23T16:05:41Z",
       "gate": "test_design_review",
-      "comments": "Reopened: TC-028-002: the expected column count of etl_daily_count_cell_contacts is 12, not 15 (MOD-026 table has 9 columns; DES-001 lists 12); the other three counts stay. TC-028-010: keep event_lapse_count 1 (AC-026-06), but give Y7 a CY2025 paid-in before the lapse, because the unchanged Phase 1 rule counts a lapse only after a paid-in in the same Campaign Year. Add silv_payment_events ('Y7', 2025, 2024-10-20, renewal_date_adj 2024-10-20, 'Fully Paid') and a Renewal event 'RN:Y7:2025' dated 2024-10-20 (CY2025 Q1, grade 2, status 1). Drop 'no payments' from the preconditions. Y7's expected rows then gain paid_count 1 and paid_count_event 1 on both dates (fact PaidMembers 1 and PaidMembersEvent 1), and lapse stays 1 on 2025-06-01."
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
   },
   "module_id": "MOD-028",
@@ -51,8 +51,8 @@
       "acceptance_criterion_id": "AC-026-01",
       "category": "happy_path",
       "description": "silv_daily_count_adjustment, etl_daily_count_cell_contacts, vw_silv_daily_count_adjustment_review and fn_silv_daily_count_detail_as_known_at each gain the three segment ids and nothing else.",
-      "preconditions": "Common SetUp (TC-028-001). Real tables through the renamed-object log; the view and function through OBJECT_ID. Nullability is asserted for the two tables only.",
-      "expected": "Column counts 20, 15, 14 and 16 (each earlier count plus 3); all four carry payment_method_id, payer_type_id and concession_type_id as int; on the two tables all three are NOT NULL.",
+      "preconditions": "Common SetUp (TC-028-001). Real tables through the renamed-object log; the view and function through OBJECT_ID. Nullability is asserted for the two tables only. etl_daily_count_cell_contacts has 9 columns before MOD-028 (MOD-026) and 12 in DES-001 after it.",
+      "expected": "Column counts 20, 12, 14 and 16 (each earlier count plus 3); all four carry payment_method_id, payer_type_id and concession_type_id as int; on the two tables all three are NOT NULL.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD028].[test TC-028-002 adjustment history cell counts review view and detail function gain the three segment ids]"
     },
@@ -157,8 +157,8 @@
       "acceptance_criterion_id": "AC-026-06",
       "category": "happy_path",
       "description": "The attributes apply to every grade: enrolment contact Y6 (2025 Corporate / Corporate / No concession) and the Lapse of Y7 dated 2025-06-01 (2025 Card / Individual / No concession) are counted in their attributes' cells.",
-      "preconditions": "Common SetUp. Spine and dim_date 2025-01-10 (id 1, CY2025 Q2), 2025-06-01 (id 2, CY2025 Q3). Y6: open enrolment range UK from 2024-11-01, country 6, gender 1. Y7: election range UK 2015-01-01 to 2025-06-01 (exclusive), lapse range from 2025-06-01, Lapse event 2025-06-01 (CY2025), country 7, gender 1, no payments.",
-      "expected": "Detail is exactly: Y6 (UK, 6, 1, enrolment, 0, 5, 2, 1) on both dates 1/0/0/0/0/0/0; Y7 2025-01-10 (UK, 7, 1, election, 1, 2, 1, 1) 1/0/0/0/0/0/0; Y7 2025-06-01 (UK, 7, 1, lapse, 0, 2, 1, 1) 0/0/0/0/0/0/1 (event_lapse_count 1). Fact: (1 and 2, 6, 1, Candidate 1, 0, 5, 2, 1) ActiveMembers 1; (1, 7, 1, 2, 1, 2, 1, 1) ActiveMembers 1; (2, 7, 1, 0, 0, 2, 1, 1) LapseEvents 1.",
+      "preconditions": "Common SetUp. Spine and dim_date 2025-01-10 (id 1, CY2025 Q2), 2025-06-01 (id 2, CY2025 Q3). Y6: open enrolment range UK from 2024-11-01, country 6, gender 1. Y7: election range UK 2015-01-01 to 2025-06-01 (exclusive), lapse range from 2025-06-01, country 7, gender 1; silv_payment_events ('Y7', 2025, payment_date 2024-10-20, renewal_date_adj 2024-10-20, 'Fully Paid'); Renewal event 'RN:Y7:2025' (Standard) dated 2024-10-20, CY2025 Q1, grade 2, status 1; Lapse event 'LA:Y7:2025' dated 2025-06-01 (CY2025). The Renewal is the CY2025 paid-in the unchanged Phase 1 rule needs before a lapse counts; 2024-10-20 is not a spine date, so no renewal flow appears.",
+      "expected": "Detail is exactly (active/paid/paid_event/join/renewal/readmission/lapse): Y6 (UK, 6, 1, enrolment, 0, 5, 2, 1) on both dates 1/0/0/0/0/0/0; Y7 2025-01-10 (UK, 7, 1, election, 1, 2, 1, 1) 1/1/1/0/0/0/0; Y7 2025-06-01 (UK, 7, 1, lapse, 0, 2, 1, 1) 0/1/1/0/0/0/1 (event_lapse_count 1). Fact: (1 and 2, 6, 1, Candidate 1, 0, 5, 2, 1) ActiveMembers 1; (1, 7, 1, 2, 1, 2, 1, 1) ActiveMembers 1, PaidMembers 1, PaidMembersEvent 1; (2, 7, 1, 0, 0, 2, 1, 1) PaidMembers 1, PaidMembersEvent 1, LapseEvents 1.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD028].[test TC-028-010 enrolment Y6 and the Lapse of Y7 are counted in the cells of their 2025 attributes]"
     },
