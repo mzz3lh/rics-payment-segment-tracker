@@ -1,0 +1,392 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-028",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-23T14:41:30Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-23T15:09:27Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-028",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-028-001",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-01",
+      "category": "happy_path",
+      "description": "silv_daily_count_detail and fact_daily_member_count_detail have exactly their earlier columns plus payment_method_id, payer_type_id and concession_type_id, all not null int.",
+      "preconditions": "Common SetUp (every test): every table the daily count and gold load read or write is faked (etl_run_log and etl_progress_log with identity and defaults; etl_daily_count_loaded, pending_rebuild, input_basis, the five etl_daily_count_applied_* tables including the new etl_daily_count_applied_attribute, etl_daily_count_cell_contacts, silv_daily_count_adjustment (identity), silv_daily_count_detail, silv_daily_count, ref_date_spine, ref_campaign_year_config (CY2021-CY2027, 1 Oct to 30 Sep), silv_ref_membership_status (0 N/A, 1 Practising, 2 Retired), silv_ref_membership_grade and dim_membership_grade (0 N/A, 1 Candidate, 2 Qualified), silv_membership_events, silv_member_state_ranges, silv_member_profile, silv_payment_events, silv_member_year_attributes, fact_daily_member_count_detail (identity), dim_date, and the payment method (0, -1, -2, 1 Direct Debit, 2 Card, 3 Bank transfer, 4 Cheque, 5 Corporate), payer type (0, -1, -2, 1 Individual, 2 Corporate) and concession type (0, -1, -2, 1 No concession, 6 Exceptional Hardship) lists and dimensions). Here the real tables are read through tSQLt.Private_RenamedObjectLog and sys.columns.",
+      "expected": "Detail: date, campaign_year, campaign_quarter (char), region, grade (varchar), country_id, gender_id, membership_status_id, the seven measures and the three new ids (int), 18 columns all NOT NULL. Fact: id bigint, date_id, country_id, gender_id, membership_grade_id, membership_status_id, the three new ids and the seven Phase 1 measures, 16 columns, all int except id, all NOT NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-001 detail and fact keep their columns and gain three not null int segment ids]"
+    },
+    {
+      "id": "TC-028-002",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-019",
+        "REQ-020",
+        "REQ-024"
+      ],
+      "acceptance_criterion_id": "AC-026-01",
+      "category": "happy_path",
+      "description": "silv_daily_count_adjustment, etl_daily_count_cell_contacts, vw_silv_daily_count_adjustment_review and fn_silv_daily_count_detail_as_known_at each gain the three segment ids and nothing else.",
+      "preconditions": "Common SetUp (TC-028-001). Real tables through the renamed-object log; the view and function through OBJECT_ID. Nullability is asserted for the two tables only.",
+      "expected": "Column counts 20, 15, 14 and 16 (each earlier count plus 3); all four carry payment_method_id, payer_type_id and concession_type_id as int; on the two tables all three are NOT NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-002 adjustment history cell counts review view and detail function gain the three segment ids]"
+    },
+    {
+      "id": "TC-028-003",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-025"
+      ],
+      "acceptance_criterion_id": "AC-026-01",
+      "category": "happy_path",
+      "description": "The fact's unique clustered index covers exactly the eight grain columns, no foreign key is defined on the three new columns, and id is still bigint.",
+      "preconditions": "Common SetUp (TC-028-001); the real fact table is read through the renamed-object log.",
+      "expected": "Unique clustered index key columns are exactly date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id. 0 foreign key columns on the three new ids. id type bigint.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-003 fact unique clustered index covers the eight grain columns with no foreign key on the new ids and id bigint]"
+    },
+    {
+      "id": "TC-028-004",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-026-01",
+      "category": "negative",
+      "description": "silv_daily_count and fn_silv_daily_count_as_known_at keep their grain: no segment column is added to either.",
+      "preconditions": "Common SetUp (TC-028-001); the real silv_daily_count through the renamed-object log.",
+      "expected": "silv_daily_count has exactly date, campaign_year, campaign_quarter, region, grade and the seven measures (12 columns). The function returns exactly date, region, grade and the seven measures (10 columns).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-004 silv_daily_count columns and fn_silv_daily_count_as_known_at result columns are unchanged]"
+    },
+    {
+      "id": "TC-028-005",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-02",
+      "category": "happy_path",
+      "description": "Y1, election, Practising, UK, country 1, gender 1 from 2023-10-01, with 2024 attributes Direct Debit / Individual / No concession and 2025 Card / Individual / No concession, splits across cells at 1 October in silver and gold.",
+      "preconditions": "Common SetUp. Spine and dim_date 2024-09-01 (id 1, CY2024 Q4), 2024-09-30 (2, CY2024 Q4), 2024-10-01 (3, CY2025 Q1), 2025-03-31 (4, CY2025 Q2). Y1: open election range UK from 2023-10-01, profile country 1 gender 1. The daily count and the gold load are called directly (usp_run_daily_load reaches them; the run order is MOD-029's).",
+      "expected": "Detail is exactly 4 rows (UK, 1, 1, election, status 1), active 1 and every other measure 0: 2024-09-01 (2024, Q4) and 2024-09-30 (2024, Q4) with ids (1, 1, 1); 2024-10-01 (2025, Q1) and 2025-03-31 (2025, Q2) with ids (2, 1, 1). Fact is exactly date_ids 1 and 2 with (country 1, gender 1, grade 2 Qualified, status 1, 1, 1, 1) and date_ids 3 and 4 with (…, 2, 1, 1), each ActiveMembers 1 and other measures 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-005 Y1 moves from the Direct Debit cell to the Card cell on 1 October in silver and gold]"
+    },
+    {
+      "id": "TC-028-006",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-03",
+      "category": "nulls",
+      "description": "A contact-day with no attributes row for the day's Campaign Year takes 0 Unknown for all three ids: Y2 has no attributes at all, Y2B has only a 2024 row.",
+      "preconditions": "Common SetUp. Spine and dim_date 2025-01-10 (id 1, CY2025 Q2). Y2 (country 2) and Y2B (country 22), both open election ranges UK from 2024-10-01, gender 1. Y2B attributes 2024 Card / Individual / No concession only.",
+      "expected": "Detail is exactly (2025-01-10, UK, 2, 1, election, 1, 0, 0, 0) and (2025-01-10, UK, 22, 1, election, 1, 0, 0, 0), each active 1, other measures 0. Fact is exactly (1, 2, 1, 2, 1, 0, 0, 0) and (1, 22, 1, 2, 1, 0, 0, 0), ActiveMembers 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-006 Y2 with no attributes row for the day Campaign Year is counted under 0 Unknown]"
+    },
+    {
+      "id": "TC-028-007",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-04",
+      "category": "happy_path",
+      "description": "Y3 active on 2021-05-01 with 2021 attributes -2 / -2 / -2 is counted under -2 Not applicable in silver and gold.",
+      "preconditions": "assumes Q-011: Campaign Years before 2022 hold -2 Not applicable. Common SetUp. Spine and dim_date 2021-05-01 (id 1, CY2021 Q3). Y3: open election range UK from 2020-01-01, country 3, gender 1.",
+      "expected": "Detail is exactly (2021-05-01, UK, 3, 1, election, 1, -2, -2, -2) active 1, other measures 0. Fact is exactly (1, 3, 1, 2, 1, -2, -2, -2) ActiveMembers 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-007 Y3 on 2021-05-01 is counted under -2 Not applicable from its 2021 attributes]"
+    },
+    {
+      "id": "TC-028-008",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-04",
+      "category": "boundary",
+      "description": "At the 2022 boundary the cell follows the attributes row of each day's Campaign Year: 30 September 2021 takes the 2021 row (or 0 where there is none), 1 October 2021 takes the 2022 row.",
+      "preconditions": "assumes Q-011. Common SetUp. Spine 2021-09-30 (CY2021 Q4) and 2021-10-01 (CY2022 Q1). Y12 (country 12) attributes 2022 Card / Individual / No concession only; Y13 (country 13) 2021 -2 / -2 / -2 and 2022 Card / Individual / No concession. Both open election ranges UK from 2020-01-01, gender 1.",
+      "expected": "Detail is exactly, each active 1 and other measures 0: Y12 2021-09-30 (0, 0, 0), 2021-10-01 (2, 1, 1); Y13 2021-09-30 (-2, -2, -2), 2021-10-01 (2, 1, 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-008 the cell changes on 2021-10-01 from the 2021 row or 0 to the 2022 attributes]"
+    },
+    {
+      "id": "TC-028-009",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-05",
+      "category": "happy_path",
+      "description": "Carried flags are not part of the grain: Y4 (payment method and payer type carried) and Y5 (not carried) with the same 2026 ids share one cell, and neither the detail nor the fact has a carried flag column.",
+      "preconditions": "Common SetUp. Spine and dim_date 2025-11-01 (id 1, CY2026 Q1). Y4 and Y5: open election ranges UK from 2015-01-01, country 1, gender 1, the only contacts. 2026 attributes Card / Individual / No concession; Y4 payment_method_carried 1 and payer_type_carried 1, Y5 0 and 0.",
+      "expected": "Detail is exactly one row (2025-11-01, UK, 1, 1, election, 1, 2, 1, 1) active 2, other measures 0. Fact is exactly (1, 1, 1, 2, 1, 2, 1, 1) ActiveMembers 2. 0 columns named payment_method_carried, payer_type_carried or concession_type_carried on the real detail and fact tables.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-009 Y4 carried and Y5 not carried share one cell and no carried flag column exists]"
+    },
+    {
+      "id": "TC-028-010",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-06",
+      "category": "happy_path",
+      "description": "The attributes apply to every grade: enrolment contact Y6 (2025 Corporate / Corporate / No concession) and the Lapse of Y7 dated 2025-06-01 (2025 Card / Individual / No concession) are counted in their attributes' cells.",
+      "preconditions": "Common SetUp. Spine and dim_date 2025-01-10 (id 1, CY2025 Q2), 2025-06-01 (id 2, CY2025 Q3). Y6: open enrolment range UK from 2024-11-01, country 6, gender 1. Y7: election range UK 2015-01-01 to 2025-06-01 (exclusive), lapse range from 2025-06-01, Lapse event 2025-06-01 (CY2025), country 7, gender 1, no payments.",
+      "expected": "Detail is exactly: Y6 (UK, 6, 1, enrolment, 0, 5, 2, 1) on both dates 1/0/0/0/0/0/0; Y7 2025-01-10 (UK, 7, 1, election, 1, 2, 1, 1) 1/0/0/0/0/0/0; Y7 2025-06-01 (UK, 7, 1, lapse, 0, 2, 1, 1) 0/0/0/0/0/0/1 (event_lapse_count 1). Fact: (1 and 2, 6, 1, Candidate 1, 0, 5, 2, 1) ActiveMembers 1; (1, 7, 1, 2, 1, 2, 1, 1) ActiveMembers 1; (2, 7, 1, 0, 0, 2, 1, 1) LapseEvents 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-010 enrolment Y6 and the Lapse of Y7 are counted in the cells of their 2025 attributes]"
+    },
+    {
+      "id": "TC-028-011",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-07",
+      "category": "boundary",
+      "description": "Y8's Join dated 2024-06-01 (CY2024) with a first paid position in CY2025 is counted in the daily count under its 2024 attributes (Card), while the event fact carries the 2025 attributes (Direct Debit).",
+      "preconditions": "assumes Q-060: every measure on a day sits under the attributes of that day's Campaign Year. Common SetUp plus fakes of silv_event_amount and fact_membership_events. Spine and dim_date 2024-06-01 (id 1, CY2024 Q3). Y8: open enrolment range UK from 2024-06-01, country 8, gender 1; Join event 801 dated 2024-06-01 CY2024 in silver and gold with segment columns 0; payment CY2025 dated 2024-10-15; attributes 2024 Card / Individual / No concession and 2025 Direct Debit / Individual / No concession. Runs usp_load_silv_membership_events_segments, usp_load_fact_membership_events_segments (existing, unchanged), the daily count and the gold load.",
+      "expected": "Detail is exactly one row (2024-06-01, UK, 8, 1, enrolment, 0, 2, 1, 1) active 1, paid 0, paid_count_event 1, event_join_count 1, others 0. fact_membership_events 801 has payment_method_id 1, payer_type_id 1, concession_type_id 1. The daily fact is exactly (1, 8, 1, Candidate 1, 0, 2, 1, 1) with ActiveMembers 1, PaidMembersEvent 1, JoinEvents 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-011 Y8 Join on 2024-06-01 is counted under its 2024 Card attributes while the event carries Direct Debit]"
+    },
+    {
+      "id": "TC-028-012",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-08",
+      "category": "reconciliation",
+      "description": "Four contacts in one old-grain cell with different attributes split into three segment cells, and every total at the old grain, silv_daily_count and the fact summed over the three ids keep the figures the old grain gives.",
+      "preconditions": "Common SetUp. Spine and dim_date 2025-01-10 (id 1, CY2025 Q2). R1-R4: open election ranges UK from 2015-01-01, country 1, gender 1. R2 has a CY2025 payment and a Renewal dated 2024-10-20. Attributes 2025: R1 Direct Debit, R2 and R3 Card (all Individual, No concession); R4 none.",
+      "expected": "Detail: (UK, 1, 1, election, 1, 1, 1, 1) 1/0/0/0/0/0/0; (…, 2, 1, 1) 2/1/1/0/0/0/0; (…, 0, 0, 0) 1/0/0/0/0/0/0. Summed over the three ids: (2025-01-10, UK, 1, 1, election, 1) 4/1/1/0/0/0/0. silv_daily_count exactly (2025-01-10, 2025, Q2, UK, election) 4/1/1/0/0/0/0. Cell counts sum to 4. Fact summed over the three ids exactly (1, 1, 1, 2, 1) 4/1/1/0/0/0/0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-012 totals at the old grain and silv_daily_count are unchanged by the segment split]"
+    },
+    {
+      "id": "TC-028-013",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-024"
+      ],
+      "acceptance_criterion_id": "AC-026-12",
+      "category": "negative",
+      "description": "A new concession type added to silv_ref_concession_type and dim_concession_type, with no attribute change, is not a daily count input: the next run recomputes 0 contacts on the normal path and changes nothing.",
+      "preconditions": "Common SetUp. Spine 2024-09-30 and 2024-10-01; Y1 as in TC-028-005. Run 1 and gold; snapshots of detail, daily and the fact (every column, id included). Concession type 7 'Bereavement' added to the silver list and the dimension. Run 2 and gold. AC-026-12 names usp_run_daily_load; here the daily count and gold loads it calls are run directly.",
+      "expected": "Run 2 logs 'contacts_recomputed' 0 and 'full_recompute_path' 0, writes 0 adjustment rows, and silv_daily_count_detail, silv_daily_count and fact_daily_member_count_detail equal their snapshots.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-013 a new concession type alone recomputes 0 contacts on the normal path and changes nothing]"
+    },
+    {
+      "id": "TC-028-014",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-024",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-026-12",
+      "category": "happy_path",
+      "description": "The counterpart of AC-026-12 (RULE-160): a change to Y1's 2025 payment method alone, Card to Direct Debit, makes Y1 a changed contact on the normal path, moves its 2025 days and writes adjustment rows with the actual ids, and equals a full recompute.",
+      "preconditions": "Common SetUp. Spine 2024-09-30 (CY2024 Q4), 2024-10-01 (CY2025 Q1), 2025-03-31 (CY2025 Q2); Y1 as in TC-028-005. Run 1; snapshot of silv_daily_count; Y1's 2025 payment_method_id set to 1; run 2; snapshot of detail; run 3 with @FullRebuild = 1.",
+      "expected": "Run 2 logs 'contacts_recomputed' 1 and 'full_recompute_path' 0. Detail after run 2 is exactly the 3 dates under (1, 1, 1), active 1. Run 2's adjustment rows are exactly 4: on 2024-10-01 and 2025-03-31, (UK, 1, 1, election, 1, 2, 1, 1) active -1 and (…, 1, 1, 1) active +1, other changes 0; none dated 2024-09-30. silv_daily_count is unchanged by run 2. Run 3 writes 0 adjustment rows and leaves the detail identical.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-014 Y1 2025 payment method change alone moves its days from 1 October and matches a full recompute]"
+    },
+    {
+      "id": "TC-028-015",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-024",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-026-12",
+      "category": "happy_path",
+      "description": "Any of the three ids in any Campaign Year, and an attributes row that goes, makes a changed contact (RULE-160): Y10's 2023 concession No concession to Exceptional Hardship, Y11's 2025 payer type Individual to Corporate, and Y9's only (2025) row deleted. Only the days of the changed Campaign Year move.",
+      "preconditions": "Common SetUp. Spine 2023-09-30 (CY2023 Q4), 2023-10-01 (CY2024 Q1), 2025-01-10 (CY2025 Q2). Y9 (country 9), Y10 (10), Y11 (11): open election ranges UK from 2015-01-01, gender 1. Attributes: Y9 2025 Card; Y10 2023, 2024, 2025 Card; Y11 2024 and 2025 Corporate payment method; all Individual and No concession. Run 1; the three changes; run 2; run 3 with @FullRebuild = 1.",
+      "expected": "Run 2 logs 'contacts_recomputed' 3 and 'full_recompute_path' 0. Detail (all active 1): Y9 (0, 0, 0) on all 3 dates; Y10 2023-09-30 (2, 1, 6), 2023-10-01 and 2025-01-10 (2, 1, 1); Y11 2023-09-30 (0, 0, 0), 2023-10-01 (5, 1, 1), 2025-01-10 (5, 2, 1). Run 2's adjustment rows are exactly 6: 2023-09-30 Y10 (2, 1, 1) -1 and (2, 1, 6) +1; 2025-01-10 Y11 (5, 1, 1) -1 and (5, 2, 1) +1; 2025-01-10 Y9 (2, 1, 1) -1 and (0, 0, 0) +1 (active only). Run 3 writes 0 adjustment rows and leaves the detail identical.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-015 concession and payer type changes and a removed attributes row each make a changed contact]"
+    },
+    {
+      "id": "TC-028-016",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-025"
+      ],
+      "acceptance_criterion_id": "AC-026-15",
+      "category": "reconciliation",
+      "description": "Gold carries the silver ids as dim keys: no NULL, no orphan against dim_payment_method, dim_payer_type and dim_concession_type (real, 0 and -2 ids), the fact holds exactly the silver cells mapped to the star grain, and the row-count check passes.",
+      "preconditions": "Common SetUp (the three dimensions hold 0, -1, -2 and the real ids). Spine and dim_date 2021-05-01 (1), 2024-09-30 (2), 2024-10-01 (3). Y1 as in TC-028-005; Y2 (country 2) from 2024-10-01 with no attributes; Y3 (country 3) from 2020-01-01 with a 2021 -2 row only. All election UK, gender 1.",
+      "expected": "Gold step status 'Success'. 0 fact rows with a NULL id column; 0 orphans. Fact is exactly (date_id, country, gender, grade 2, status 1, pm, pt, ct) ActiveMembers 1: (1, 3, …, -2, -2, -2), (2, 1, …, 1, 1, 1), (2, 3, …, 0, 0, 0), (3, 1, …, 2, 1, 1), (3, 2, …, 0, 0, 0), (3, 3, …, 0, 0, 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-016 gold carries resolvable dim keys for real 0 and -2 ids and matches silver cell for cell]"
+    },
+    {
+      "id": "TC-028-017",
+      "requirement_ids": [
+        "REQ-025",
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-15",
+      "category": "happy_path",
+      "description": "Gold syncs cell by cell on the eight-column key (RULE-164): after Y1's 2025 method moves to Direct Debit, the Direct Debit cells it joins are updated in place keeping their id, its Card cells are deleted, unchanged cells keep id and values, and a hand-added row matching a silver cell in every grain column except payment_method_id is deleted.",
+      "preconditions": "Common SetUp. Spine and dim_date 2024-09-30 (1), 2024-10-01 (2), 2025-03-31 (3). Y1 as in TC-028-005; Z1 (country 1, gender 1, election UK from 2023-10-01) with a 2025 Direct Debit row only. Run 1 and gold; fact snapshot with ids. Y1's 2025 method set to 1; daily run 2; hand row (date_id 1, 1, 1, 2, 1, payment 3, 1, 1, ActiveMembers 1) inserted; gold run 2.",
+      "expected": "Gold run 2 logs 'Success', rows_inserted 0, rows_updated 2, rows_deleted 3. Fact is exactly 4 rows, each with the id it had in the snapshot: (1, 1, 1, 2, 1, 1, 1, 1) 1; (1, 1, 1, 2, 1, 0, 0, 0) 1; (2, 1, 1, 2, 1, 1, 1, 1) 2; (3, 1, 1, 2, 1, 1, 1, 1) 2 (ActiveMembers; other measures 0).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-017 gold syncs cell by cell on the eight-column key keeping ids and deleting a hand row]"
+    },
+    {
+      "id": "TC-028-018",
+      "requirement_ids": [
+        "REQ-025",
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-15",
+      "category": "idempotency",
+      "description": "A rerun of the daily count and the gold load on unchanged data recomputes 0 contacts and changes no fact row or id.",
+      "preconditions": "Common SetUp. Spine 2024-09-30, 2024-10-01; Y1 as in TC-028-005. Run 1 and gold; fact snapshot (every column); run 2 and gold.",
+      "expected": "Run 2 logs 'contacts_recomputed' 0; gold run 2 logs rows_inserted 0, rows_updated 0, rows_deleted 0; the fact equals its snapshot, id included.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-018 a rerun on unchanged silver logs 0 0 0 and leaves every fact row and id unchanged]"
+    },
+    {
+      "id": "TC-028-019",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-019",
+        "REQ-024"
+      ],
+      "acceptance_criterion_id": "AC-026-17",
+      "category": "happy_path",
+      "description": "The first run after deployment, with no source change, finds the 'detail_grain_restatement' marker, takes the full path, writes every loaded date at the segment grain, writes no adjustment row, keeps the pre-deployment adjustment row unchanged, leaves silv_daily_count identical, removes the marker, and the gold sync splits the -2 fact cells; a later @FullRebuild changes nothing.",
+      "preconditions": "The migration's result is simulated (the migration itself is not run by tSQLt): Common SetUp; spine and dim_date 2025-01-09 (1), 2025-01-10 (2), CY2025 Q2. R1, R2, R3 as in TC-028-012 (R1 Direct Debit, R2 Card with payment and Renewal 2024-10-20, R3 no attributes). Run 1 and gold. Then detail, cell counts and fact are replaced by their sums at the old grain with -2 in the three ids; one pre-deployment adjustment row (run R0, load_id 7, written 2025-01-10 07:00, 2025-01-10, UK, 1, 1, election, 1, -2, -2, -2, active +1) is added; the five snapshot tables are emptied; the marker ('detail_grain_restatement', '', 2020-10-01) is written; silv_daily_count snapshot. Run 2 and gold; then @FullRebuild = 1 as run 3.",
+      "expected": "Run 2 logs 'full_recompute_path' 1. No marker row remains. The adjustment table holds exactly the R0 row with all its values. Detail on each date is exactly (UK, 1, 1, election, 1) under (1, 1, 1) 1/0/0/0/0/0/0, (2, 1, 1) 1/1/1/0/0/0/0 and (0, 0, 0) 1/0/0/0/0/0/0; silv_daily_count equals its snapshot; cell counts are those 6 cells with contact_count 1; the fact is exactly the same 6 cells (grade 2, status 1) with no -2 row. Run 3 writes 0 adjustment rows and leaves the detail identical.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-019 the first run after deployment restates the -2 cells at the segment grain writing no adjustment]"
+    },
+    {
+      "id": "TC-028-020",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-026-17",
+      "category": "happy_path",
+      "description": "A real source change found by the restating run (a Renewal for R3 on 2025-01-10) is recorded at the old grain with -2 in the three ids, while the change of grain itself writes nothing.",
+      "preconditions": "Q-061 answered: real changes on the restating run are recorded at the old grain with -2. Data and simulated deployment as in TC-028-019 (without the pre-deployment adjustment row or gold); then a Renewal event for R3 dated 2025-01-10 (CY2025) is added; run 2.",
+      "expected": "Run 2's adjustment rows are exactly one: (2025-01-10, UK, 1, 1, election, 1, -2, -2, -2) paid_count_event_change +1, event_renewal_count_change +1, other changes 0. Detail as in TC-028-019 except R3's (0, 0, 0) cell on 2025-01-10 is 1/0/1/0/1/0/0. No marker row remains.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-020 a real change found by the restating run is recorded at the old grain with -2]"
+    },
+    {
+      "id": "TC-028-021",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-019",
+        "REQ-024"
+      ],
+      "acceptance_criterion_id": "AC-026-17",
+      "category": "negative",
+      "description": "A restating run that fails part way re-raises the error, logs 'Failed' and keeps the marker; the next run, with no cleanup, completes, removes the marker and leaves adjustment rows that add up to the one real change at the old grain.",
+      "preconditions": "Runs without tSQLt's transaction. Data and simulated deployment as in TC-028-020 (no Renewal). The faked detail and cell-count tables get region NOT NULL, and a new contact D6 (election from 2025-01-10, region NULL, country 7, gender 1) is added. Run 2 with @DailyCountBatchDays = 1 must fail with error 515; which batches commit before the failure is the implementation's choice, so the assertions hold either way. D6's region is set to 'UK'; run 3.",
+      "expected": "Run 2 raises 515, its step row is 'Failed' and the marker row is still present. Run 3 is 'Success' and no marker row remains. Runs 2 and 3's adjustments summed per cell are exactly (2025-01-10, UK, 7, 1, election, 1, -2, -2, -2) active +1. Detail is exactly TC-028-019's 6 split rows plus (2025-01-10, UK, 7, 1, election, 1, 0, 0, 0) 1/0/0/0/0/0/0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-021 a restating run that fails part way keeps the marker and the next run finishes with no cleanup]"
+    },
+    {
+      "id": "TC-028-022",
+      "requirement_ids": [
+        "REQ-020",
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-18",
+      "category": "reconciliation",
+      "description": "'As known at' a time T between two pre-deployment adjustments gives the same figures at the silv_daily_count grain and, summed over the three ids, at the old detail grain, before and after the restating run.",
+      "preconditions": "assumes Q-049: only changes written strictly after T are subtracted. Data and simulated deployment as in TC-028-020 (no real change), with two pre-deployment adjustment rows (-2 ids): written 2025-01-10 08:00 on 2025-01-10 active +1; written 2025-01-10 09:00 on 2025-01-09 paid +1. T = 2025-01-10 08:30, range 2020-10-01 to 2025-01-10. Both functions read before and after run 2.",
+      "expected": "fn_silv_daily_count_as_known_at at T, before and after run 2: (2025-01-09, UK, election) 3/0/1/0/0/0/0 and (2025-01-10, UK, election) 3/1/1/0/0/0/0. fn_silv_daily_count_detail_as_known_at at T summed over the three ids, before and after: (2025-01-09, UK, 1, 1, election, 1) 3/0/1/0/0/0/0 and (2025-01-10, …) 3/1/1/0/0/0/0. 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-022 figures as known at a time before deployment are unchanged by the restating run]"
+    },
+    {
+      "id": "TC-028-023",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-01",
+      "category": "happy_path",
+      "description": "The adjustments review view copies the three ids from each adjustment row: a pre-deployment row shows -2, a row written after it shows its cell's actual ids.",
+      "preconditions": "Common SetUp. Spine 2024-10-01 (CY2025 Q1); Y1 election UK from 2023-10-01, country 1, gender 1, 2025 Card. A pre-deployment adjustment row (2024-10-01, UK, 1, 1, election, 1, -2, -2, -2, paid +1). Run 1; Y1's 2025 method set to Direct Debit; run 2.",
+      "expected": "The view returns exactly: (2024-10-01, UK, 1, 1, election, 1, -2, -2, -2, 'paid_count', 1), (…, 2, 1, 1, 'active_count', -1), (…, 1, 1, 1, 'active_count', 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-023 the review view carries each adjustment cell segment ids with -2 on rows written before deployment]"
+    },
+    {
+      "id": "TC-028-024",
+      "requirement_ids": [
+        "REQ-020",
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-01",
+      "category": "happy_path",
+      "description": "The detail as-known-at function matches cells on the three ids: before Y1's change it shows Y1 in the Card cell, after it in the Direct Debit cell.",
+      "preconditions": "assumes Q-049. Same data as TC-028-023 without the pre-deployment row. Run 1; T1 = SYSDATETIME() between 50 ms pauses; Y1's 2025 method set to Direct Debit; run 2; T2 after a 50 ms pause. Range 2020-10-01 to 2025-12-31. At T1, rows whose seven figures are all 0 (stored cells that did not exist then) are left out.",
+      "expected": "At T1: exactly (2024-10-01, UK, 1, 1, election, 1, 2, 1, 1) active 1, other figures 0. At T2: exactly (…, 1, 1, 1) active 1, other figures 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-024 the detail as-known-at function returns the segment cell of each time]"
+    },
+    {
+      "id": "TC-028-025",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-19",
+      "category": "happy_path",
+      "description": "Every object the module creates or changes is in the Layercake schema and nowhere else, and the new etl_daily_count_applied_attribute has its designed columns.",
+      "preconditions": "Common SetUp. As ASM-009 sets for tool and document ACs: migrations.py check and roundtrip, the MIG number above MIG-0029 and 'creates no schema' are run and recorded by the Developer in the MOD-028 change note (migrations[].rollback_test); this condition covers the database part.",
+      "expected": "The nine module objects (the four tables, etl_daily_count_applied_attribute, the function, the view and the two procedures) exist in Layercake, with 0 objects of those names in any other schema. etl_daily_count_applied_attribute has exactly contact_no nvarchar(200) and campaign_year, payment_method_id, payer_type_id, concession_type_id int, all NOT NULL.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-025 every module object is in the Layercake schema and the applied attribute snapshot has its columns]"
+    },
+    {
+      "id": "TC-028-026",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-024",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-026-22",
+      "category": "happy_path",
+      "description": "The MOD-026 TC-026-007 case (D1 Renewal on 2025-01-10, D2 paid) with no attributes rows gives the same figures and adjustment rows as before, differing only by 0 in the three new columns.",
+      "preconditions": "That every MOD-021, MOD-022, MOD-026 and MOD-027 test passes, changed only where it names the grain, is shown by the regression run of those suites; their amendment goes through their own reopening, not this suite. This condition covers the database behaviour. Common SetUp; spine 2025-01-09, -10, -11 (CY2025 Q2). D1: election UK from 2015-01-01, country 1, gender 1. D2: country 2, gender 2, CY2025 payment and Renewal 2024-10-20. Run 1; D1 Renewal 2025-01-10 added; run 2.",
+      "expected": "Run 2 logs 'contacts_recomputed' 1. Detail is exactly 6 rows with (0, 0, 0): D1 2025-01-09 1/0/0/0/0/0/0, 2025-01-10 1/0/1/0/1/0/0, 2025-01-11 1/0/1/0/0/0/0; D2 1/1/1/0/0/0/0 on each date. Run 2's adjustment rows are exactly D1's (0, 0, 0) cell on 2025-01-10 (paid_count_event +1, renewal +1) and 2025-01-11 (paid_count_event +1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD028].[test TC-028-026 a MOD-026 Renewal case with no attributes keeps its figures under 0 0 0]"
+    }
+  ]
+}
