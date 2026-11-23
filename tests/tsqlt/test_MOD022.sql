@@ -1113,19 +1113,23 @@ AS
 BEGIN
     DECLARE @old uniqueidentifier = NEWID(), @r1 uniqueidentifier = NEWID();
 
+    -- AMD-007: the daily count reads the attributes; none for D1 or D2, so every cell takes 0 Unknown.
+    EXEC tSQLt.FakeTable 'Layercake.silv_member_year_attributes';
+
     DELETE FROM Layercake.ref_date_spine;
     INSERT INTO Layercake.ref_date_spine ([date], campaign_year, campaign_quarter)
     VALUES ('2022-11-01', 2023, 'Q1'), ('2023-06-15', 2023, 'Q3'), ('2025-01-10', 2025, 'Q2');
 
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
+         payment_method_id, payer_type_id, concession_type_id,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2022-11-01', 2023, 'Q1', 'UK', 1, 1, 'election', 1, 1, 0, 0, 0, 0, 0, 0),
-           ('2022-11-01', 2023, 'Q1', 'UK', 2, 2, 'election', 1, 1, 0, 0, 0, 0, 0, 0),
-           ('2023-06-15', 2023, 'Q3', 'UK', 1, 1, 'election', 1, 1, 0, 0, 0, 0, 0, 0),
-           ('2023-06-15', 2023, 'Q3', 'UK', 2, 2, 'election', 1, 1, 0, 0, 0, 0, 0, 0),
-           ('2025-01-10', 2025, 'Q2', 'UK', 1, 1, 'election', 1, 1, 0, 0, 0, 0, 0, 0),
-           ('2025-01-10', 2025, 'Q2', 'UK', 2, 2, 'election', 1, 1, 1, 1, 0, 0, 0, 0);
+    VALUES ('2022-11-01', 2023, 'Q1', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
+           ('2022-11-01', 2023, 'Q1', 'UK', 2, 2, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
+           ('2023-06-15', 2023, 'Q3', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
+           ('2023-06-15', 2023, 'Q3', 'UK', 2, 2, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
+           ('2025-01-10', 2025, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
+           ('2025-01-10', 2025, 'Q2', 'UK', 2, 2, 'election', 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0);
     INSERT INTO Layercake.silv_daily_count
         ([date], campaign_year, campaign_quarter, region, grade,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
@@ -1138,6 +1142,7 @@ BEGIN
            ('2025-01-10', '2026-11-01 05:00', @old, '2025-01-10', '2025-01-10');
 
     SELECT [date], region, country_id, gender_id, grade, membership_status_id,
+           payment_method_id, payer_type_id, concession_type_id,
            active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count
     INTO #Before
     FROM Layercake.silv_daily_count_detail;
@@ -1154,46 +1159,54 @@ BEGIN
     EXEC Layercake.usp_load_silv_daily_count @run_id = @r1;
 
     SELECT run_id, [date], region, country_id, gender_id, grade, membership_status_id,
+           payment_method_id, payer_type_id, concession_type_id,
            active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
            event_renewal_count_change, event_readmission_count_change, event_lapse_count_change
     INTO #Actual
     FROM Layercake.silv_daily_count_adjustment;
 
     SELECT v.run_id, v.[date], v.region, v.country_id, v.gender_id, v.grade, v.membership_status_id,
+           v.payment_method_id, v.payer_type_id, v.concession_type_id,
            v.active_count_change, v.paid_count_change, v.paid_count_event_change, v.event_join_count_change,
            v.event_renewal_count_change, v.event_readmission_count_change, v.event_lapse_count_change
     INTO #Expected
     FROM (VALUES
-        (@r1, CAST('2022-11-01' AS date), 'UK', 1, 1, 'election', 1, 0, 0, 1, 0, 1, 0, 0),
-        (@r1, '2023-06-15', 'UK', 1, 1, 'election', 1, 0, 0, 1, 0, 0, 0, 0),
-        (@r1, '2023-06-15', 'UK', 2, 2, 'election', 1, 0, 1, 0, 0, 0, 0, 0),
-        (@r1, '2025-01-10', 'UK', 1, 1, 'election', 1, 0, 0, 1, 0, 1, 0, 0)
+        (@r1, CAST('2022-11-01' AS date), 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0),
+        (@r1, '2023-06-15', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0),
+        (@r1, '2023-06-15', 'UK', 2, 2, 'election', 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0),
+        (@r1, '2025-01-10', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0)
     ) AS v(run_id, [date], region, country_id, gender_id, grade, membership_status_id,
+           payment_method_id, payer_type_id, concession_type_id,
            active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
            event_renewal_count_change, event_readmission_count_change, event_lapse_count_change);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 
-    SELECT x.[date], x.region, x.country_id, x.gender_id, x.grade, x.membership_status_id
+    SELECT x.[date], x.region, x.country_id, x.gender_id, x.grade, x.membership_status_id,
+           x.payment_method_id, x.payer_type_id, x.concession_type_id
     INTO #Mismatch
     FROM (
         SELECT b.[date], b.region, b.country_id, b.gender_id, b.grade, b.membership_status_id,
+               b.payment_method_id, b.payer_type_id, b.concession_type_id,
                b.active_count AS m1, b.paid_count AS m2, b.paid_count_event AS m3, b.event_join_count AS m4,
                b.event_renewal_count AS m5, b.event_readmission_count AS m6, b.event_lapse_count AS m7
         FROM #Before AS b
         UNION ALL
         SELECT a.[date], a.region, a.country_id, a.gender_id, a.grade, a.membership_status_id,
+               a.payment_method_id, a.payer_type_id, a.concession_type_id,
                a.active_count_change, a.paid_count_change, a.paid_count_event_change, a.event_join_count_change,
                a.event_renewal_count_change, a.event_readmission_count_change, a.event_lapse_count_change
         FROM Layercake.silv_daily_count_adjustment AS a
         WHERE a.run_id = @r1
         UNION ALL
         SELECT d.[date], d.region, d.country_id, d.gender_id, d.grade, d.membership_status_id,
+               d.payment_method_id, d.payer_type_id, d.concession_type_id,
                -d.active_count, -d.paid_count, -d.paid_count_event, -d.event_join_count,
                -d.event_renewal_count, -d.event_readmission_count, -d.event_lapse_count
         FROM Layercake.silv_daily_count_detail AS d
     ) AS x
-    GROUP BY x.[date], x.region, x.country_id, x.gender_id, x.grade, x.membership_status_id
+    GROUP BY x.[date], x.region, x.country_id, x.gender_id, x.grade, x.membership_status_id,
+             x.payment_method_id, x.payer_type_id, x.concession_type_id
     HAVING SUM(x.m1) <> 0 OR SUM(x.m2) <> 0 OR SUM(x.m3) <> 0 OR SUM(x.m4) <> 0
         OR SUM(x.m5) <> 0 OR SUM(x.m6) <> 0 OR SUM(x.m7) <> 0;
 
