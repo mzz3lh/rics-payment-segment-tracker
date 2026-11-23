@@ -1,0 +1,296 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-029",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-23T17:18:05Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-23T17:37:38Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+    }
+  },
+  "module_id": "MOD-029",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-029-001",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-026-09",
+      "category": "happy_path",
+      "description": "RULE-158, ADR-012, AC-026-09 (a): one usp_run_daily_load runs bronze, silver (daily count held back), gold (daily fact held back), usp_run_payment_segments, then usp_load_silv_daily_count, then usp_load_fact_daily_member_count_detail, each once, under one run_id; the attributes step finishes before the daily count step starts.",
+      "preconditions": "Common SetUp (every test): every table the segment loads, the daily count and the gold daily fact read or write is faked (etl_run_log and etl_progress_log with identity and defaults; Subs.tblSubsInvoices, synapse_fo.CUSTTRANS_RICS, Subs.vwCorpSubscriptions, CE.vwConcessionType; the four segment bronze tables and brnz_subs_status; the five segment reference lists and four segment dimensions; silv_member_year_attributes, silv_event_amount, silv_data_anomaly; ref_campaign_year_config (2020-2060, 1 Oct to 30 Sep), ref_date_spine and dim_date (1 2023-01-10 CY2023 Q2, 2 2024-09-30 CY2024 Q4, 3 2024-10-15 CY2025 Q1, 4 2025-03-31 CY2025 Q2), membership status and grade lists, dim_membership_grade; silv_payment_events, silv_membership_events, fact_membership_events, silv_member_state_ranges, silv_member_profile; the daily detail and daily tables, adjustment history, loaded marks, pending rebuild, input basis, the five applied snapshots, cell contacts, fact_daily_member_count_detail). usp_load_bronze and every sub-load of usp_load_silver and usp_load_gold except the daily count and the gold daily fact are spied (Phase 1, not MOD-029's); the bronze, membership events, member profile, annual rate base, dim_date, fact_membership_events and fact annual rate base spies log a stub step row under the run_id they receive. The real usp_run_daily_load, usp_load_silver, usp_load_gold, usp_run_payment_segments (17 loads), daily count and gold daily fact run. Seeds: payment methods 0, -1, -2, 1 Direct Debit (DD), 2 Card, 3 Bank, 4 Cheque, 5 Corporate; payer types 0, -1, -2, 1 Individual, 2 Corporate; concession types 0, -1, -2, 1 No concession, 6 Exceptional Hardship (CONEXCEPTIONHP, also in CE.vwConcessionType, discount 50, not perpetual). Contacts, all election, UK, gender 1, Practising, open ranges: Y1 (country 1) from 2023-10-01, Renewals and payments CY2024 (2023-10-10) and CY2025 (2024-10-10), invoices CY2024 DD and CY2025 Card; Z1 (country 1) from 2024-10-01, CY2025 Renewal, payment and DD invoice; Y10 (country 10) from 2022-10-01, CY2023 and CY2024 Renewals, payments and Card invoices; Y11 (country 11) from 2024-10-01, CY2025 Renewal, payment and Corporate invoice. One call of usp_run_daily_load.",
+      "expected": "Under the one run_id, exactly once each and 'Success': run/usp_run_daily_load, bronze/phase1_bronze_stub, silver/phase1_events_stub, gold/phase1_fact_events_stub, run/usp_run_payment_segments, silver/silv_member_year_attributes, silver/silv_daily_count, gold/fact_daily_member_count_detail. No row under another run_id. By log_id: silver stub < gold stub < usp_run_payment_segments < attributes < daily count < gold daily fact; attributes finished_at <= daily count started_at.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-001 the daily run loads the attributes before the daily count and the gold daily fact once each after it]"
+    },
+    {
+      "id": "TC-029-002",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-09",
+      "category": "happy_path",
+      "description": "AC-026-09 (b), (c), (e): Y1's 2025 invoice mode changes Card to DD in Subs.tblSubsInvoices and nothing else changes; one usp_run_daily_load, with no switch, recomputes 1 contact on the normal path, puts Y1 in the Direct Debit cell on every loaded date from 2024-10-01 and leaves silv_daily_count unchanged.",
+      "preconditions": "assumes Q-002: Individual from the paid position when the Corporate test fails. Common SetUp (TC-029-001). Run 1; snapshot of silv_daily_count; Rec_ID 1002 set to 'DD'; run 2. Only active_count is compared as a literal here; every measure is compared with a full recompute in TC-029-003.",
+      "expected": "Run 2 logs etl_progress_log 'contacts_recomputed' 1 and 'full_recompute_path' 0 under its silver/silv_daily_count row. Country 1 detail is exactly (UK, 1, 1, election, 1, payment, payer, concession, active): 2024-09-30 (1, 1, 1) 1 (Y1's 2024 DD, unchanged); 2024-10-15 (1, 1, 1) 2 and 2025-03-31 (1, 1, 1) 2 (Y1 and Z1); no Card (2) cell. silv_daily_count equals its snapshot.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-002 a Card to DD change on Y1 2025 invoice moves Y1 to the Direct Debit cell from 1 October in one daily run]"
+    },
+    {
+      "id": "TC-029-003",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-09",
+      "category": "reconciliation",
+      "description": "AC-026-09 (d): after the change run, silv_daily_count_detail and silv_daily_count equal the result of usp_load_silver @FullRebuild = 1 on the same data, and fact_daily_member_count_detail equals the full recompute followed by usp_load_gold in every column except id.",
+      "preconditions": "Common SetUp (TC-029-001). Run 1; Y1's 2025 invoice to 'DD'; run 2; snapshots (detail and daily every column, fact every column but id); usp_load_silver @FullRebuild = 1 then usp_load_gold with one fixed run_id (no skip switch, so both include the daily count and the gold daily fact); snapshots again.",
+      "expected": "0 rows differ, 0 missing, 0 extra in each of detail, daily and fact. The full recompute writes 0 adjustment rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-003 after the change the daily run leaves the daily tables and fact equal to a full recompute]"
+    },
+    {
+      "id": "TC-029-004",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-10",
+      "category": "happy_path",
+      "description": "AC-026-10: the change run writes, for each loaded date from 2024-10-01, one adjustment row for Y1's Card cell with active_count_change -1 and one for the Direct Debit cell with +1, carrying the actual segment ids, and none dated before 2024-10-01.",
+      "preconditions": "Common SetUp (TC-029-001). Run 1; Y1's 2025 invoice to 'DD'; run 2. Run 2's rows found by its run_id. The other six changes are checked against the stored figures in TC-029-005.",
+      "expected": "Run 2's adjustment rows are exactly (date, UK, 1, 1, election, 1, payment, payer, concession, active_count_change): 2024-10-15 (2, 1, 1) -1; 2024-10-15 (1, 1, 1) +1; 2025-03-31 (2, 1, 1) -1; 2025-03-31 (1, 1, 1) +1. None has -2 and none is dated 2024-09-30 or 2023-01-10.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-004 the run writes Card -1 and Direct Debit +1 adjustment rows with the actual ids from 1 October only]"
+    },
+    {
+      "id": "TC-029-005",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-10",
+      "category": "reconciliation",
+      "description": "AC-026-10: for every cell and every one of the seven measures, the change run's adjustment equals the stored figure after the run minus before it, and summed to the silv_daily_count grain (date, region, grade) the run's changes are 0.",
+      "preconditions": "Common SetUp (TC-029-001). Run 1; detail snapshot; Y1's 2025 invoice to 'DD'; run 2; detail snapshot. A cell missing on either side counts as 0.",
+      "expected": "Run 2 wrote 4 adjustment rows. 0 cells where after - before - adjustment differs from 0 in any measure. 0 (date, region, grade) groups of run 2's adjustments with a non-zero sum in any measure.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-005 the run adjustment rows equal after minus before for every cell and measure and net to 0 at the daily grain]"
+    },
+    {
+      "id": "TC-029-006",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-11",
+      "category": "happy_path",
+      "description": "AC-026-11 (a): Y10's 2023 segment invoice gains an Exceptional Hardship concession line, which changes only Y10's 2023 concession_type_id from No concession (1) to Exceptional Hardship (6); one usp_run_daily_load recomputes 1 contact on the normal path, moves Y10's CY2023 dates to the new cell and matches a full recompute.",
+      "preconditions": "assumes Q-006: 2025 onward carry payment method and payer type from 2024, and No concession is not perpetual, so 2025 concession is 0. Common SetUp (TC-029-001). Run 1; a CUSTTRANS_RICS line on Y10's invoice voucher V3001 (RECID 930001, productcode CONEXCEPTIONHP, RICINVOICETYPE 'SUB', -225.00); run 2; then usp_load_silver @FullRebuild = 1 and usp_load_gold.",
+      "expected": "Run 2 logs 'contacts_recomputed' 1 and 'full_recompute_path' 0. Y10 detail (UK, 10, 1, election, 1) is exactly, active 1: 2023-01-10 (2, 1, 6); 2024-09-30 (2, 1, 1); 2024-10-15 and 2025-03-31 (2, 1, 0). Run 2's adjustment rows are exactly 2023-01-10 (10, 2, 1, 1) active -1 and (10, 2, 1, 6) +1. Detail, daily and fact (except id) equal the full recompute: 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-006 Y10 gaining an Exceptional Hardship line on its 2023 invoice moves only its 2023 days to the new concession cell]"
+    },
+    {
+      "id": "TC-029-007",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-11",
+      "category": "happy_path",
+      "description": "AC-026-11 (b): Y11, whose 2025 invoice is Corporate and who has a 2025 paid position, gains a 2025 corporate subscription row with Sub Status and Sub User Status 'Active', which changes only its 2025 payer_type_id from Individual (1) to Corporate (2); one usp_run_daily_load recomputes 1 contact on the normal path, moves Y11's CY2025 dates and matches a full recompute.",
+      "preconditions": "assumes Q-002 and Q-027: Corporate needs a Corporate invoice method and a live subscription with both statuses 'Active'. Common SetUp (TC-029-001). Run 1; Subs.vwCorpSubscriptions row (Y11, S-110, CY2025, Active, Active, Round 1); run 2; then usp_load_silver @FullRebuild = 1 and usp_load_gold.",
+      "expected": "Run 2 logs 'contacts_recomputed' 1 and 'full_recompute_path' 0. Y11 detail (UK, 11, 1, election, 1) is exactly 2024-10-15 and 2025-03-31 under (5, 2, 1), active 1. Run 2's adjustment rows are exactly, on 2024-10-15 and 2025-03-31, (11, 5, 1, 1) active -1 and (11, 5, 2, 1) +1. Detail, daily and fact (except id) equal the full recompute: 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-007 Y11 gaining a live 2025 corporate subscription moves only its 2025 days to the Corporate payer cell]"
+    },
+    {
+      "id": "TC-029-008",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-026-13",
+      "category": "happy_path",
+      "description": "AC-026-13, RULE-159: after a successful daily run, the Card to DD change is made and usp_run_payment_segments is run on its own; it changes Y1's 2025 attributes but not the daily count. The next usp_run_daily_load, with no manual step, recomputes 1 contact on the normal path, puts Y1 in the Direct Debit cell from 2024-10-01 and matches a full recompute.",
+      "preconditions": "Common SetUp (TC-029-001). Run 1; Y1's 2025 invoice to 'DD'; usp_run_payment_segments with no arguments; checks; run 2; then usp_load_silver @FullRebuild = 1 and usp_load_gold.",
+      "expected": "After the segment-only run: Y1's 2025 attributes payment_method_id 1; on 2024-10-15 country 1 still holds (payment 1) active 1 (Z1) and (payment 2) active 1 (Y1). Run 2 logs 'contacts_recomputed' 1 and 'full_recompute_path' 0; country 1 detail is exactly 2024-09-30 (1, 1, 1) 1, 2024-10-15 (1, 1, 1) 2, 2025-03-31 (1, 1, 1) 2. Detail, daily and fact (except id) equal the full recompute: 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-008 attributes changed by a segment-only run reach the daily count on the next daily run]"
+    },
+    {
+      "id": "TC-029-009",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-026-14",
+      "category": "negative",
+      "description": "AC-026-14 failure part, RULE-125, RULE-158: with the Card to DD change made and a Subs.vwCorpSubscriptions row whose 'Contact No' is NULL, usp_run_daily_load fails, re-raises 515, logs its run row 'Failed', and the daily count and gold daily fact do not run, so both stay as the previous run left them.",
+      "preconditions": "Runs outside the tSQLt transaction. Common SetUp (TC-029-001). Run 1; snapshots of detail and fact (every column); Y1's 2025 invoice to 'DD' and a corporate subscription row (NULL, S-200, CY2025, Active, Active); run 2. The NULL key failing the corporate subscription load with 515 is the MOD-004 answer (2026-10-26).",
+      "expected": "Error 515 reaches the caller. Run 2's run/usp_run_daily_load row is 'Failed' with an error_message; its bronze/brnz_corporate_subscription row is 'Failed'; 0 silver/silv_daily_count and 0 gold/fact_daily_member_count_detail rows under run 2's run_id. Detail and fact equal their snapshots (Y1 still in the Card cell).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-009 a failing segment load fails the daily run with 515 and leaves the daily count and daily fact as before]"
+    },
+    {
+      "id": "TC-029-010",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-026-14",
+      "category": "idempotency",
+      "description": "AC-026-14 recovery part: after the NULL row is removed, the next usp_run_daily_load, with no manual cleanup, ends 'Success', puts Y1 in the Direct Debit cell from 2024-10-01 and matches a full recompute.",
+      "preconditions": "Runs outside the tSQLt transaction. As TC-029-009 up to the failed run 2; the NULL 'Contact No' row deleted; run 3; then usp_load_silver @FullRebuild = 1 and usp_load_gold.",
+      "expected": "Run 2 fails with 515. Run 3's run row is 'Success' and every row under its run_id is 'Success'. Country 1 detail is exactly 2024-09-30 (1, 1, 1) 1, 2024-10-15 (1, 1, 1) 2, 2025-03-31 (1, 1, 1) 2. Detail, daily and fact (except id) equal the full recompute: 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-010 after the source row is corrected the next daily run succeeds and matches a full recompute]"
+    },
+    {
+      "id": "TC-029-011",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-16",
+      "category": "happy_path",
+      "description": "AC-026-16, RULE-164: in the change run every fact row whose eight-column key keeps its figures keeps its id and values; the Direct Debit cells Y1 joins are updated in place and keep their id; Y1's Card cells are deleted; the gold load's counts equal those cells.",
+      "preconditions": "Common SetUp (TC-029-001); Z1 shares Y1's Direct Debit cell from 2024-10-15. Run 1; fact snapshot with id; Y1's 2025 invoice to 'DD'; run 2.",
+      "expected": "Fact rows of countries 10 and 11 equal the snapshot in every column, id included. Country 1 fact rows are exactly 3, each with its snapshot id: date_id 2 (1, 1, Qualified 2, 1, 1, 1, 1) ActiveMembers 1; date_ids 3 and 4 (…, 1, 1, 1) ActiveMembers 2. Run 2's gold/fact_daily_member_count_detail row: 'Success', rows_inserted 0, rows_updated 2, rows_deleted 2.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-011 in the change run unchanged fact cells keep id and values and gold logs 0 inserted 2 updated 2 deleted]"
+    },
+    {
+      "id": "TC-029-012",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-16",
+      "category": "negative",
+      "description": "AC-026-16: a fact row added by hand that matches a silver cell in every grain column except payment_method_id is deleted by the next usp_run_daily_load, which logs 'Success' for the gold daily fact with the row-count check passing and changes no other fact row.",
+      "preconditions": "Common SetUp (TC-029-001). Run 1; fact snapshot (every column, id included); hand row (date_id 2, country 1, gender 1, grade 2, status 1, payment 3, payer 1, concession 1, ActiveMembers 1, other measures 0); run 2.",
+      "expected": "The fact equals the snapshot exactly, id included (the hand row is gone). Run 2's gold/fact_daily_member_count_detail row: 'Success', rows_inserted 0, rows_updated 0, rows_deleted 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-012 a hand-added fact row differing only in payment method is deleted by the next daily run and nothing else changes]"
+    },
+    {
+      "id": "TC-029-013",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-09",
+      "category": "idempotency",
+      "description": "With the daily count moved after the segment loads, a second usp_run_daily_load on unchanged data recomputes 0 contacts on the normal path, writes no adjustment row and changes no detail, daily or fact row.",
+      "preconditions": "Common SetUp (TC-029-001). Run 1; snapshots of detail, daily and fact (every column, id included); run 2.",
+      "expected": "Run 2 logs 'contacts_recomputed' 0 and 'full_recompute_path' 0, writes 0 adjustment rows; detail, daily and fact equal their snapshots.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-013 a second daily run on unchanged data recomputes 0 contacts and changes no daily row]"
+    },
+    {
+      "id": "TC-029-014",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-021"
+      ],
+      "acceptance_criterion_id": "AC-026-09",
+      "category": "boundary",
+      "description": "DES-001 usp_run_daily_load (MOD-029): the run's @FullRebuild now reaches usp_load_silv_daily_count called after the segment loads, which takes the full-recompute path; on unchanged data it changes nothing.",
+      "preconditions": "Common SetUp (TC-029-001). Run 1; detail and daily snapshots; usp_run_daily_load @FullRebuild = 1. usp_run_daily_load has no @RebuildFrom parameter (parameters unchanged), so only @FullRebuild is passed; TC-029-016 shows usp_load_silver still passes @RebuildFrom. MOD-023's TC-023-013 (switches reaching the silver step) is amended through MOD-023's own reopening, not in this suite.",
+      "expected": "Run 2 logs 'full_recompute_path' 1 under its silver/silv_daily_count row, writes 0 adjustment rows, and detail and daily equal their snapshots.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-014 FullRebuild on the daily run reaches the daily count which takes the full path and changes nothing]"
+    },
+    {
+      "id": "TC-029-015",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-09",
+      "category": "negative",
+      "description": "ADR-012: usp_load_silver @SkipDailyCount = 1 runs its other steps, including the member profile and the annual rate base after the daily count's place, but does not call usp_load_silv_daily_count.",
+      "preconditions": "Common SetUp (TC-029-001) plus usp_load_silv_daily_count spied, logging a 'daily_count_stub' row. usp_load_silver with a fixed run_id and @SkipDailyCount = 1.",
+      "expected": "Under that run_id: phase1_events_stub 1, phase1_profile_stub 1, phase1_rate_base_stub 1, daily_count_stub 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-015 usp_load_silver with SkipDailyCount runs the other silver steps but not the daily count]"
+    },
+    {
+      "id": "TC-029-016",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-09",
+      "category": "happy_path",
+      "description": "ADR-012: called with no switch, usp_load_silver behaves as today, including the manual rebuilds: it calls usp_load_silv_daily_count once with the run_id, @FullRebuild, @RebuildFrom and @DailyCountBatchDays it was given.",
+      "preconditions": "Common SetUp (TC-029-001) plus usp_load_silv_daily_count spied; the spy logs a 'daily_count_stub' row whose error_message holds 'FullRebuild|RebuildFrom|DailyCountBatchDays' as received. usp_load_silver with a fixed run_id, @FullRebuild = 1, @RebuildFrom = 2024-10-01, @DailyCountBatchDays = 7.",
+      "expected": "Under that run_id exactly one daily_count_stub row with '1|2024-10-01|7', and the phase1_rate_base_stub row.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-016 usp_load_silver with no switch still runs the daily count with the rebuild arguments it is given]"
+    },
+    {
+      "id": "TC-029-017",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-09",
+      "category": "negative",
+      "description": "ADR-012: usp_load_gold @SkipDailyFact = 1 runs its other steps (dimensions, fact_membership_events, the annual rate base fact) but does not call usp_load_fact_daily_member_count_detail.",
+      "preconditions": "Common SetUp (TC-029-001) plus usp_load_fact_daily_member_count_detail spied, logging a 'daily_fact_stub' row. usp_load_gold with a fixed run_id and @SkipDailyFact = 1.",
+      "expected": "Under that run_id: phase1_dim_date_stub 1, phase1_fact_events_stub 1, phase1_fact_rate_base_stub 1, daily_fact_stub 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-017 usp_load_gold with SkipDailyFact runs the other gold steps but not the gold daily fact]"
+    },
+    {
+      "id": "TC-029-018",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-09",
+      "category": "happy_path",
+      "description": "ADR-012: called with no switch, usp_load_gold behaves as today and calls usp_load_fact_daily_member_count_detail once with its run_id and @DetailBatchDays.",
+      "preconditions": "Common SetUp (TC-029-001) plus usp_load_fact_daily_member_count_detail spied; the spy logs a 'daily_fact_stub' row with rows_inserted = the @DetailBatchDays received. usp_load_gold with a fixed run_id and @DetailBatchDays = 5.",
+      "expected": "Under that run_id exactly one daily_fact_stub row with 5.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-018 usp_load_gold with no switch still runs the gold daily fact with its batch size]"
+    },
+    {
+      "id": "TC-029-019",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-20",
+      "category": "reconciliation",
+      "description": "AC-026-20, database part (RULE-166): after one usp_run_daily_load the fact holds exactly the star check D2 rebuilds from silver, including payment_method_id, payer_type_id and concession_type_id: one fact row per silver cell with the same seven measures.",
+      "preconditions": "assumes Q-006 (Y10's 2025 concession 0). As ASM-009 sets for script ACs: check D2 of pipeline-reconciliation-report.sql (changed by MOD-029) and the unchanged active-member-difference.sql and paid-member-difference.sql are SQLCMD files a tSQLt test cannot run; the Developer runs them after one usp_run_daily_load on the synthetic data and records the verdicts in the MOD-029 change note. Common SetUp (TC-029-001); one call of usp_run_daily_load. All silver cells are election, so map to grade 2.",
+      "expected": "Fact is exactly (date_id, country, gender 1, grade 2, status 1, payment, payer, concession, ActiveMembers): (1, 10, 2, 1, 1) 1; (2, 1, 1, 1, 1) 1; (2, 10, 2, 1, 1) 1; (3, 1, 2, 1, 1) 1; (3, 1, 1, 1, 1) 1; (3, 10, 2, 1, 0) 1; (3, 11, 5, 1, 1) 1; and the same four for date_id 4. Silver cells against fact on the eight-column key and all seven measures: 0 differ, 0 missing, 0 extra.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-019 after one daily run the fact holds exactly the silver cells on the star grain with the three segment ids]"
+    },
+    {
+      "id": "TC-029-020",
+      "requirement_ids": [
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-026-21",
+      "category": "happy_path",
+      "description": "AC-026-21, database part (RULE-167): after the daily run the fact's grain includes the three segment ids, so one old-grain cell is split into several rows and a report must sum over the three columns to get the old-grain and daily totals.",
+      "preconditions": "As ASM-009 sets for document ACs: the text of docs/handover/02-architecture.md, 03-data-lineage.md, 04-runbook.md, 06-known-limitations.md and 07-glossary.md is MOD-029's documentation update and is checked at the documentation review; this condition covers the database fact the documents describe. Common SetUp (TC-029-001); one call of usp_run_daily_load.",
+      "expected": "Fact grouped by (date_id, country): (1, 10) 1 row, 1; (2, 1) 1, 1; (2, 10) 1, 1; (3, 1) 2 rows, 2; (3, 10) 1, 1; (3, 11) 1, 1; (4, 1) 2 rows, 2; (4, 10) 1, 1; (4, 11) 1, 1. silv_daily_count active by date: 2023-01-10 1, 2024-09-30 2, 2024-10-15 4, 2025-03-31 4.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD029].[test TC-029-020 a fact cell is split by segment so summing over the three ids gives the old grain and the daily totals]"
+    }
+  ]
+}
