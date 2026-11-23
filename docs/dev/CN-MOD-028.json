@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "CN-MOD-028",
-    "version": 1,
+    "version": 2,
     "produced_by": "developer",
-    "produced_at": "2026-11-23T16:07:26Z",
+    "produced_at": "2026-11-23T16:55:05Z",
     "status": "for_review",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
@@ -18,7 +18,7 @@
   },
   "module_id": "MOD-028",
   "branch": "agent/developer/MOD-028-daily-count-and-gold-daily-fact-at-the-s",
-  "commit": "3837a8536444803a869781a41a54687b991415bb",
+  "commit": "a616dea45c55cfc56bd266cd1e6a91661b636f3e",
   "requirement_ids": [
     "REQ-026",
     "REQ-019",
@@ -113,6 +113,9 @@
     }
   ],
   "unit_tests": [
+    "[test_MOD028_dev].[test MOD-027 an overflow in a later window keeps the committed window and logs Failed at the segment grain]",
+    "[test_MOD028_dev].[test MOD-027 counts add up across one-day windows and each window logs its synced cells at the segment grain]",
+    "[test_MOD028_dev].[test MOD-027 rows_deleted counts the span trim and the in-window deletes together at the segment grain]",
     "[test_MOD028_dev].[test a duplicated attributes row fails the run and leaves the counts unchanged]",
     "[test_MOD028_dev].[test an attribute change in a year with no loaded day recomputes the contact and writes no adjustment]",
     "[test_MOD028_dev].[test gold sums regions within a segment cell and keeps segment cells apart]",
@@ -125,8 +128,8 @@
       "up_script": "src/sql/deploy/MIG-0030_MOD-028_daily-count-and-gold-daily-fact-at-the-s.up.sql",
       "down_script": "src/sql/deploy/MIG-0030_MOD-028_daily-count-and-gold-daily-fact-at-the-s.down.sql",
       "rollback_test": {
-        "commit": "3837a8536444803a869781a41a54687b991415bb",
-        "run_at": "2026-11-23T16:07:19.853384+00:00",
+        "commit": "a616dea45c55cfc56bd266cd1e6a91661b636f3e",
+        "run_at": "2026-11-23T16:54:58.165385+00:00",
         "result": "pass",
         "steps": [
           {
@@ -159,8 +162,7 @@
     }
   ],
   "deviations": [
-    "Question raised (ASM-015, part 1): TC-028-002 expected 15 columns on etl_daily_count_cell_contacts, but MOD-026's table has 9 and DES-001 gives 12 after MOD-028. The table was built with the design's 12 columns. The Product Owner's answer (ASM-015, not yet reviewed) had the Tester change the expected count to 12. The amended suite passes.",
-    "Question raised (ASM-015, part 2): TC-028-010 expected event_lapse_count 1 for Y7, who had no CY2025 paid-in. Under the unchanged Phase 1 lapse rule (usp_load_silv_daily_count steps e1 to e3) the count is 0. The rule was not changed. The Product Owner's answer (ASM-015, not yet reviewed) had the Tester add a CY2025 Renewal and payment for Y7 and keep the expected 1 (AC-026-06). The amended suite passes."
+    "DEF-007 is only partly fixed. The three failing tests are in tests/tsqlt/test_MOD027_dev.sql, an earlier module's Developer test file. No Developer tool can write that file: write_unit_tests only replaces this module's file, test_MOD028_dev.sql. I asked the owner how the fix should reach the branch. The answer was deferred. Working assumption: copies of the three tests, amended as the defect asks (payment_method_id, payer_type_id, concession_type_id = 0 on every silv_daily_count_detail and fact_daily_member_count_detail row and column list, nothing else changed), are added to test_MOD028_dev so the behaviour is proven at the new grain on this branch. Someone else (a human, or the framework) still has to make the same edit in test_MOD027_dev.sql, or delete those three tests from it. Until then the test_MOD027_dev regression run still fails with 515 on #det_stage. No procedure code was changed."
   ],
-  "notes": "MIG-0030 runs after MIG-0029. It creates no schema. Change scripts add payment_method_id, payer_type_id and concession_type_id (int not null; existing rows get -2) to silv_daily_count_detail, etl_daily_count_cell_contacts, silv_daily_count_adjustment and fact_daily_member_count_detail. The fact's unique clustered index widens to eight columns; id stays bigint and no foreign keys are added. The migration also adds etl_daily_count_applied_attribute, empties the other snapshot tables and writes the 'detail_grain_restatement' marker. usp_load_silv_daily_count puts each contact-day in the cell of its attributes for that day's Campaign Year: no attributes row gives 0, pre-2022 gives -2. It treats the attributes as an input, so an attribute change alone makes a changed contact. While the marker exists it restates at the old grain and writes no adjustment rows. A duplicated attributes row (contact_no, campaign_year) fails the run with 2627 and writes nothing. usp_load_fact_daily_member_count_detail syncs cell by cell on the eight-column key. The detail as-known-at function and the review view carry the three ids. The existing MOD-021 grant on the review view still applies, so no new grant script was written. Dev tests cover: an attribute change in a year with no loaded day (contact recomputed, no adjustment, snapshot updated); the duplicate-row error path; gold summing regions within a segment cell; as-known-at returning a removed segment cell; and the review view's segment ids. Run order is unchanged: MOD-029 moves the daily count after the segment loads.\n\nTest-first: the first run had 26 of 26 of the Tester's tests passing; the final run passed 26 of 26 and 5 unit test(s), in 1 run(s)."
+  "notes": "Rework for DEF-007 (TC-028-026). What was wrong: three tests in test_MOD027_dev ('rows_deleted counts the span trim and the in-window deletes together', 'counts add up across one-day windows and each window logs its synced cells', 'an overflow in a later window keeps the committed window and logs Failed with its counts') insert rows at the pre-AMD-007 grain. That leaves the three segment ids NULL in the faked tables, so the load fails with 515 on #det_stage. The code is not at fault and is unchanged. What changed: test_MOD028_dev gains three tests prefixed 'test MOD-027 ... at the segment grain'. Each has the same data, expected rows and log and progress assertions as the original, with payment_method_id, payer_type_id and concession_type_id = 0 added to every silv_daily_count_detail and fact_daily_member_count_detail insert and its column list. They also insert dim_date 7000-7003 themselves. All three pass in dev (34 passed). Still needed in tests/tsqlt/test_MOD027_dev.sql (see deviations): in each of the three tests, add 'payment_method_id, payer_type_id, concession_type_id' after membership_status_id in both INSERT column lists, and insert ', 0, 0, 0' after the membership_status_id value in every VALUES row. Round-trip passes and checks are clean.\n\nRework after DR-MOD-028-2 (DEF-007). Test-first: the first run had 26 of 26 of the Tester's tests passing; the final run passed 26 of 26 and 8 unit test(s), in 2 run(s)."
 }
