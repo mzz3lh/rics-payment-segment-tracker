@@ -7,17 +7,17 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-11-23T14:41:30Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-23T15:09:27Z",
+      "approved_by": "Mike",
+      "approved_at": "2026-11-23T16:03:54Z",
       "gate": "test_design_review",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+      "comments": "Reopened: TC-028-002: the expected column count of etl_daily_count_cell_contacts is 12, not 15 (MOD-026 table has 9 columns; DES-001 lists 12); the other three counts stay. TC-028-010: keep event_lapse_count 1 (AC-026-06), but give Y7 a CY2025 paid-in before the lapse, because the unchanged Phase 1 rule counts a lapse only after a paid-in in the same Campaign Year. Add silv_payment_events ('Y7', 2025, 2024-10-20, renewal_date_adj 2024-10-20, 'Fully Paid') and a Renewal event 'RN:Y7:2025' dated 2024-10-20 (CY2025 Q1, grade 2, status 1). Drop 'no payments' from the preconditions. Y7's expected rows then gain paid_count 1 and paid_count_event 1 on both dates (fact PaidMembers 1 and PaidMembersEvent 1), and lapse stays 1 on 2025-06-01."
     }
   },
   "module_id": "MOD-028",
