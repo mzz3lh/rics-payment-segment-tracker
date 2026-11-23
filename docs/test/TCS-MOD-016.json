@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-016",
-    "version": 2,
+    "version": 3,
     "produced_by": "tester",
-    "produced_at": "2026-11-12T13:08:16Z",
+    "produced_at": "2026-11-23T16:23:33Z",
     "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
@@ -15,7 +15,7 @@
     ],
     "approval": {
       "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-12T13:08:33Z",
+      "approved_at": "2026-11-23T16:23:54Z",
       "gate": "test_design_review",
       "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
@@ -203,13 +203,14 @@
     {
       "id": "TC-016-014",
       "requirement_ids": [
-        "REQ-001"
+        "REQ-001",
+        "REQ-026"
       ],
       "acceptance_criterion_id": "AC-001-05",
       "category": "negative",
-      "description": "AC-001-05, column part (assumes Q-007): the deployed fact_daily_member_count_detail, fact_annual_rate_base, silv_daily_count_detail and silv_annual_rate_base keep exactly their Phase 1 column lists, in order; no segment key is added to them.",
-      "preconditions": "assumes Q-007: the daily and annual tables keep their grain and columns. Reads the deployed tables' metadata; none of the four is faked in this test.",
-      "expected": "silv_daily_count_detail: date, campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count. fact_daily_member_count_detail: id, date_id, country_id, gender_id, membership_grade_id, membership_status_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents. silv_annual_rate_base: campaign_year, grade_id, membership_status_id, country_id, gender_id, members_start, members_end, members_joined, members_readmitted, members_lapsed, members_renewed. fact_annual_rate_base: id followed by the same 11 columns.",
+      "description": "AC-001-05, column part (assumes Q-007), as superseded for the daily detail tables by AMD-007 (REQ-026, RULE-155, AC-026-22): the deployed silv_daily_count_detail and fact_daily_member_count_detail keep their Phase 1 columns in their Phase 1 order, followed by payment_method_id, payer_type_id and concession_type_id (added by MOD-028's change script); silv_annual_rate_base and fact_annual_rate_base keep exactly their Phase 1 column lists, with no segment key added.",
+      "preconditions": "assumes Q-007: the annual rate base tables keep their grain and columns. The daily detail tables take the AMD-007 grain (Mike's 'Daily count payment segments' answer; DES-001 silv_daily_count_detail and fact_daily_member_count_detail after MOD-028, columns added by change script so appended after the existing ones). Reads the deployed tables' metadata; none of the four is faked in this test.",
+      "expected": "silv_daily_count_detail (18 columns): date, campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count, payment_method_id, payer_type_id, concession_type_id. fact_daily_member_count_detail (16 columns): id, date_id, country_id, gender_id, membership_grade_id, membership_status_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents, payment_method_id, payer_type_id, concession_type_id. silv_annual_rate_base (unchanged): campaign_year, grade_id, membership_status_id, country_id, gender_id, members_start, members_end, members_joined, members_readmitted, members_lapsed, members_renewed. fact_annual_rate_base (unchanged): id followed by the same 11 columns.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD016].[test TC-016-014 the daily and annual Phase 1 tables keep their column lists]"
     },

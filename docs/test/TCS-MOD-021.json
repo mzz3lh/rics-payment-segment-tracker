@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-021",
-    "version": 1,
+    "version": 2,
     "produced_by": "tester",
-    "produced_at": "2026-11-18T07:59:01Z",
+    "produced_at": "2026-11-23T16:24:54Z",
     "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
@@ -14,9 +14,10 @@
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike",
-      "approved_at": "2026-11-18T08:13:08Z",
-      "gate": "test_design_review"
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-23T16:25:15Z",
+      "gate": "test_design_review",
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
   },
   "module_id": "MOD-021",
@@ -212,13 +213,14 @@
       "id": "TC-021-015",
       "requirement_ids": [
         "REQ-019",
-        "REQ-020"
+        "REQ-020",
+        "REQ-026"
       ],
       "acceptance_criterion_id": "AC-020-07",
       "category": "happy_path",
-      "description": "Layercake.silv_daily_count_adjustment has the designed columns, types and nullability, with adjustment_id the identity.",
+      "description": "Layercake.silv_daily_count_adjustment has the designed columns, types and nullability, with adjustment_id the identity. From AMD-007 (REQ-026, AC-026-22) the cell includes payment_method_id, payer_type_id and concession_type_id.",
       "preconditions": "Reads the real table's metadata (sys.columns); no rows touched.",
-      "expected": "Exactly 17 columns, all NOT NULL: adjustment_id bigint identity, run_id uniqueidentifier, load_id bigint, written_at datetime2(3), date date, region varchar(12), country_id int, gender_id int, grade varchar(12), membership_status_id int, and the seven *_change columns int; no other identity.",
+      "expected": "Exactly 20 columns, all NOT NULL: adjustment_id bigint identity, run_id uniqueidentifier, load_id bigint, written_at datetime2(3), date date, region varchar(12), country_id int, gender_id int, grade varchar(12), membership_status_id int, payment_method_id int, payer_type_id int, concession_type_id int, and the seven *_change columns int; no other identity.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD021].[test TC-021-015 adjustment table has the designed columns, types and nullability]"
     },
@@ -240,15 +242,16 @@
       "id": "TC-021-017",
       "requirement_ids": [
         "REQ-019",
-        "REQ-020"
+        "REQ-020",
+        "REQ-026"
       ],
       "acceptance_criterion_id": "AC-020-07",
       "category": "duplicates",
-      "description": "The table is unique on (run_id, [date], region, country_id, gender_id, grade, membership_status_id), whether built as a unique constraint or a unique index.",
+      "description": "The table is unique on (run_id, [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id), whether built as a unique constraint or a unique index. The three segment ids join the key from AMD-007 (REQ-026, AC-026-22).",
       "preconditions": "Reads the real table's index metadata (sys.indexes, sys.index_columns); no rows touched, because a fake cannot carry a unique index.",
-      "expected": "Exactly one unfiltered unique index or constraint whose key columns are exactly those seven columns.",
+      "expected": "Exactly one unfiltered unique index or constraint whose key columns are exactly those ten columns.",
       "framework": "tsqlt",
-      "test_ref": "[test_MOD021].[test TC-021-017 adjustment table is unique on run_id and the six cell columns]"
+      "test_ref": "[test_MOD021].[test TC-021-017 adjustment table is unique on run_id and the nine cell columns]"
     }
   ]
 }
