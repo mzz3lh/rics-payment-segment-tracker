@@ -17,10 +17,17 @@ CREATE TABLE Layercake.silv_daily_count_adjustment
     event_renewal_count_change     int              NOT NULL,
     event_readmission_count_change int              NOT NULL,
     event_lapse_count_change       int              NOT NULL,
+    -- MOD-028 (REQ-026, RULE-162): the cell's segment ids, added by change script. Rows written
+    -- before deployment, and by the restating run, hold -2 Not applicable (ADR-013, Q-061).
+    payment_method_id              int              NOT NULL,
+    payer_type_id                  int              NOT NULL,
+    concession_type_id             int              NOT NULL,
     CONSTRAINT PK_Layercake_silv_daily_count_adjustment PRIMARY KEY CLUSTERED (adjustment_id),
-    -- One row per run and cell (REQ-019).
-    CONSTRAINT UQ_Layercake_silv_daily_count_adjustment_run_id_date_region_country_id_gender_id_grade_membership_status_id
-        UNIQUE (run_id, [date], region, country_id, gender_id, grade, membership_status_id),
+    -- One row per run and cell (REQ-019). The name lists the cell as 'cell': the nine grain
+    -- columns would take it past SQL Server's 128-character limit.
+    CONSTRAINT UQ_Layercake_silv_daily_count_adjustment_run_id_cell
+        UNIQUE (run_id, [date], region, country_id, gender_id, grade, membership_status_id,
+                payment_method_id, payer_type_id, concession_type_id),
     -- A row records a change: an unchanged cell writes no row, so the review view never shows a 0 change.
     CONSTRAINT CK_Layercake_silv_daily_count_adjustment_any_change CHECK (
         active_count_change <> 0
@@ -36,5 +43,6 @@ CREATE TABLE Layercake.silv_daily_count_adjustment
 CREATE INDEX IX_silv_daily_count_adjustment_date_written_at
     ON Layercake.silv_daily_count_adjustment ([date], written_at)
     INCLUDE (region, country_id, gender_id, grade, membership_status_id,
+             payment_method_id, payer_type_id, concession_type_id,
              active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
              event_renewal_count_change, event_readmission_count_change, event_lapse_count_change);

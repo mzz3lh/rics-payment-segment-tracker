@@ -1,0 +1,169 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-028",
+    "version": 2,
+    "produced_by": "developer",
+    "produced_at": "2026-11-23T16:55:05Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-028.json",
+      "tests/tsqlt/test_MOD028.sql"
+    ]
+  },
+  "module_id": "MOD-028",
+  "branch": "agent/developer/MOD-028-daily-count-and-gold-daily-fact-at-the-s",
+  "commit": "a5bf3a37e8d3178a401fd0e4034b288c37b1150b",
+  "requirement_ids": [
+    "REQ-026",
+    "REQ-019",
+    "REQ-020",
+    "REQ-024",
+    "REQ-025"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_daily_count_detail.sql",
+      "object": "Layercake.silv_daily_count_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-024",
+        "REQ-026"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_cell_contacts.sql",
+      "object": "Layercake.etl_daily_count_cell_contacts",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-024",
+        "REQ-026"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_daily_count_adjustment.sql",
+      "object": "Layercake.silv_daily_count_adjustment",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020",
+        "REQ-026"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.fact_daily_member_count_detail.sql",
+      "object": "Layercake.fact_daily_member_count_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-025",
+        "REQ-026"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_applied_attribute.sql",
+      "object": "Layercake.etl_daily_count_applied_attribute",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-024"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Functions/Layercake.fn_silv_daily_count_detail_as_known_at.sql",
+      "object": "Layercake.fn_silv_daily_count_detail_as_known_at",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-020",
+        "REQ-026"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Views/Layercake.vw_silv_daily_count_adjustment_review.sql",
+      "object": "Layercake.vw_silv_daily_count_adjustment_review",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-020",
+        "REQ-026"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_daily_count.sql",
+      "object": "Layercake.usp_load_silv_daily_count",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-024",
+        "REQ-026"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_fact_daily_member_count_detail.sql",
+      "object": "Layercake.usp_load_fact_daily_member_count_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-025",
+        "REQ-026"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD028_dev].[test MOD-027 an overflow in a later window keeps the committed window and logs Failed at the segment grain]",
+    "[test_MOD028_dev].[test MOD-027 counts add up across one-day windows and each window logs its synced cells at the segment grain]",
+    "[test_MOD028_dev].[test MOD-027 rows_deleted counts the span trim and the in-window deletes together at the segment grain]",
+    "[test_MOD028_dev].[test a duplicated attributes row fails the run and leaves the counts unchanged]",
+    "[test_MOD028_dev].[test an attribute change in a year with no loaded day recomputes the contact and writes no adjustment]",
+    "[test_MOD028_dev].[test gold sums regions within a segment cell and keeps segment cells apart]",
+    "[test_MOD028_dev].[test the detail as-known-at function returns a removed segment cell under its ids]",
+    "[test_MOD028_dev].[test the review view lists each non-zero measure under the row segment ids]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0030",
+      "up_script": "src/sql/deploy/MIG-0030_MOD-028_daily-count-and-gold-daily-fact-at-the-s.up.sql",
+      "down_script": "src/sql/deploy/MIG-0030_MOD-028_daily-count-and-gold-daily-fact-at-the-s.down.sql",
+      "rollback_test": {
+        "commit": "a616dea45c55cfc56bd266cd1e6a91661b636f3e",
+        "run_at": "2026-11-23T16:54:58.165385+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "DEF-007 is only partly fixed. The three failing tests are in tests/tsqlt/test_MOD027_dev.sql, an earlier module's Developer test file. No Developer tool can write that file: write_unit_tests only replaces this module's file, test_MOD028_dev.sql. I asked the owner how the fix should reach the branch. The answer was deferred. Working assumption: copies of the three tests, amended as the defect asks (payment_method_id, payer_type_id, concession_type_id = 0 on every silv_daily_count_detail and fact_daily_member_count_detail row and column list, nothing else changed), are added to test_MOD028_dev so the behaviour is proven at the new grain on this branch. Someone else (a human, or the framework) still has to make the same edit in test_MOD027_dev.sql, or delete those three tests from it. Until then the test_MOD027_dev regression run still fails with 515 on #det_stage. No procedure code was changed.",
+    "DEF-007: tests/tsqlt/test_MOD027_dev.sql amended by a human (Mike) at a5bf3a37e8d3178a401fd0e4034b288c37b1150b: segment ids = 0 in three tests' inserts; no procedure change."
+  ],
+  "notes": "Rework for DEF-007 (TC-028-026). What was wrong: three tests in test_MOD027_dev ('rows_deleted counts the span trim and the in-window deletes together', 'counts add up across one-day windows and each window logs its synced cells', 'an overflow in a later window keeps the committed window and logs Failed with its counts') insert rows at the pre-AMD-007 grain. That leaves the three segment ids NULL in the faked tables, so the load fails with 515 on #det_stage. The code is not at fault and is unchanged. What changed: test_MOD028_dev gains three tests prefixed 'test MOD-027 ... at the segment grain'. Each has the same data, expected rows and log and progress assertions as the original, with payment_method_id, payer_type_id and concession_type_id = 0 added to every silv_daily_count_detail and fact_daily_member_count_detail insert and its column list. They also insert dim_date 7000-7003 themselves. All three pass in dev (34 passed). Still needed in tests/tsqlt/test_MOD027_dev.sql (see deviations): in each of the three tests, add 'payment_method_id, payer_type_id, concession_type_id' after membership_status_id in both INSERT column lists, and insert ', 0, 0, 0' after the membership_status_id value in every VALUES row. Round-trip passes and checks are clean.\n\nRework after DR-MOD-028-2 (DEF-007). Test-first: the first run had 26 of 26 of the Tester's tests passing; the final run passed 26 of 26 and 8 unit test(s), in 2 run(s)."
+}
