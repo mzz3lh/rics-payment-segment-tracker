@@ -6,11 +6,12 @@
 ----------------------------------------------------
 --  Layercake.silv_daily_count_detail
 --  The main daily count at the finer grain
---  [date] x region x country x gender x grade x membership status.
+--  [date] x region x country x gender x grade x membership status
+--  x payment method x payer type x concession type (RPST MOD-028, REQ-026).
 --  Feeds gold fact_daily_member_count_detail. silv_daily_count is derived
---  from this table (SUM over country/gender/status), so the two always
---  reconcile. Date-leading clustered PK keeps the per-chunk delete +
---  re-insert cheap and idempotent.
+--  from this table (SUM over country/gender/status and the three segment
+--  ids), so the two always reconcile. Date-leading clustered PK keeps the
+--  per-chunk delete + re-insert cheap and idempotent.
 --
 --  TWO PAID MEASURES, side by side and deliberately not reconciled:
 --    paid_count       - PAYMENT-driven. A payment event for the campaign
@@ -26,6 +27,12 @@
 --  year start reproduces it exactly at the day level.
 --  event_lapse_count is reported ALONGSIDE, not netted off: the
 --  contacts who had paid in this campaign year and then lapsed that day.
+--
+--  RPST (MOD-028): payment_method_id, payer_type_id and concession_type_id
+--  added by change script (-2 Not applicable on the rows stored before
+--  deployment, until the first run restates them, ADR-013). A contact-day
+--  takes them from its silv_member_year_attributes row for the day's
+--  Campaign Year, 0 Unknown where it has none.
 ----------------------------------------------------
 create table Layercake.silv_daily_count_detail
 (
@@ -44,6 +51,10 @@ create table Layercake.silv_daily_count_detail
     event_renewal_count     int not null,
     event_readmission_count int not null,
     event_lapse_count       int not null,           -- reported, not deducted - see the module header
+    payment_method_id       int not null,           -- -> silv_ref_payment_method
+    payer_type_id           int not null,           -- -> silv_ref_payer_type
+    concession_type_id      int not null,           -- -> silv_ref_concession_type
     constraint pk_silv_daily_count_detail primary key clustered
-        ([date], region, country_id, gender_id, grade, membership_status_id)
+        ([date], region, country_id, gender_id, grade, membership_status_id,
+         payment_method_id, payer_type_id, concession_type_id)
 );

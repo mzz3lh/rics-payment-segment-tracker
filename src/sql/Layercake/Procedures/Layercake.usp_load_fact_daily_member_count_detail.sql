@@ -19,6 +19,10 @@
                            so their PAID counts keep reconciling (active
                            is 0 anyway)
       anything else     -> grade 0 / status 0 (defensive)
+      payment_method_id, payer_type_id, concession_type_id (MOD-028,
+                        RULE-164) -> copied from silver: the
+                           dim_payment_method / dim_payer_type /
+                           dim_concession_type keys equal the silver ids
 
     The silver grain includes the range region; the star grain does not,
     so the SUM/GROUP BY here also collapses region - region reporting
@@ -35,9 +39,10 @@
 
     BATCHING: the silver date span is walked in @DetailBatchDays
     windows. Per window: stage the silver aggregate, then sync the fact
-    CELL BY CELL (MOD-027, RULE-150): a fact cell with no silver cell is
-    deleted, a cell whose measures differ is updated in place and keeps
-    its id, a new cell is inserted, an unchanged cell is not touched.
+    CELL BY CELL (MOD-027, RULE-150) on the eight-column star grain
+    (MOD-028): a fact cell with no silver cell is deleted, a cell whose
+    measures differ is updated in place and keeps its id, a new cell is
+    inserted, an unchanged cell is not touched.
     COMMIT per window. rows_inserted / rows_updated / rows_deleted count
     exactly those cells, so a rerun on unchanged silver logs 0 / 0 / 0.
     Small transactions, small scans, steady progress in etl_progress_log
@@ -107,6 +112,9 @@ begin
             gender_id            int not null,
             membership_grade_id  int not null,
             membership_status_id int not null,
+            payment_method_id    int not null,
+            payer_type_id        int not null,
+            concession_type_id   int not null,
             ActiveMembers        int not null,
             PaidMembers          int not null,
             PaidMembersEvent     int not null,
@@ -114,7 +122,8 @@ begin
             RenewalEvents        int not null,
             ReadmissionEvents    int not null,
             LapseEvents          int not null,
-            primary key clustered (date_id, country_id, gender_id, membership_grade_id, membership_status_id)
+            primary key clustered (date_id, country_id, gender_id, membership_grade_id, membership_status_id,
+                                   payment_method_id, payer_type_id, concession_type_id)
         );
 
         set @win_from = @span_from;
@@ -131,6 +140,7 @@ begin
             -- stage this window's silver aggregate at the star grain
             insert into #det_stage
             (date_id, country_id, gender_id, membership_grade_id, membership_status_id,
+             payment_method_id, payer_type_id, concession_type_id,
              ActiveMembers, PaidMembers, PaidMembersEvent,
              JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
             select
@@ -145,6 +155,9 @@ begin
                 case when dc.grade = 'election' then dc.membership_status_id
                      else 0                                  -- lapse is event-only: N/A status
                 end,
+                dc.payment_method_id,
+                dc.payer_type_id,
+                dc.concession_type_id,
                 sum(dc.active_count),
                 sum(dc.paid_count),
                 sum(dc.paid_count_event),
@@ -166,7 +179,10 @@ begin
                 end,
                 case when dc.grade = 'election' then dc.membership_status_id
                      else 0
-                end;
+                end,
+                dc.payment_method_id,
+                dc.payer_type_id,
+                dc.concession_type_id;
             set @rc = @@rowcount;
             set @src_count = @src_count + @rc;
 
@@ -181,7 +197,10 @@ begin
                                 and s.country_id           = tgt.country_id
                                 and s.gender_id            = tgt.gender_id
                                 and s.membership_grade_id  = tgt.membership_grade_id
-                                and s.membership_status_id = tgt.membership_status_id);
+                                and s.membership_status_id = tgt.membership_status_id
+                                and s.payment_method_id    = tgt.payment_method_id
+                                and s.payer_type_id        = tgt.payer_type_id
+                                and s.concession_type_id   = tgt.concession_type_id);
             set @del = @del + @@rowcount;
 
             -- changed cells: updated in place, so they keep their id; the
@@ -201,6 +220,9 @@ begin
               and s.gender_id            = tgt.gender_id
               and s.membership_grade_id  = tgt.membership_grade_id
               and s.membership_status_id = tgt.membership_status_id
+              and s.payment_method_id    = tgt.payment_method_id
+              and s.payer_type_id        = tgt.payer_type_id
+              and s.concession_type_id   = tgt.concession_type_id
             where tgt.ActiveMembers     <> s.ActiveMembers
                or tgt.PaidMembers       <> s.PaidMembers
                or tgt.PaidMembersEvent  <> s.PaidMembersEvent
@@ -213,9 +235,11 @@ begin
             -- new cells
             insert into Layercake.fact_daily_member_count_detail
             (date_id, country_id, gender_id, membership_grade_id, membership_status_id,
+             payment_method_id, payer_type_id, concession_type_id,
              ActiveMembers, PaidMembers, PaidMembersEvent,
              JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
             select s.date_id, s.country_id, s.gender_id, s.membership_grade_id, s.membership_status_id,
+                   s.payment_method_id, s.payer_type_id, s.concession_type_id,
                    s.ActiveMembers, s.PaidMembers, s.PaidMembersEvent,
                    s.JoinEvents, s.RenewalEvents, s.ReadmissionEvents, s.LapseEvents
             from #det_stage s
@@ -225,7 +249,10 @@ begin
                                 and tgt.country_id           = s.country_id
                                 and tgt.gender_id            = s.gender_id
                                 and tgt.membership_grade_id  = s.membership_grade_id
-                                and tgt.membership_status_id = s.membership_status_id);
+                                and tgt.membership_status_id = s.membership_status_id
+                                and tgt.payment_method_id    = s.payment_method_id
+                                and tgt.payer_type_id        = s.payer_type_id
+                                and tgt.concession_type_id   = s.concession_type_id);
             set @ins = @ins + @@rowcount;
 
             commit;    -- one transaction per window: small, quick, self-healing

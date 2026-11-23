@@ -10,6 +10,12 @@
 --  diff/delete/insert works off a single date_id-leading b-tree.
 --  id is bigint (MOD-027, RULE-152, Q-056): kept because the repository
 --  cannot show that nothing outside the database reads it.
+--  RPST (MOD-028, REQ-026): payment_method_id, payer_type_id and
+--  concession_type_id (dim_payment_method / dim_payer_type /
+--  dim_concession_type keys, equal to the silver ids) added by change
+--  script and part of the star grain. No foreign keys, as on the segment
+--  columns of fact_membership_events. A report that wants the old grain
+--  SUMs over the three columns (RULE-167).
 --
 --  PaidMembers vs PaidMembersEvent are two independent readings of the
 --  same question, carried side by side so a report can show either or
@@ -40,9 +46,13 @@ create table Layercake.fact_daily_member_count_detail
     JoinEvents           int not null,    -- event-driven components (daily flow)
     RenewalEvents        int not null,
     ReadmissionEvents    int not null,
-    LapseEvents          int not null    -- reported, not deducted from PaidMembersEvent
+    LapseEvents          int not null,    -- reported, not deducted from PaidMembersEvent
+    payment_method_id    int not null,    -- -> dim_payment_method
+    payer_type_id        int not null,    -- -> dim_payer_type
+    concession_type_id   int not null     -- -> dim_concession_type
 );
 
 create unique clustered index cx_fact_daily_member_count_detail
     on Layercake.fact_daily_member_count_detail
-    (date_id, country_id, gender_id, membership_grade_id, membership_status_id);
+    (date_id, country_id, gender_id, membership_grade_id, membership_status_id,
+     payment_method_id, payer_type_id, concession_type_id);

@@ -5,6 +5,8 @@
     keeping the cell's grain columns. Not summed to date level, so
     changes that cancel out across cells stay visible. measure_name is
     the silv_daily_count_detail column name.
+    MOD-028 (RULE-155): the cell's segment ids, copied from the
+    adjustment row; rows written before deployment show -2 (RULE-162).
 ====================================================================*/
 CREATE OR ALTER VIEW Layercake.vw_silv_daily_count_adjustment_review
 AS
@@ -18,6 +20,9 @@ SELECT
     a.gender_id,
     a.grade,
     a.membership_status_id,
+    a.payment_method_id,
+    a.payer_type_id,
+    a.concession_type_id,
     -- ISNULL only makes the column NOT NULL, as designed: a VALUES column is always reported nullable.
     ISNULL(m.measure_name, '') AS measure_name,
     m.change_value

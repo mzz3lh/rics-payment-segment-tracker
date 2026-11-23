@@ -1,6 +1,8 @@
 -- For each loaded date and silv_daily_count_detail cell, the number of contacts sitting in the
 -- cell that day (ADR-011, Q-059): an eighth additive figure kept like the seven measures, so the
 -- changed-contacts path can recognise a cell that empties. Rows only for counts above 0.
+-- MOD-028 (REQ-026): the three segment ids join the grain, added by change script with -2 on the
+-- rows stored before deployment.
 CREATE TABLE Layercake.etl_daily_count_cell_contacts
 (
     [date]               date             NOT NULL,
@@ -12,7 +14,11 @@ CREATE TABLE Layercake.etl_daily_count_cell_contacts
     contact_count        int              NOT NULL,
     run_id               uniqueidentifier NOT NULL,
     updated_at           datetime2(3)     NOT NULL,
+    payment_method_id    int              NOT NULL,
+    payer_type_id        int              NOT NULL,
+    concession_type_id   int              NOT NULL,
     CONSTRAINT PK_Layercake_etl_daily_count_cell_contacts
-        PRIMARY KEY CLUSTERED ([date], region, country_id, gender_id, grade, membership_status_id),
+        PRIMARY KEY CLUSTERED ([date], region, country_id, gender_id, grade, membership_status_id,
+                               payment_method_id, payer_type_id, concession_type_id),
     CONSTRAINT CK_Layercake_etl_daily_count_cell_contacts_contact_count CHECK (contact_count > 0)
 );
