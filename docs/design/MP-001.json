@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "MP-001",
-    "version": 7,
+    "version": 8,
     "produced_by": "technical_architect",
-    "produced_at": "2026-11-19T12:29:34Z",
+    "produced_at": "2026-11-23T09:11:34Z",
     "status": "approved",
     "source_artefacts": [
       "docs/design/DES-001.json",
@@ -15,11 +15,12 @@
       "docs/amendments/AMD-003.json",
       "docs/amendments/AMD-004.json",
       "docs/amendments/AMD-005.json",
-      "docs/amendments/AMD-006.json"
+      "docs/amendments/AMD-006.json",
+      "docs/amendments/AMD-007.json"
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-19T12:45:48Z",
+      "approved_at": "2026-11-23T14:40:49Z",
       "gate": "architecture_validation"
     }
   },
@@ -977,6 +978,126 @@
       "objects": [
         "Layercake.fact_daily_member_count_detail",
         "Layercake.usp_load_fact_daily_member_count_detail"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-028",
+      "title": "Daily count and gold daily fact at the segment grain",
+      "sequence": 28,
+      "scope": "One migration after MIG-0029 that creates no schema (REQ-026, ADR-013). Through change scripts it adds payment_method_id, payer_type_id and concession_type_id (int not null, -2 on existing rows) to the MOD-022 silv_daily_count_detail, the MOD-026 etl_daily_count_cell_contacts, the MOD-021 silv_daily_count_adjustment and the MOD-027 fact_daily_member_count_detail, and widens their grain keys (the fact's unique clustered index to eight columns; no foreign keys; id stays bigint). It adds etl_daily_count_applied_attribute, empties the other snapshot tables and writes the 'detail_grain_restatement' marker row in etl_daily_count_input_basis. It changes fn_silv_daily_count_detail_as_known_at and vw_silv_daily_count_adjustment_review to carry the three columns; usp_load_silv_daily_count to put each contact-day in its attributes' cell, treat the attributes as an input, and restate at the old grain while the marker exists (daily count segment grain and restatement patterns); and usp_load_fact_daily_member_count_detail to sync on the eight-column key. silv_daily_count, fn_silv_daily_count_as_known_at (retested), usp_load_silver, usp_load_gold, usp_run_daily_load and the run order are unchanged; MOD-029 moves the daily count. Tests run the attributes load, the daily count and the gold load directly as well as usp_run_daily_load, and cover RULE-168's cases: the 1 October split, no attributes row giving 0, pre-2022 giving -2, an attribute change alone matching @FullRebuild with its adjustment rows, old-grain totals unchanged, and gold keys and cell sync. The Tester amends the MOD-021, MOD-022, MOD-026 and MOD-027 conditions only where they name the grain (AC-026-22). The down script follows the restatement pattern.",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-019",
+        "REQ-020",
+        "REQ-024",
+        "REQ-025"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006",
+        "MOD-007",
+        "MOD-008",
+        "MOD-009",
+        "MOD-010",
+        "MOD-011",
+        "MOD-012",
+        "MOD-016",
+        "MOD-017",
+        "MOD-018",
+        "MOD-019",
+        "MOD-020",
+        "MOD-021",
+        "MOD-022",
+        "MOD-023",
+        "MOD-024",
+        "MOD-025",
+        "MOD-026",
+        "MOD-027"
+      ],
+      "acceptance_criteria": [
+        "AC-026-01",
+        "AC-026-02",
+        "AC-026-03",
+        "AC-026-04",
+        "AC-026-05",
+        "AC-026-06",
+        "AC-026-07",
+        "AC-026-08",
+        "AC-026-12",
+        "AC-026-15",
+        "AC-026-17",
+        "AC-026-18",
+        "AC-026-19",
+        "AC-026-22"
+      ],
+      "objects": [
+        "Layercake.silv_daily_count_detail",
+        "Layercake.etl_daily_count_cell_contacts",
+        "Layercake.silv_daily_count_adjustment",
+        "Layercake.fact_daily_member_count_detail",
+        "Layercake.etl_daily_count_applied_attribute",
+        "Layercake.fn_silv_daily_count_detail_as_known_at",
+        "Layercake.vw_silv_daily_count_adjustment_review",
+        "Layercake.usp_load_silv_daily_count",
+        "Layercake.usp_load_fact_daily_member_count_detail"
+      ],
+      "status": "planned",
+      "build_tool": "migrations"
+    },
+    {
+      "id": "MOD-029",
+      "title": "Daily count after the segment loads, reconciliation and handover",
+      "sequence": 29,
+      "scope": "Changes the MOD-023 usp_run_daily_load and the Phase 1 usp_load_silver and usp_load_gold (ADR-012, RULE-158, RULE-159). usp_load_silver gains @SkipDailyCount bit = 0 and usp_load_gold gains @SkipDailyFact bit = 0, which leave out the daily count and the gold daily fact; with no switch both behave as today. usp_run_daily_load runs bronze, then silver and gold with the switches set, then usp_run_payment_segments, then usp_load_silv_daily_count with the run's @FullRebuild and @RebuildFrom, then usp_load_fact_daily_member_count_detail. Its parameters, logging and failure handling are unchanged, and usp_run_payment_segments is unchanged. Changes check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql to rebuild the expected star with the three segment columns. After one usp_run_daily_load on the synthetic data, the Developer runs it and the unchanged active-member-difference.sql and paid-member-difference.sql, and records the verdicts in the change note. Tests cover AC-026-09 to AC-026-11, AC-026-13, AC-026-14 and AC-026-16 through usp_run_daily_load. The Tester amends the MOD-023 conditions that assert the rebuild switches reach the silver step, so that they reach the daily count step. The documentation update changes docs/handover/02-architecture.md, 03-data-lineage.md, 04-runbook.md, 06-known-limitations.md and 07-glossary.md (AC-026-21). The down script restores the MOD-023 usp_run_daily_load and the Phase 1 usp_load_silver and usp_load_gold.",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-021"
+      ],
+      "depends_on": [
+        "MOD-002",
+        "MOD-003",
+        "MOD-004",
+        "MOD-005",
+        "MOD-006",
+        "MOD-007",
+        "MOD-008",
+        "MOD-009",
+        "MOD-010",
+        "MOD-011",
+        "MOD-012",
+        "MOD-016",
+        "MOD-017",
+        "MOD-018",
+        "MOD-019",
+        "MOD-020",
+        "MOD-021",
+        "MOD-022",
+        "MOD-023",
+        "MOD-024",
+        "MOD-025",
+        "MOD-026",
+        "MOD-027",
+        "MOD-028"
+      ],
+      "acceptance_criteria": [
+        "AC-026-09",
+        "AC-026-10",
+        "AC-026-11",
+        "AC-026-13",
+        "AC-026-14",
+        "AC-026-16",
+        "AC-026-20",
+        "AC-026-21"
+      ],
+      "objects": [
+        "Layercake.usp_run_daily_load",
+        "Layercake.usp_load_silver",
+        "Layercake.usp_load_gold"
       ],
       "status": "planned",
       "build_tool": "migrations"
