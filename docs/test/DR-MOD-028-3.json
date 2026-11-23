@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "artefact_type": "defect_report",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-23T17:08:34Z",
+    "status": "for_review",
+    "artefact_id": "DR-MOD-028-3",
+    "source_artefacts": [
+      "TR-MOD-028-3"
+    ]
+  },
+  "module_id": "MOD-028",
+  "loop_number": 3,
+  "defects": [
+    {
+      "id": "DEF-007",
+      "test_condition_ids": [
+        "TC-028-026"
+      ],
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-025"
+      ],
+      "severity": "major",
+      "summary": "Raised by a human on Mike's instruction (2026-11-23). Three Developer unit tests in tests/tsqlt/test_MOD027_dev.sql fail in the MOD-028 regression run: 'rows_deleted counts the span trim and the in-window deletes together', 'an overflow in a later window keeps the committed window and logs Failed with its counts', 'counts add up across one-day windows and each window logs its synced cells'. Their silv_daily_count_detail and fact_daily_member_count_detail inserts predate the AMD-007 grain (RULE-155) and leave payment_method_id, payer_type_id and concession_type_id NULL in the faked tables.",
+      "steps_to_reproduce": "Run tSQLt test class test_MOD027_dev on the MOD-028 branch (TR-MOD-028-2).",
+      "expected": "All three pass, as before MOD-028: the Developer adds payment_method_id, payer_type_id and concession_type_id = 0 to every silv_daily_count_detail and fact_daily_member_count_detail row these tests insert (and to any expected rows or column lists), changing nothing else. The procedure code is not changed.",
+      "actual": "Each fails with 'Cannot insert the value NULL into column payment_method_id, table #det_stage' (error 515).",
+      "suspected_cause": "code",
+      "status": "retest_passed"
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-23T16:46:49Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-028-2",
+    "source_artefacts": [
+      "CN-MOD-028",
+      "TCS-MOD-028",
+      "tests/tsqlt/test_MOD028.sql"
+    ]
+  },
+  "module_id": "MOD-028",
+  "loop_number": 2,
+  "run": {
+    "environment": "test",
+    "commit": "3837a8536444803a869781a41a54687b991415bb",
+    "started_at": "2026-11-23T16:38:49Z",
+    "finished_at": "2026-11-23T16:45:47Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-028-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-013",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-014",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-015",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-016",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-017",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-018",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-019",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-020",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-021",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-022",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-023",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-024",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-025",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-028-026",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-019",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-020",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-024",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-025",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-026",
+      "status": "met"
+    }
+  ],
+  "regression": {
+    "ran": 721,
+    "failed": [
+      {
+        "test": "[test_MOD027_dev].[test rows_deleted counts the span trim and the in-window deletes together]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'payment_method_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000014EE1'; column does not allow nulls. INSERT "
+      },
+      {
+        "test": "[test_MOD027_dev].[test an overflow in a later window keeps the committed window and logs Failed with its counts]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'payment_method_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000014EE3'; column does not allow nulls. INSERT "
+      },
+      {
+        "test": "[test_MOD027_dev].[test counts add up across one-day windows and each window logs its synced cells]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'payment_method_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000014EE3'; column does not allow nulls. INSERT "
+      }
+    ]
+  },
+  "verdict": "fail"
+}
