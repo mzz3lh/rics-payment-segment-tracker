@@ -11,8 +11,8 @@
     -> anomalies -> state ranges -> member profile -> daily counts ->
     annual rate base.
 
-    Parameters (all passed straight through to the daily-count module,
-    the only one that takes them):
+    Parameters (all but @SkipDailyCount passed straight through to the
+    daily-count module, the only one that takes them):
       @run_id              - orchestrator run id (generated if standalone)
       @FullRebuild         - 1 clears the loaded markers for the WHOLE
                              spine (from 2020-10-01) so both daily count
@@ -28,12 +28,18 @@
       @DailyCountBatchDays - chunk size for the daily-count walk, and
                              therefore the granularity at which a failed
                              run resumes (default 31; minimum 1).
+      @SkipDailyCount      - 1 leaves out the daily count (ADR-012):
+                             usp_run_daily_load runs it itself after the
+                             payment segment loads, so it uses the
+                             member-year attributes of the same run.
+                             Leave at 0 when calling by hand.
 ====================================================================*/
 create or alter procedure Layercake.usp_load_silver
     @run_id              uniqueidentifier = null,
     @FullRebuild         bit  = 0,
     @RebuildFrom         date = null,
-    @DailyCountBatchDays int  = 31
+    @DailyCountBatchDays int  = 31,
+    @SkipDailyCount      bit  = 0
 as
 begin
     set nocount on;
@@ -75,11 +81,12 @@ begin
     exec Layercake.usp_load_silv_member_profile       @run_id = @run_id;
 
     -- daily counts (detail + main, chunked and marked per chunk)
-    exec Layercake.usp_load_silv_daily_count
-         @run_id              = @run_id,
-         @FullRebuild         = @FullRebuild,
-         @RebuildFrom         = @RebuildFrom,
-         @DailyCountBatchDays = @DailyCountBatchDays;
+    if @SkipDailyCount = 0
+        exec Layercake.usp_load_silv_daily_count
+             @run_id              = @run_id,
+             @FullRebuild         = @FullRebuild,
+             @RebuildFrom         = @RebuildFrom,
+             @DailyCountBatchDays = @DailyCountBatchDays;
 
     -- segment-level annual counts for the DAX rate measures
     exec Layercake.usp_load_silv_annual_rate_base     @run_id = @run_id;

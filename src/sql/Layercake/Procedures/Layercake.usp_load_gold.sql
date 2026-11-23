@@ -13,10 +13,15 @@
       @run_id          - orchestrator run id (generated if standalone)
       @DetailBatchDays - date-window size for the batched star detail
                          fact load (default 31; minimum 1)
+      @SkipDailyFact   - 1 leaves out the star detail fact (ADR-012):
+                         usp_run_daily_load runs it itself straight
+                         after the daily count. Leave at 0 when calling
+                         by hand.
 ====================================================================*/
 create or alter procedure Layercake.usp_load_gold
     @run_id          uniqueidentifier = null,
-    @DetailBatchDays int = 31
+    @DetailBatchDays int = 31,
+    @SkipDailyFact   bit = 0
 as
 begin
     set nocount on;
@@ -38,9 +43,10 @@ begin
     -- facts
     exec Layercake.usp_load_fact_membership_events @run_id = @run_id;
 
-    exec Layercake.usp_load_fact_daily_member_count_detail
-         @run_id          = @run_id,
-         @DetailBatchDays = @DetailBatchDays;
+    if @SkipDailyFact = 0
+        exec Layercake.usp_load_fact_daily_member_count_detail
+             @run_id          = @run_id,
+             @DetailBatchDays = @DetailBatchDays;
 
     exec Layercake.usp_load_fact_annual_rate_base  @run_id = @run_id;
 end
