@@ -7,7 +7,7 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-11-18T08:44:17Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,8 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-18T09:07:17Z",
-      "gate": "test_design_review"
+      "approved_at": "2026-11-23T16:21:58Z",
+      "gate": "test_design_review",
+      "comments": "Reopened for MOD-028: AMD-007 (REQ-026, AC-026-22) adds payment_method_id, payer_type_id and concession_type_id to the grain of the daily detail tables, the adjustment history, the cell counts, the as-known-at functions, the review view and the gold fact. Change these tests only where they name that grain: add the three columns with 0 (Unknown) to seeded and expected rows and to expected column lists, column counts and unique keys, and change nothing else. MOD-016: TC-016-014 (daily detail column lists, now 18 and 16 columns; annual tables unchanged). MOD-021: TC-021-015 and TC-021-017 (adjustment table columns and unique key). MOD-022: TC-022-019 (seeded detail rows get 0 in the three columns; still 4 adjustment rows). MOD-027: TC-027-001 to TC-027-010 and TC-027-012 (fact test data gets 0 in the three columns; TC-027-012 expects 16 fact columns and the eight-column unique clustered key)."
     }
   },
   "module_id": "MOD-022",
