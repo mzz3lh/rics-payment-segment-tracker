@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-024",
-    "version": 2,
+    "version": 3,
     "produced_by": "tester",
-    "produced_at": "2026-11-18T20:30:16Z",
+    "produced_at": "2026-11-25T09:46:58Z",
     "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
@@ -15,7 +15,7 @@
     ],
     "approval": {
       "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-18T20:30:38Z",
+      "approved_at": "2026-11-25T09:47:21Z",
       "gate": "test_design_review",
       "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
@@ -322,7 +322,7 @@
       "acceptance_criterion_id": "AC-022-12",
       "category": "idempotency",
       "description": "AC-022-12, second part: a usp_run_daily_load after the segment run, on unchanged data, records 0 inserted, 0 updated and 0 deleted for brnz_corporate_subscription and leaves the table unchanged.",
-      "preconditions": "Setup as TC-024-022, plus the Phase 1 orchestrators usp_load_bronze, usp_load_silver and usp_load_gold as stand-ins that log one 'Success' row each (unchanged by MOD-024, tested by their own suites). usp_run_payment_segments with @as_of_date 2025-06-15, then a snapshot of brnz_corporate_subscription, then one usp_run_daily_load (no as-of date; Campaign Years to 2060 cover today).",
+      "preconditions": "Setup as TC-024-022, plus the Phase 1 orchestrators usp_load_bronze, usp_load_silver and usp_load_gold as stand-ins that log one 'Success' row each (unchanged by MOD-024, tested by their own suites). DEF-008 (MOD-029, ADR-012, RULE-158): usp_run_daily_load now also calls usp_load_silv_daily_count and usp_load_fact_daily_member_count_detail after usp_run_payment_segments, so both are spied with no stand-in command (they write no log row and are tested by their own suites). usp_run_payment_segments with @as_of_date 2025-06-15, then a snapshot of brnz_corporate_subscription, then one usp_run_daily_load (no as-of date; Campaign Years to 2060 cover today).",
       "expected": "Under the daily run's run_id: usp_run_daily_load 'Success' with no row counts; brnz_corporate_subscription 'Success' with 0 inserted, 0 updated, 0 deleted. brnz_corporate_subscription equals the snapshot in every column.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD024].[test TC-024-023 a daily run after the segment run records 0 0 0 for the corporate subscription load]"

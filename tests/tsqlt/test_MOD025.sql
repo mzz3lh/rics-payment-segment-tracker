@@ -761,6 +761,10 @@ AS
 BEGIN
     EXEC test_MOD025.[Arrange daily run];
 
+    -- DEF-008 (MOD-029, ADR-012, RULE-158): the daily run now calls these two itself; spied with no command, they write no log row.
+    EXEC tSQLt.SpyProcedure N'Layercake.usp_load_silv_daily_count';
+    EXEC tSQLt.SpyProcedure N'Layercake.usp_load_fact_daily_member_count_detail';
+
     INSERT INTO Layercake.brnz_corporate_subscription
         (contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status, _is_deleted)
     VALUES (N'C2201', N'SCH-020', N'Scheme Twenty', 2025, N'Active',   N'Active', 0),
@@ -827,6 +831,10 @@ CREATE PROCEDURE test_MOD025.[test TC-025-017 a second daily run on unchanged da
 AS
 BEGIN
     EXEC test_MOD025.[Arrange daily run];
+
+    -- DEF-008 (MOD-029, ADR-012, RULE-158): the daily run now calls these two itself; spied with no command, they write no log row.
+    EXEC tSQLt.SpyProcedure N'Layercake.usp_load_silv_daily_count';
+    EXEC tSQLt.SpyProcedure N'Layercake.usp_load_fact_daily_member_count_detail';
 
     EXEC Layercake.usp_run_daily_load;
 
