@@ -1,0 +1,194 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-25T09:06:51Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-029-1",
+    "source_artefacts": [
+      "CN-MOD-029",
+      "TCS-MOD-029",
+      "tests/tsqlt/test_MOD029.sql"
+    ]
+  },
+  "module_id": "MOD-029",
+  "loop_number": 1,
+  "run": {
+    "environment": "test",
+    "commit": "2b41575224934d00a1ece659fe51254594c31cf3",
+    "started_at": "2026-11-25T08:56:19Z",
+    "finished_at": "2026-11-25T09:05:37Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-029-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-013",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-014",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-015",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-016",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-017",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-018",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-019",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-020",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-021",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-026",
+      "status": "met"
+    }
+  ],
+  "regression": {
+    "ran": 755,
+    "failed": [
+      {
+        "test": "[test_MOD023].[test TC-023-007 after the source row is corrected the next daily run succeeds and fills every segment]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD023].[test TC-023-010 a second daily run on unchanged data changes no segment row]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD023].[test TC-023-004 a Lapse new in this run carries Corporate carried in silver and gold after one daily run]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD023].[test TC-023-005 the daily run derives attributes up to the Campaign Year of the run date]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD023].[test TC-023-011 the segment step leaves the Phase 1 data the difference scripts compare unchanged]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD023].[test TC-023-001 one daily run logs every segment load as Success under the daily run id]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD023].[test TC-023-013 a plain daily run asks for no rebuild and FullRebuild stays an optional manual switch]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD023].[test TC-023-002 every segment load starts after the Phase 1 gold step]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD023].[test TC-023-009 a segment-only rerun after the daily run logs Success and 0 0 0 for every load]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD023].[test TC-023-003 one daily run gives the same segment results as Phase 1 then a separate segment run]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD023_dev].[test the segment run is called once, last, with the daily run id and no as-of date]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD024].[test TC-024-023 a daily run after the segment run records 0 0 0 for the corporate subscription load]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD025].[test TC-025-016 one daily run over earlier bronze rows ends Success and lands the 8 rows]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      },
+      {
+        "test": "[test_MOD025].[test TC-025-017 a second daily run on unchanged data records 0 0 0 for the corporate subscription load]",
+        "outcome": "error",
+        "message": "Message: dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module. | Procedure: Layercake.usp_load_fact_daily_member_count_detail (85) | Severity, State: 16, 1 | Nu"
+      }
+    ]
+  },
+  "verdict": "fail",
+  "defect_report_ref": "DR-MOD-029-1"
+}

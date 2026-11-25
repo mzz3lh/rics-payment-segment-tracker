@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "artefact_type": "defect_report",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-25T09:06:51Z",
+    "status": "for_review",
+    "artefact_id": "DR-MOD-029-1",
+    "source_artefacts": [
+      "TR-MOD-029-1"
+    ]
+  },
+  "module_id": "MOD-029",
+  "loop_number": 1,
+  "defects": [
+    {
+      "id": "DEF-008",
+      "test_condition_ids": [
+        "TC-023-001",
+        "TC-023-002",
+        "TC-023-003",
+        "TC-023-004",
+        "TC-023-005",
+        "TC-023-007",
+        "TC-023-009",
+        "TC-023-010",
+        "TC-023-011",
+        "TC-023-013",
+        "TC-024-023",
+        "TC-025-016",
+        "TC-025-017"
+      ],
+      "requirement_ids": [
+        "REQ-018",
+        "REQ-021",
+        "REQ-022",
+        "REQ-023"
+      ],
+      "severity": "minor",
+      "summary": "The approved MOD-029 run order (ADR-012, RULE-158) makes usp_run_daily_load call usp_load_silv_daily_count and usp_load_fact_daily_member_count_detail itself after usp_run_payment_segments. The MOD-023, MOD-024 and MOD-025 suites still stub only the bronze, silver and gold steps, so the real daily count and gold daily fact now run on their unseeded fakes and fail.",
+      "steps_to_reproduce": "Run the test_MOD023, test_MOD024 and test_MOD025 suites on commit 2b41575 (for example test_MOD023.[test TC-023-001 one daily run logs every segment load as Success under the daily run id]). The SetUp in tests/tsqlt/test_MOD023.sql spies Layercake.usp_load_bronze, usp_load_silver and usp_load_gold with stubs, but not usp_load_silv_daily_count or usp_load_fact_daily_member_count_detail. Its fakes leave dim_membership_grade empty. EXEC Layercake.usp_run_daily_load then fails in the gold daily fact. test_MOD024.sql line 47 and test_MOD025.sql line 105 use the same pattern.",
+      "expected": "DES-001 usp_run_daily_load (MOD-029) and MP-001 MOD-029 say the run goes: bronze; silver with @SkipDailyCount = 1; gold with @SkipDailyFact = 1; usp_run_payment_segments; usp_load_silv_daily_count; usp_load_fact_daily_member_count_detail. The earlier conditions check the segment loads in one daily run (REQ-021, RULE-123 to RULE-126). They should still pass once their setup takes these two direct calls into account, either by spying both procedures or by seeding dim_membership_grade and the daily tables. TC-023-013 should also check that @FullRebuild reaches the daily count step, as MP-001 MOD-029 asks the Tester to amend.",
+      "actual": "Each of these tests fails in usp_run_daily_load with: 'dim_membership_grade is missing the Candidate/Qualified members - run usp_load_dim_membership_grade (and deploy the baseline DDL) before this module.' (Layercake.usp_load_fact_daily_member_count_detail, line 85, severity 16). TC-023-007 gets this error on its second run, after the source row is corrected. Before MOD-029 the tests' usp_load_silver and usp_load_gold spies replaced the whole silver and gold steps, so the daily count and gold daily fact never ran. Now usp_run_daily_load calls them directly, outside the spied steps, as the design requires. All 20 MOD-029 tests pass, including TC-029-001, TC-029-014 and TC-029-019 for the new order, the FullRebuild routing and the fact contents.",
+      "suspected_cause": "design",
+      "status": "open"
+    }
+  ]
+}

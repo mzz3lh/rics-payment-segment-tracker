@@ -1,0 +1,129 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-25T09:58:19Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-029-2",
+    "source_artefacts": [
+      "CN-MOD-029",
+      "TCS-MOD-029",
+      "tests/tsqlt/test_MOD029.sql"
+    ]
+  },
+  "module_id": "MOD-029",
+  "loop_number": 2,
+  "run": {
+    "environment": "test",
+    "commit": "febea017cd537e917a555128b32566a9a6bdddbd",
+    "started_at": "2026-11-25T09:49:00Z",
+    "finished_at": "2026-11-25T09:57:44Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-029-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-013",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-014",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-015",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-016",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-017",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-018",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-019",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-029-020",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-021",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-026",
+      "status": "met"
+    }
+  ],
+  "regression": {
+    "ran": 755,
+    "failed": [
+      {
+        "test": "[test_MOD023].[test TC-023-013 a plain daily run asks for no rebuild and FullRebuild stays an optional manual switch]",
+        "outcome": "error",
+        "message": "Message: Incorrect syntax near 'CAST'. | Procedure: usp_load_silv_daily_count (1) | Severity, State: 15, 1 | Number: 102"
+      }
+    ]
+  },
+  "verdict": "fail",
+  "defect_report_ref": "DR-MOD-029-2"
+}
