@@ -956,6 +956,10 @@ GO
 CREATE PROCEDURE test_MOD024.[test TC-024-023 a daily run after the segment run records 0 0 0 for the corporate subscription load]
 AS
 BEGIN
+    -- DEF-008 (MOD-029, ADR-012, RULE-158): the daily run now calls the daily count loads after the segment loads.
+    EXEC tSQLt.SpyProcedure N'Layercake.usp_load_silv_daily_count';
+    EXEC tSQLt.SpyProcedure N'Layercake.usp_load_fact_daily_member_count_detail';
+
     INSERT INTO Layercake.brnz_corporate_subscription
         (contact_no, scheme_no, scheme_name, sub_campaign_year, sub_status, sub_user_status)
     VALUES (N'C2201', N'SCH-020', N'Scheme Twenty', 2025, N'Active',   N'Active'),
