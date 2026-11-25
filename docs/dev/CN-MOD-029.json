@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-029",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-23T17:42:52Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-029.json",
+      "tests/tsqlt/test_MOD029.sql"
+    ]
+  },
+  "module_id": "MOD-029",
+  "branch": "agent/developer/MOD-029-daily-count-after-the-segment-loads-reco",
+  "commit": "febea017cd537e917a555128b32566a9a6bdddbd",
+  "requirement_ids": [
+    "REQ-026",
+    "REQ-021"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_run_daily_load.sql",
+      "object": "Layercake.usp_run_daily_load",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-021",
+        "REQ-026"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silver.sql",
+      "object": "Layercake.usp_load_silver",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-021"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_gold.sql",
+      "object": "Layercake.usp_load_gold",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-026",
+        "REQ-021"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD029_dev].[test usp_load_gold with SkipDailyFact still runs the annual rate base fact after the events fact]",
+    "[test_MOD029_dev].[test usp_load_silver with SkipDailyCount still runs the annual rate base after the profile]",
+    "[test_MOD029_dev].[test usp_run_daily_load holds back the daily steps and gives the daily count only FullRebuild]",
+    "[test_MOD029_dev].[test usp_run_daily_load re-raises a segment failure logs Failed and runs no daily step]",
+    "[test_MOD029_dev].[test usp_run_daily_load runs the six steps in order under one run_id]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0031",
+      "up_script": "src/sql/deploy/MIG-0031_MOD-029_daily-count-after-the-segment-loads-reco.up.sql",
+      "down_script": "src/sql/deploy/MIG-0031_MOD-029_daily-count-after-the-segment-loads-reco.down.sql",
+      "rollback_test": {
+        "commit": "2b41575224934d00a1ece659fe51254594c31cf3",
+        "run_at": "2026-11-23T17:42:44.809555+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql was not changed, and that script, active-member-difference.sql and paid-member-difference.sql were not run. The Developer's tools cannot edit files under reference/ or run SQLCMD scripts. I asked the owner (deferred). Assumption, following ASM-009: these become listed handover steps for a human. (1) Add payment_method_id, payer_type_id and concession_type_id to D2's expected star, taken from silv_daily_count_detail, and to its join and grouping with fact_daily_member_count_detail. (2) After one usp_run_daily_load on the synthetic data, run the three scripts and record the RS-1 and D2 verdicts. Until (1) is done, D2 will report differences against the 8-column fact.",
+    "usp_run_daily_load passes only its @FullRebuild to usp_load_silv_daily_count. DES-001 says 'the run's @FullRebuild and @RebuildFrom', but usp_run_daily_load has no @RebuildFrom parameter, and the design keeps its parameters unchanged. So @RebuildFrom keeps its default (NULL), and @DailyCountBatchDays and @DetailBatchDays keep their defaults (31), the same values the silver and gold steps passed before.",
+    "DEF-008: tests/tsqlt/test_MOD023_dev.sql amended by a human (Mike) at febea017cd537e917a555128b32566a9a6bdddbd: SetUp also spies usp_load_silv_daily_count and usp_load_fact_daily_member_count_detail, the test expects 6 calls and is renamed for the new run order; no procedure change. Check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql was amended by a human (Mike) at 6474dd6 (AC-026-20)."
+  ],
+  "notes": "Baseline before any change: 2 of the Tester's 20 tests passed and 18 failed. Now all 20 pass, plus my 5 unit tests (test_MOD029_dev).\n\nChanges:\n- usp_load_silver gains @SkipDailyCount bit = 0, which skips its call to usp_load_silv_daily_count.\n- usp_load_gold gains @SkipDailyFact bit = 0, which skips its call to usp_load_fact_daily_member_count_detail.\n- With no switch, both run exactly as before, including the manual @FullRebuild and @RebuildFrom rebuilds.\n- usp_run_daily_load now runs, under one run_id and in this order: bronze; silver with @SkipDailyCount = 1; gold with @SkipDailyFact = 1; usp_run_payment_segments; usp_load_silv_daily_count @FullRebuild; usp_load_fact_daily_member_count_detail.\n- Its parameters, its 'run' row logging and its CATCH (log Failed, THROW) are unchanged, and it opens no transaction of its own. If a segment load fails, the run fails before the daily steps, so they stay as the previous run left them.\n\nThe three procedures keep the Phase 1 lower-case keyword style, so the advisory sqlfluff capitalisation findings are left as they are.\n\nUnit tests cover:\n- the step order and the single run_id;\n- the arguments each step receives (skip switches set, only FullRebuild passed to the daily count);\n- the segment-failure path: the run is re-raised, its row is logged Failed with the message, and no daily step runs;\n- the silver and gold steps that still run after a skipped step.\n\nThe MIG-0031 down script restores the MOD-023 usp_run_daily_load and the Phase 1 usp_load_silver and usp_load_gold. The round-trip passes and no grants are needed.\n\nThe handover documentation update (AC-026-21) is the Technical Writer's.\n\nTest-first: the first run had 2 of 20 of the Tester's tests passing; the final run passed 20 of 20 and 5 unit test(s), in 3 run(s)."
+}

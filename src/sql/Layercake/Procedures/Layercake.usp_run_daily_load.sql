@@ -6,8 +6,9 @@
 /*====================================================================
     DAILY RUN
     ------------------------------------------------------------------
-    Runs bronze -> silver -> gold -> payment segments under one run_id
-    so the whole run can be traced in Layercake.etl_run_log.
+    Runs bronze -> silver -> gold -> payment segments -> daily count ->
+    gold daily fact under one run_id so the whole run can be traced in
+    Layercake.etl_run_log.
 
     * Any layer failure stops the run (a layer must not build on a
       partial predecessor). The failed module, its error and every
@@ -20,12 +21,17 @@
       (and therefore the gold detail fact) to recompute from the start
       of the spine - use after changing business rules, otherwise leave
       at 0.
-    * The payment segment loads (usp_run_payment_segments) run last:
-      they write onto the Phase 1 events and facts (ADR-001), so one
-      call populates Phase 1 and every segment column (RULE-123,
-      RULE-124). No as-of date is passed, so the attributes load uses
-      the run date. usp_run_payment_segments stays callable on its own
-      for a segment-only rerun (RULE-126).
+    * The payment segment loads (usp_run_payment_segments) run after the
+      Phase 1 gold step: they write onto the Phase 1 events and facts
+      (ADR-001), so one call populates Phase 1 and every segment column
+      (RULE-123, RULE-124). No as-of date is passed, so the attributes
+      load uses the run date. usp_run_payment_segments stays callable on
+      its own for a segment-only rerun (RULE-126).
+    * The daily count and the gold daily fact are held back from the
+      silver and gold steps and run last (ADR-012, RULE-158), so each
+      contact-day takes the member-year attributes loaded earlier in
+      this run. A failed segment load leaves both as the previous run
+      left them; the next run brings them into line.
 
     Schedule daily, e.g.:
         exec Layercake.usp_run_daily_load;
@@ -50,9 +56,13 @@ begin
     begin try
         -- each module manages its own transaction and step logging
         exec Layercake.usp_load_bronze @run_id = @run_id;
-        exec Layercake.usp_load_silver @run_id = @run_id, @FullRebuild = @FullRebuild;
-        exec Layercake.usp_load_gold   @run_id = @run_id;
+        exec Layercake.usp_load_silver @run_id = @run_id, @SkipDailyCount = 1;
+        exec Layercake.usp_load_gold   @run_id = @run_id, @SkipDailyFact = 1;
         exec Layercake.usp_run_payment_segments @run_id = @run_id;
+
+        -- daily count after the attributes it splits by, then its gold fact
+        exec Layercake.usp_load_silv_daily_count @run_id = @run_id, @FullRebuild = @FullRebuild;
+        exec Layercake.usp_load_fact_daily_member_count_detail @run_id = @run_id;
 
         exec Layercake.usp_etl_log_end @log_id, 'Success';
     end try

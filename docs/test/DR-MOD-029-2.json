@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "artefact_type": "defect_report",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-25T09:58:19Z",
+    "status": "for_review",
+    "artefact_id": "DR-MOD-029-2",
+    "source_artefacts": [
+      "TR-MOD-029-2"
+    ]
+  },
+  "module_id": "MOD-029",
+  "loop_number": 2,
+  "defects": [
+    {
+      "id": "DEF-008",
+      "test_condition_ids": [
+        "TC-023-013"
+      ],
+      "requirement_ids": [
+        "REQ-018",
+        "REQ-021"
+      ],
+      "severity": "minor",
+      "summary": "The amended TC-023-013 test cannot run: its stand-in for usp_load_silv_daily_count passes an expression (CONCAT(CAST(@FullRebuild ...))) straight to EXEC Layercake.usp_etl_log_end, which T-SQL does not allow, so the stand-in fails with a syntax error before usp_run_daily_load's handling of @FullRebuild is checked.",
+      "steps_to_reproduce": "run_test '[test_MOD023].[test TC-023-013 a plain daily run asks for no rebuild and FullRebuild stays an optional manual switch]'. Fix to the test (through the test design review): in the first SpyProcedure's @CommandToExecute, declare the message first, then pass the variable: `DECLARE @l bigint; DECLARE @msg nvarchar(4000) = CONCAT(CAST(@FullRebuild AS varchar(1)), ''|'', ISNULL(CONVERT(varchar(10), @RebuildFrom, 23), ''NULL'')); EXEC Layercake.usp_etl_log_start @run_id, ''silver'', ''daily_count_stub'', @l OUTPUT; EXEC Layercake.usp_etl_log_end @l, ''Success'', NULL, NULL, NULL, @msg;`. Nothing else in the test or its condition changes. The faulty command came from ASM-016's suggested text for TC-023-013.",
+      "expected": "TC-023-013 (AC-018-10, RULE-158): a plain usp_run_daily_load and then usp_run_daily_load @FullRebuild = 1 give exactly 2 silver/daily_count_stub rows, each under its own usp_run_daily_load run_id, with error_message '0|NULL' and then '1|NULL'. There are 2 daily run rows, both 'Success'.",
+      "actual": "The test errors with 'Incorrect syntax near 'CAST'.' (number 102, severity 15, procedure usp_load_silv_daily_count line 1). That is the tSQLt spy built from the test's @CommandToExecute, which has `EXEC Layercake.usp_etl_log_end @l, 'Success', NULL, NULL, NULL, CONCAT(CAST(@FullRebuild AS varchar(1)), '|', ISNULL(CONVERT(varchar(10), @RebuildFrom, 23), 'NULL'));`. A value passed to EXEC must be a constant or a variable, never a function call. In run_sql, a procedure body with that form fails with 102 'Incorrect syntax near 'CAST''. The same body with the CONCAT first assigned to a declared variable compiles. The build is not at fault: all 20 MOD-029 tests pass, including TC-029-014 (the @FullRebuild path through usp_run_daily_load), and the other 754 earlier-module tests pass.",
+      "suspected_cause": "test",
+      "status": "open"
+    }
+  ]
+}

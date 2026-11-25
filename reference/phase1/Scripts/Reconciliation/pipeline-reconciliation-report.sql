@@ -574,6 +574,9 @@ select
     case when dc.grade = 'election' then dc.membership_status_id
          else 0                                       -- lapse is event-only: N/A status
     end                                               as membership_status_id,
+    dc.payment_method_id,
+    dc.payer_type_id,
+    dc.concession_type_id,
     sum(dc.active_count)                              as ActiveMembers,
     sum(dc.paid_count)                                as PaidMembers,
     sum(dc.paid_count_event)                          as PaidMembersEvent,
@@ -593,16 +596,17 @@ group by
     end,
     case when dc.grade = 'election' then dc.membership_status_id
          else 0
-    end;
+    end,
+    dc.payment_method_id, dc.payer_type_id, dc.concession_type_id;
 
 select @a = count(*) from (
-    select date_id, country_id, gender_id, membership_grade_id, membership_status_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents from #gold_expected
+    select date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents from #gold_expected
     except
-    select date_id, country_id, gender_id, membership_grade_id, membership_status_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents from Layercake.fact_daily_member_count_detail) v;
+    select date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents from Layercake.fact_daily_member_count_detail) v;
 select @b = count(*) from (
-    select date_id, country_id, gender_id, membership_grade_id, membership_status_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents from Layercake.fact_daily_member_count_detail
+    select date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents from Layercake.fact_daily_member_count_detail
     except
-    select date_id, country_id, gender_id, membership_grade_id, membership_status_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents from #gold_expected) v;
+    select date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents from #gold_expected) v;
 insert #recon values ('D. Silver vs Gold', 'D2', 'silv_daily_count_detail (star-aggregated) vs fact_daily_member_count_detail (EXCEPT, both directions)',
         'silver-only rows', @a, 'gold-only rows', @b, @a + @b, iif(@a + @b = 0, 'PASS', 'FAIL'),
         iif(@a + @b = 0, null, N'Detail in RS-2'));
