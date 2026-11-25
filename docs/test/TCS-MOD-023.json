@@ -7,17 +7,17 @@
     "version": 2,
     "produced_by": "tester",
     "produced_at": "2026-11-25T09:35:51Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-25T09:36:23Z",
+      "approved_by": "Mike",
+      "approved_at": "2026-11-25T10:25:22Z",
       "gate": "test_design_review",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+      "comments": "Reopened for MOD-029: DEF-008 (DR-MOD-029-2): TC-023-013's stand-in for usp_load_silv_daily_count passes CONCAT(CAST(@FullRebuild AS varchar(1)), '|', ISNULL(CONVERT(varchar(10), @RebuildFrom, 23), 'NULL')) straight to EXEC Layercake.usp_etl_log_end, which T-SQL does not allow (error 102). Assign it to a declared variable first and pass the variable. Change nothing else in TC-023-013 or any other test."
     }
   },
   "module_id": "MOD-023",
