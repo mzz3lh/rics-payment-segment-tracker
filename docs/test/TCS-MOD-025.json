@@ -7,17 +7,17 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-11-18T18:30:35Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-18T18:41:31Z",
+      "approved_by": "Mike",
+      "approved_at": "2026-11-25T09:10:16Z",
       "gate": "test_design_review",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+      "comments": "Reopened for MOD-029: MOD-029 run order (ADR-012, RULE-158): usp_run_daily_load now calls usp_load_silv_daily_count and usp_load_fact_daily_member_count_detail after usp_run_payment_segments, so tests that spy only bronze, silver, gold and segments must also spy those two (or seed the daily tables). DEF-008. Tests: TC-023-001, TC-023-002, TC-023-003, TC-023-004, TC-023-005, TC-023-007, TC-023-009, TC-023-010, TC-023-011, TC-023-013, TC-024-023, TC-025-016, TC-025-017. TC-023-013 also checks that @FullRebuild reaches the daily count step."
     }
   },
   "module_id": "MOD-025",
