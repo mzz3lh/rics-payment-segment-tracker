@@ -913,7 +913,7 @@ CREATE PROCEDURE test_MOD023.[test TC-023-013 a plain daily run asks for no rebu
 AS
 BEGIN
     EXEC tSQLt.SpyProcedure @ProcedureName = N'Layercake.usp_load_silv_daily_count',
-        @CommandToExecute = N'DECLARE @l bigint; EXEC Layercake.usp_etl_log_start @run_id, ''silver'', ''daily_count_stub'', @l OUTPUT; EXEC Layercake.usp_etl_log_end @l, ''Success'', NULL, NULL, NULL, CONCAT(CAST(@FullRebuild AS varchar(1)), ''|'', ISNULL(CONVERT(varchar(10), @RebuildFrom, 23), ''NULL''));';
+        @CommandToExecute = N'DECLARE @l bigint; DECLARE @received nvarchar(4000) = CONCAT(CAST(@FullRebuild AS varchar(1)), ''|'', ISNULL(CONVERT(varchar(10), @RebuildFrom, 23), ''NULL'')); EXEC Layercake.usp_etl_log_start @run_id, ''silver'', ''daily_count_stub'', @l OUTPUT; EXEC Layercake.usp_etl_log_end @l, ''Success'', NULL, NULL, NULL, @received;';
     EXEC tSQLt.SpyProcedure @ProcedureName = N'Layercake.usp_load_fact_daily_member_count_detail',
         @CommandToExecute = N'DECLARE @l bigint; EXEC Layercake.usp_etl_log_start @run_id, ''gold'', ''daily_fact_stub'', @l OUTPUT; EXEC Layercake.usp_etl_log_end @l, ''Success'';';
 

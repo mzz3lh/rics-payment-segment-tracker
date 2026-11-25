@@ -4,20 +4,20 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-023",
-    "version": 2,
+    "version": 3,
     "produced_by": "tester",
-    "produced_at": "2026-11-25T09:35:51Z",
-    "status": "rejected",
+    "produced_at": "2026-11-25T10:26:12Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike",
-      "approved_at": "2026-11-25T10:25:22Z",
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-25T10:26:32Z",
       "gate": "test_design_review",
-      "comments": "Reopened for MOD-029: DEF-008 (DR-MOD-029-2): TC-023-013's stand-in for usp_load_silv_daily_count passes CONCAT(CAST(@FullRebuild AS varchar(1)), '|', ISNULL(CONVERT(varchar(10), @RebuildFrom, 23), 'NULL')) straight to EXEC Layercake.usp_etl_log_end, which T-SQL does not allow (error 102). Assign it to a declared variable first and pass the variable. Change nothing else in TC-023-013 or any other test."
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
   },
   "module_id": "MOD-023",
@@ -196,7 +196,7 @@
       "acceptance_criterion_id": "AC-018-10",
       "category": "happy_path",
       "description": "AC-018-10, database part (RULE-109, RULE-110), as MOD-029 changes the run (ADR-012, RULE-158, DES-001 usp_run_daily_load): the routine daily run asks the daily count step for no rebuild, and @FullRebuild stays an optional manual switch on usp_run_daily_load that is now passed through to usp_load_silv_daily_count, called once per daily run after the segment loads; usp_run_daily_load's parameters are unchanged.",
-      "preconditions": "The runbook text (no step asking a person to run @RebuildFrom or @FullRebuild or to apply etl_daily_count_pending_rebuild rows; both described as optional manual tools) is a documentation update checked at the documentation review, as ASM-009 sets for document ACs. That past dates are corrected without a rebuild is MOD-022's (REQ-018), and that the full path is taken is MOD-029's TC-029-014. Standard SetUp (see TC-023-001). usp_load_silv_daily_count is spied (DEF-008): the stand-in logs a silver/daily_count_stub 'Success' row under the run_id it receives, with error_message holding the @FullRebuild and @RebuildFrom it received as 'FullRebuild|RebuildFrom' (NULL written as 'NULL'). usp_load_fact_daily_member_count_detail is spied as in TC-023-001. usp_run_daily_load has no @RebuildFrom parameter, so the run passes NULL. usp_run_daily_load with no arguments, then with @FullRebuild = 1. The silver step is no longer checked for the switch: MOD-029 passes it only to the daily count step.",
+      "preconditions": "The runbook text (no step asking a person to run @RebuildFrom or @FullRebuild or to apply etl_daily_count_pending_rebuild rows; both described as optional manual tools) is a documentation update checked at the documentation review, as ASM-009 sets for document ACs. That past dates are corrected without a rebuild is MOD-022's (REQ-018), and that the full path is taken is MOD-029's TC-029-014. Standard SetUp (see TC-023-001). usp_load_silv_daily_count is spied (DEF-008): the stand-in logs a silver/daily_count_stub 'Success' row under the run_id it receives, with error_message holding the @FullRebuild and @RebuildFrom it received as 'FullRebuild|RebuildFrom' (NULL written as 'NULL'); the stand-in builds that text into a declared nvarchar(4000) variable and passes the variable to usp_etl_log_end, since EXEC takes no expression as an argument (DEF-008, DR-MOD-029-2). usp_load_fact_daily_member_count_detail is spied as in TC-023-001. usp_run_daily_load has no @RebuildFrom parameter, so the run passes NULL. usp_run_daily_load with no arguments, then with @FullRebuild = 1. The silver step is no longer checked for the switch: MOD-029 passes it only to the daily count step.",
       "expected": "Exactly 2 daily_count_stub rows, with 2 different run_ids, each the run_id of a usp_run_daily_load row. In the order of those daily runs: first '0|NULL', then '1|NULL'. Exactly 2 daily run rows, both 'Success'.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD023].[test TC-023-013 a plain daily run asks for no rebuild and FullRebuild stays an optional manual switch]"
