@@ -4,20 +4,20 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-025",
-    "version": 1,
+    "version": 2,
     "produced_by": "tester",
-    "produced_at": "2026-11-18T18:30:35Z",
-    "status": "rejected",
+    "produced_at": "2026-11-25T09:48:17Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike",
-      "approved_at": "2026-11-25T09:10:16Z",
+      "approved_by": "Mike (auto-approved)",
+      "approved_at": "2026-11-25T09:48:38Z",
       "gate": "test_design_review",
-      "comments": "Reopened for MOD-029: MOD-029 run order (ADR-012, RULE-158): usp_run_daily_load now calls usp_load_silv_daily_count and usp_load_fact_daily_member_count_detail after usp_run_payment_segments, so tests that spy only bronze, silver, gold and segments must also spy those two (or seed the daily tables). DEF-008. Tests: TC-023-001, TC-023-002, TC-023-003, TC-023-004, TC-023-005, TC-023-007, TC-023-009, TC-023-010, TC-023-011, TC-023-013, TC-024-023, TC-025-016, TC-025-017. TC-023-013 also checks that @FullRebuild reaches the daily count step."
+      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
     }
   },
   "module_id": "MOD-025",
@@ -225,12 +225,13 @@
     {
       "id": "TC-025-016",
       "requirement_ids": [
-        "REQ-023"
+        "REQ-023",
+        "REQ-026"
       ],
       "acceptance_criterion_id": "AC-023-07",
       "category": "happy_path",
       "description": "RULE-140: starting again from the same state, one usp_run_daily_load call also ends 'Success' with the same 8 rows.",
-      "preconditions": "assumes Q-027. Arrangement as TC-025-015. In addition, the Phase 1 orchestrators usp_load_bronze, usp_load_silver and usp_load_gold are stand-ins that log one 'Success' row each: MOD-025 doesn't change them, and their own suites test them. There is no as-of date, so the attributes load uses today; Campaign Years to 2060 cover it. One call of usp_run_daily_load.",
+      "preconditions": "assumes Q-027. Arrangement as TC-025-015. In addition, the Phase 1 orchestrators usp_load_bronze, usp_load_silver and usp_load_gold are stand-ins that log one 'Success' row each: MOD-025 doesn't change them, and their own suites test them. DEF-008 (MOD-029, ADR-012, RULE-158): usp_run_daily_load now also calls usp_load_silv_daily_count and usp_load_fact_daily_member_count_detail after usp_run_payment_segments, so both are spied with no stand-in command: they write no log row, and MOD-022 and MOD-026 to MOD-029 test them. There is no as-of date, so the attributes load uses today; Campaign Years to 2060 cover it. One call of usp_run_daily_load.",
       "expected": "Under the daily run's run_id there are exactly 22 rows, all 'Success': usp_run_daily_load, the 3 stand-ins, usp_run_payment_segments and its 17 loads. The brnz_corporate_subscription row has 6 inserted, 1 updated and 1 deleted. Bronze holds the same 9 rows as in TC-025-015 (8 live, C2290 soft-deleted).",
       "framework": "tsqlt",
       "test_ref": "[test_MOD025].[test TC-025-016 one daily run over earlier bronze rows ends Success and lands the 8 rows]"
@@ -238,12 +239,13 @@
     {
       "id": "TC-025-017",
       "requirement_ids": [
-        "REQ-023"
+        "REQ-023",
+        "REQ-026"
       ],
       "acceptance_criterion_id": "AC-023-07",
       "category": "idempotency",
       "description": "AC-023-07, last part: a further usp_run_daily_load on unchanged data records 0 inserted, 0 updated and 0 deleted for brnz_corporate_subscription and leaves the table unchanged.",
-      "preconditions": "Arrangement as TC-025-016, with bronze empty. One usp_run_daily_load, then a whole-table snapshot of brnz_corporate_subscription, then a second usp_run_daily_load.",
+      "preconditions": "Arrangement as TC-025-016, with bronze empty. DEF-008 (MOD-029, ADR-012, RULE-158): usp_load_silv_daily_count and usp_load_fact_daily_member_count_detail, which usp_run_daily_load now calls after usp_run_payment_segments, are spied with no stand-in command (no log row; tested by their own suites). One usp_run_daily_load, then a whole-table snapshot of brnz_corporate_subscription, then a second usp_run_daily_load.",
       "expected": "Under the second daily run's run_id, usp_run_daily_load is 'Success' with no row counts, and brnz_corporate_subscription is 'Success' with 0 inserted, 0 updated and 0 deleted. brnz_corporate_subscription equals the snapshot in every column.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD025].[test TC-025-017 a second daily run on unchanged data records 0 0 0 for the corporate subscription load]"
