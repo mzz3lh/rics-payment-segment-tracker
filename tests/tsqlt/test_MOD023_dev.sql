@@ -9,16 +9,21 @@ BEGIN
     DECLARE @bronze nvarchar(max) = N'INSERT INTO #calls (step, run_id) VALUES (''bronze'', @run_id);';
     DECLARE @silver nvarchar(max) = N'INSERT INTO #calls (step, run_id) VALUES (''silver'', @run_id);';
     DECLARE @gold   nvarchar(max) = N'INSERT INTO #calls (step, run_id) VALUES (''gold'', @run_id);';
+    DECLARE @daily_count nvarchar(max) = N'INSERT INTO #calls (step, run_id) VALUES (''daily count'', @run_id);';
+    DECLARE @daily_fact  nvarchar(max) = N'INSERT INTO #calls (step, run_id) VALUES (''daily fact'', @run_id);';
 
     EXEC tSQLt.FakeTable 'Layercake.etl_run_log', @Identity = 1, @Defaults = 1;
     EXEC tSQLt.SpyProcedure @ProcedureName = 'Layercake.usp_load_bronze', @CommandToExecute = @bronze;
     EXEC tSQLt.SpyProcedure @ProcedureName = 'Layercake.usp_load_silver', @CommandToExecute = @silver;
     EXEC tSQLt.SpyProcedure @ProcedureName = 'Layercake.usp_load_gold', @CommandToExecute = @gold;
     EXEC tSQLt.SpyProcedure @ProcedureName = 'Layercake.usp_run_payment_segments', @CommandToExecute = @segment_command;
+    -- MOD-029 (ADR-012): the daily count and its gold fact run after the segment run.
+    EXEC tSQLt.SpyProcedure @ProcedureName = 'Layercake.usp_load_silv_daily_count', @CommandToExecute = @daily_count;
+    EXEC tSQLt.SpyProcedure @ProcedureName = 'Layercake.usp_load_fact_daily_member_count_detail', @CommandToExecute = @daily_fact;
 END;
 GO
 
-CREATE PROCEDURE test_MOD023_dev.[test the segment run is called once, last, with the daily run id and no as-of date]
+CREATE PROCEDURE test_MOD023_dev.[test the segment run is called once, after gold and before the daily count, with the daily run id and no as-of date]
 AS
 BEGIN
     -- tempdb's collation differs from the database's, so the string column takes the database's.
@@ -47,7 +52,9 @@ BEGIN
     FROM (VALUES (1, 'bronze', 1, CAST(NULL AS date)),
                  (2, 'silver', 1, CAST(NULL AS date)),
                  (3, 'gold', 1, CAST(NULL AS date)),
-                 (4, 'segments', 1, CAST(NULL AS date))) AS v (call_no, step, same_run_id, as_of_date);
+                 (4, 'segments', 1, CAST(NULL AS date)),
+                 (5, 'daily count', 1, CAST(NULL AS date)),
+                 (6, 'daily fact', 1, CAST(NULL AS date))) AS v (call_no, step, same_run_id, as_of_date);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 
