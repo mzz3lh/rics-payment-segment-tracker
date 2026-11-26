@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "SPEC-001",
-    "version": 8,
+    "version": 10,
     "produced_by": "analyst",
-    "produced_at": "2026-11-20T14:58:04Z",
+    "produced_at": "2026-11-26T16:49:45Z",
     "status": "approved",
     "source_artefacts": [
       "docs/requirements/BR-001-payment-segments-tracker.md",
@@ -25,15 +25,17 @@
       "docs/amendments/AMD-004.json",
       "docs/amendments/AMD-005.json",
       "docs/amendments/AMD-006.json",
-      "docs/amendments/AMD-007.json"
+      "docs/amendments/AMD-007.json",
+      "docs/amendments/AMD-008.json",
+      "docs/amendments/AMD-009.json"
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-23T08:56:56Z",
+      "approved_at": "2026-11-26T17:05:00Z",
       "gate": "spec_signoff"
     }
   },
-  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status. It is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. Corporate subscriptions are landed one row per contact, scheme and Campaign Year: where the source repeats a key, a fixed order picks the copy to keep, and the load no longer fails on it. A corporate subscription row with no Campaign Year is skipped and counted rather than landed, and does not stop the load. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. All other Phase 1 counts and measures stay the same. The employer segment is delivered as findings only. The daily load keeps every past daily count in line with the current silver data on every run, from 2020-10-01, with no manual step. It records each change to a past or repeated day in an adjustment history that gives the figures as known at any time. One call of Layercake.usp_run_daily_load also runs the payment and invoice segment loads. On a normal day the daily count recomputes only the contacts whose inputs changed, and the gold daily fact is synced cell by cell, with results identical to a full recompute. The daily member counts (silv_daily_count_detail and fact_daily_member_count_detail) are also split by payment method, payer type and concession type, taken from each contact's attributes for the Campaign Year of the day, with every total at the old grain unchanged. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09), AMD-002 (invoice line grain, Mike, 2026-11-11), AMD-003 (daily load accuracy, Mike, 2026-11-17), AMD-004 (corporate subscription repeated keys, Mike, 2026-11-18), AMD-005 (corporate subscription rows with no Campaign Year, Mike, 2026-11-18), AMD-006 (daily load speed, Mike, 2026-11-19) and AMD-007 (daily count payment segments, Mike, 2026-11-20) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
+  "summary": "Adds financial segments and invoiced amounts to the Phase 1 Layercake membership solution (schema Layercake), and changes how Retired members are recognised. Every membership event (Join, Change, Lapse, Readmission, Renewal) and paid member can be filtered by payment method, payer type (Individual or Corporate) and concession type. Segment values are held once per contact per Campaign Year in a new silv_member_year_attributes table and copied onto every event, with flags showing values carried forward from an earlier year. Every segment uses the same reserved values: Unknown (0), Unrecognised (-1) and Not applicable (-2). Each contact-year's invoiced amount in GBP comes from Subs.vwSubsMemberStatuses ('Inv Total Amount'), landed in the Phase 1 brnz_subs_status. It is carried on one Join, Renewal or Readmission event as invoiced_subtotal_gbp (with subs_amount_gbp equal to it), with a status that explains any missing amount. The invoices set the segments and feed the anomaly checks, but never the revenue. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction. Corporate subscriptions are landed one row per contact, scheme and Campaign Year: where the source repeats a key, a fixed order picks the copy to keep, and the load no longer fails on it. A corporate subscription row with no Campaign Year is skipped and counted rather than landed, and does not stop the load. A retirement date derived from the first invoice with a retired concession replaces apuk_retirementdate in the Practising / Retired logic, so Phase 1 results split by membership status change. The employer segment is delivered as findings only. The daily load keeps every past daily count in line with the current silver data on every run, from 2020-10-01, with no manual step. It records each change to a past or repeated day in an adjustment history that gives the figures as known at any time. One call of Layercake.usp_run_daily_load also runs the payment and invoice segment loads. On a normal day the daily count recomputes only the contacts whose inputs changed, and the gold daily fact is synced cell by cell, with results identical to a full recompute. The daily member counts (silv_daily_count_detail and fact_daily_member_count_detail) are also split by payment method, payer type and concession type, taken from each contact's attributes for the Campaign Year of the day, with every total at the old grain unchanged. A member's local group (CE.vwContact.rics_localgroupid, through CE.vwLocalGroup) is a new reported dimension. On every date, the existing country and region fields carry the values that follow from the member's local group, so regional figures agree with the business's local-group-based figures and Power BI needs no change. The member's own country and its region are kept in new columns. Results split by region or country change, history included. All other Phase 1 counts and measures stay the same. This version applies amendments AMD-001 (Mike, 2026-11-06 and 2026-11-09), AMD-002 (invoice line grain, Mike, 2026-11-11), AMD-003 (daily load accuracy, Mike, 2026-11-17), AMD-004 (corporate subscription repeated keys, Mike, 2026-11-18), AMD-005 (corporate subscription rows with no Campaign Year, Mike, 2026-11-18), AMD-006 (daily load speed, Mike, 2026-11-19), AMD-007 (daily count payment segments, Mike, 2026-11-20) and AMD-008 (member region by local group, Mike, 2026-11-26) to the spec that made the twelve changes in Damian Watson's review of 20 October 2026. Items that need Finance or real-data profiling stay as open questions, each with a stated working default.",
   "glossary": {
     "Campaign Year": "The RICS subscription year, as held in Layercake.ref_campaign_year_config and on the invoice source (Subs.tblSubsInvoices.Campaign_Year).",
     "Eligible invoice": "A subscription invoice that may set a contact-year's segments and be matched to an event for the invoice checks (RULE-014, RULE-084). Credit notes and enrolment- or application-fee-only invoices are never eligible. A fully credited invoice is eligible only when the contact-year has no other eligible invoice.",
@@ -46,12 +48,14 @@
     "Invoice source coverage": "Campaign Year 2022 onward. Subs.usp_Refresh_SubsInvoices keeps only Campaign_Year >= 2022.",
     "Derived retirement date": "The 'Renewal Date' of a contact's earliest Campaign Year that has a retired concession and a payment or settlement date (RULE-099). It drives Practising / Retired in place of apuk_retirementdate.",
     "Invoice line": "One row of Layercake.brnz_subs_invoice_line: one ledger distribution of an F&O customer transaction in synapse_fo.CUSTTRANS_RICS, identified by (recid, postingtype, accountdisplayvalue). One customer transaction (one recid) can have many lines, for example one per cost centre or Campaign Year (RULE-104).",
-    "Daily count cell": "One row of Layercake.silv_daily_count_detail: a [date] with its region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id and concession_type_id (REQ-026).",
+    "Daily count cell": "One row of Layercake.silv_daily_count_detail: a [date] with its region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id and contact_country_id (REQ-026, REQ-027).",
     "Seven daily measures": "active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count on silv_daily_count_detail and silv_daily_count.",
     "Adjustment": "A change to a daily count cell's figures on a date that was already loaded, recorded once per run that made it as new minus old for each of the seven daily measures (REQ-019). The first load of a date is not an adjustment.",
     "As known at": "The figure for a date as it stood at a time T: today's stored figure minus the adjustments written after T (REQ-020).",
     "Repeated corporate subscription key": "A (Contact No, Scheme No, Sub Campaign Year) that appears on more than one row of Subs.vwCorpSubscriptions, because the view is at subscription-user grain. Bronze keeps one copy (RULE-128).",
-    "Corporate subscription row with no Campaign Year": "A row of Subs.vwCorpSubscriptions whose 'Sub Campaign Year' is NULL, because the subscription's licence key in CRM (CE.vwRicsv2Subscription.apuk_licensekey) is not yet set. It is skipped and counted, not landed (RULE-134, RULE-135)."
+    "Corporate subscription row with no Campaign Year": "A row of Subs.vwCorpSubscriptions whose 'Sub Campaign Year' is NULL, because the subscription's licence key in CRM (CE.vwRicsv2Subscription.apuk_licensekey) is not yet set. It is skipped and counted, not landed (RULE-134, RULE-135).",
+    "Local group": "The RICS local group a member belongs to: CE.vwContact.rics_localgroupid, described by CE.vwLocalGroup. From AMD-008 it sets the country and region the member is reported under, but only when it is usable: CE.vwLocalGroup holds it, it is active (statecode 0), it has a country, and it gives a region in both apuk_worldregionid_name and Market_reporting_region. Any other member keeps their own country and its region in every field, with local_group_id 0 Unknown (REQ-027, RULE-171, AMD-009).",
+    "Own country": "The member's own country (CE.vwContact.rics_countryid), which set country_id and region before AMD-008. It is kept as contact_country_id, together with the region that country gives (REQ-027)."
   },
   "requirements": [
     {
@@ -62,11 +66,11 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "The new segments and amounts must not change any existing Phase 1 count. That covers active members, both paid measures, and Join, Renewal, Readmission and Lapse event counts by date, region and grade. The Phase 1 difference scripts must still read PASS. Adding keys, flags and amounts to events must not change the number of events or their identifiers. Only results split by membership status (Practising / Retired) change, because the derived retirement date (REQ-017) replaces apuk_retirementdate (Q-046). In this release acceptance runs on synthetic data only, and no pass threshold is set for real data (assumes Q-026).",
+      "description": "The new segments and amounts must not change any existing Phase 1 count. That covers active members, both paid measures, and Join, Renewal, Readmission and Lapse event counts by date and grade. Adding keys, flags and amounts to events must not change the number of events or their identifiers. Only two kinds of result change. Results split by membership status (Practising / Retired) change, because the derived retirement date (REQ-017) replaces apuk_retirementdate (Q-046). Results split by region or country change, history included, because region and country follow the member's local group (REQ-027). That overrides BR-001's rule that Phase 1 counts by region must not change (Mike, AMD-008, 2026-11-26). The Phase 1 difference scripts are re-baselined where region is involved, and must then read PASS. In this release acceptance runs on synthetic data only, and no pass threshold is set for real data (assumes Q-026).",
       "business_rules": [
         {
           "id": "RULE-001",
-          "rule": "Active, paid (PaidMembers / paid_count), paid-by-event (PaidMembersEvent / paid_count_event) and Join, Renewal, Readmission and Lapse event counts by date, region and grade are identical before and after the change on the same source data."
+          "rule": "Active, paid (PaidMembers / paid_count), paid-by-event (PaidMembersEvent / paid_count_event) and Join, Renewal, Readmission and Lapse event counts by date and grade, summed over region, country and local group, are identical before and after the change on the same source data. Counts split by region or country change, history included, because region and country follow the member's local group (REQ-027; Mike, AMD-008, overriding BR-001's rule that counts by region must not change)."
         },
         {
           "id": "RULE-002",
@@ -74,21 +78,21 @@
         },
         {
           "id": "RULE-003",
-          "rule": "fact_annual_rate_base, silv_annual_rate_base and silv_daily_count keep their current grain and columns. fact_daily_member_count_detail and silv_daily_count_detail keep their current columns and gain only payment_method_id, payer_type_id and concession_type_id in their grain (REQ-026; Q-007, answered by Mike, AMD-007). Summed over those three columns, their figures are unchanged."
+          "rule": "silv_daily_count keeps its current grain and columns. fact_annual_rate_base and silv_annual_rate_base keep their current columns and gain only local_group_id and contact_country_id in their grain (REQ-027, RULE-176). fact_daily_member_count_detail and silv_daily_count_detail keep their current columns. They gain payment_method_id, payer_type_id and concession_type_id in their grain (REQ-026; Q-007, answered by Mike, AMD-007), and the local group and own-country columns of REQ-027 (RULE-176). Summed over the added columns and over region and country, the figures in all five tables are unchanged."
         },
         {
           "id": "RULE-102",
-          "rule": "After the change, only membership_status_id and the results split by it may differ from Phase 1. Totals across membership statuses stay the same (Q-046)."
+          "rule": "After the change, only membership_status_id, the country and region values (REQ-027) and the results split by them may differ from Phase 1. Totals across membership statuses, regions, countries and local groups stay the same (Q-046; AMD-008)."
         }
       ],
       "acceptance_criteria": [
         {
           "id": "AC-001-01",
-          "criterion": "On the same synthetic source data, Layercake.silv_daily_count has zero rows that differ before and after the change, matching on (date, region, grade) and comparing active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count."
+          "criterion": "On the same synthetic source data, Layercake.silv_daily_count summed over region has zero rows that differ before and after the change. Rows are matched on (date, grade), comparing active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count. Figures split by region may differ (REQ-027)."
         },
         {
           "id": "AC-001-02",
-          "criterion": "On the same synthetic source data, the sums of ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents and LapseEvents in Layercake.fact_daily_member_count_detail, grouped by date_id, country_id and membership_grade_id, are identical before and after the change."
+          "criterion": "On the same synthetic source data, the sums of ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents and LapseEvents in Layercake.fact_daily_member_count_detail, grouped by date_id and membership_grade_id, are identical before and after the change."
         },
         {
           "id": "AC-001-03",
@@ -96,11 +100,11 @@
         },
         {
           "id": "AC-001-04",
-          "criterion": "reference/phase1/Scripts/Reconciliation/active-member-difference.sql and reference/phase1/Scripts/Reconciliation/paid-member-difference.sql both read PASS after the change, run against the test database loaded with the synthetic data."
+          "criterion": "The Phase 1 difference scripts are re-baselined where region is involved (RULE-181). Then reference/phase1/Scripts/Reconciliation/active-member-difference.sql and reference/phase1/Scripts/Reconciliation/paid-member-difference.sql both read PASS after the change, run against the test database loaded with the synthetic data."
         },
         {
           "id": "AC-001-05",
-          "criterion": "The column lists of fact_annual_rate_base, silv_annual_rate_base and silv_daily_count are identical before and after the change. Those of fact_daily_member_count_detail and silv_daily_count_detail are identical except that each gains exactly payment_method_id, payer_type_id and concession_type_id (Q-007). Summed over membership_status_id, and for those two tables also over payment_method_id, payer_type_id and concession_type_id, every measure in each table is identical before and after the change for each value of its other grain columns (for example campaign_year, grade_id, country_id and gender_id in silv_annual_rate_base) (Q-046)."
+          "criterion": "The column list of silv_daily_count is identical before and after the change. The column lists of fact_annual_rate_base and silv_annual_rate_base are identical except that each gains local_group_id and contact_country_id (REQ-027). The column lists of fact_daily_member_count_detail and silv_daily_count_detail are identical except that each gains payment_method_id, payer_type_id and concession_type_id (Q-007) and the local group and own-country columns of REQ-027. Every measure in each table is identical before and after the change for each value of its other grain columns (for example campaign_year, grade_id and gender_id in silv_annual_rate_base). For this comparison every table is summed over membership_status_id, region, country_id and the columns REQ-027 adds, and the two daily detail tables also over payment_method_id, payer_type_id and concession_type_id (Q-046)."
         }
       ]
     },
@@ -1810,7 +1814,7 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "apuk_retirementdate is entered by hand and is not always trustworthy. Each contact therefore gets a derived retirement date: the payment date of their first invoice that carries a retired concession, taken from Subs.vwSubsMemberStatuses as landed in Layercake.brnz_subs_status (REQ-002). It replaces apuk_retirementdate (Layercake.silv_member_base.retirement_date) everywhere that date drives Practising / Retired: events, annual rates and daily counts (Mike, AMD-001, 2026-11-06; supersedes Q-009). As a result, Phase 1 results split by membership status change, and no other Phase 1 result does (Q-046). Past daily counts take the new split on the next daily run, with no one-off rebuild (REQ-018, AMD-003). The design names the object that holds the derived date.",
+      "description": "apuk_retirementdate is entered by hand and is not always trustworthy. Each contact therefore gets a derived retirement date: the payment date of their first invoice that carries a retired concession, taken from Subs.vwSubsMemberStatuses as landed in Layercake.brnz_subs_status (REQ-002). It replaces apuk_retirementdate (Layercake.silv_member_base.retirement_date) everywhere that date drives Practising / Retired: events, annual rates and daily counts (Mike, AMD-001, 2026-11-06; supersedes Q-009). As a result, Phase 1 results split by membership status change. Apart from region and country (REQ-027), no other Phase 1 result changes (Q-046). Past daily counts take the new split on the next daily run, with no one-off rebuild (REQ-018, AMD-003). The design names the object that holds the derived date.",
       "business_rules": [
         {
           "id": "RULE-099",
@@ -1870,7 +1874,7 @@
         },
         {
           "id": "AC-017-07",
-          "criterion": "On the synthetic set, compare silv_membership_events and fact_membership_events before and after the change, leaving out the new segment and amount columns. The only differences are in membership_status_id. Every event whose membership_status_id changed belongs to a contact whose derived retirement date differs from silv_member_base.retirement_date."
+          "criterion": "On the synthetic set, compare silv_membership_events and fact_membership_events before and after the change. Leave out the new segment and amount columns, country_id and the columns REQ-027 adds. The only differences are in membership_status_id. Every event whose membership_status_id changed belongs to a contact whose derived retirement date differs from silv_member_base.retirement_date."
         }
       ]
     },
@@ -1971,7 +1975,7 @@
       "business_rules": [
         {
           "id": "RULE-112",
-          "rule": "The adjustment history holds one row per daily count cell ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id) per run that changed any of the cell's seven daily measures. Each row holds the run_id, the time it was written, the date and grain columns, and new minus old for active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count. A measure the run did not change holds 0. A cell whose seven measures are all unchanged gets no row. Rows written before AMD-007 was deployed hold -2 Not applicable in payment_method_id, payer_type_id and concession_type_id (RULE-162)."
+          "rule": "The adjustment history holds one row per daily count cell per run that changed any of the cell's seven daily measures. The cell is ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id and, from AMD-008, local_group_id and contact_country_id, with the own-country region carried alongside, RULE-176). Each row holds the run_id, the time it was written, the date and grain columns, and new minus old for active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count. A measure the run did not change holds 0. A cell whose seven measures are all unchanged gets no row. Rows written before AMD-007 was deployed hold -2 Not applicable in payment_method_id, payer_type_id and concession_type_id (RULE-162). Rows written before AMD-008 was deployed hold the values set out in RULE-179."
         },
         {
           "id": "RULE-113",
@@ -2111,7 +2115,7 @@
         },
         {
           "id": "AC-019-10",
-          "criterion": "In the synthetic set, no adjustment row has a null run_id, written_at, date, grain column or change column, and no two rows share run_id, [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id and concession_type_id."
+          "criterion": "In the synthetic set, no adjustment row has a null run_id, written_at, date, grain column or change column. No two rows share run_id, [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id and contact_country_id."
         }
       ]
     },
@@ -2131,7 +2135,7 @@
         },
         {
           "id": "RULE-120",
-          "rule": "A Layercake view or function returns the figures as known at T for a date range (from and to dates inclusive) and a time T, for all seven daily measures. It works at the detail grain ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id) and at the silv_daily_count grain ([date], region, grade). At the silv_daily_count grain the figures are the detail-grain figures summed over country_id, gender_id, membership_status_id, payment_method_id, payer_type_id and concession_type_id."
+          "rule": "A Layercake view or function returns the figures as known at T for a date range (from and to dates inclusive) and a time T, for all seven daily measures. It works at two grains. The detail grain is ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id and, from AMD-008, local_group_id and contact_country_id, RULE-176). The silv_daily_count grain is ([date], region, grade). At the silv_daily_count grain the figures are the detail-grain figures summed over every detail grain column other than [date], region and grade."
         },
         {
           "id": "RULE-121",
@@ -2146,7 +2150,7 @@
         {
           "source": "Layercake.silv_daily_count_detail.active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count",
           "target": "As-known-at view or function (Layercake, named by the design), detail grain and silv_daily_count grain",
-          "transformation": "Stored figure minus the sum of the adjustment history's change for the same cell and measure written after T (RULE-119 to RULE-121); summed over country_id, gender_id, membership_status_id, payment_method_id, payer_type_id and concession_type_id for the silv_daily_count grain."
+          "transformation": "Stored figure minus the sum of the adjustment history's change for the same cell and measure written after T (RULE-119 to RULE-121). For the silv_daily_count grain, summed over every detail grain column other than [date], region and grade (RULE-120)."
         },
         {
           "source": "Daily count adjustment history (REQ-019): run_id, written_at, date, grain columns, change columns",
@@ -2247,7 +2251,7 @@
         },
         {
           "id": "AC-021-06",
-          "criterion": "reference/phase1/Scripts/Reconciliation/active-member-difference.sql and reference/phase1/Scripts/Reconciliation/paid-member-difference.sql both read PASS after one call of usp_run_daily_load on the test database loaded with the synthetic data."
+          "criterion": "Once re-baselined for region (RULE-181), reference/phase1/Scripts/Reconciliation/active-member-difference.sql and reference/phase1/Scripts/Reconciliation/paid-member-difference.sql both read PASS after one call of usp_run_daily_load on the test database loaded with the synthetic data."
         },
         {
           "id": "AC-021-07",
@@ -2631,7 +2635,7 @@
         {
           "source": "Layercake.silv_daily_count_detail.active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count",
           "target": "Layercake.fact_daily_member_count_detail.ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents",
-          "transformation": "The existing gold derivation, unchanged, applied as a cell-level sync on (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id) (REQ-026): update changed cells, insert new cells, delete cells no longer in silver, leave unchanged cells alone (RULE-150)."
+          "transformation": "The existing gold derivation, unchanged, applied as a cell-level sync on the grain key (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id) (REQ-026), which AMD-008 extends with local_group_id and contact_country_id (REQ-027, RULE-164). The sync updates changed cells, inserts new cells, deletes cells no longer in silver and leaves unchanged cells alone (RULE-150)."
         },
         {
           "source": "Layercake.fact_daily_member_count_detail.id",
@@ -2643,7 +2647,7 @@
       "acceptance_criteria": [
         {
           "id": "AC-025-01",
-          "criterion": "In each case of AC-024-03, every fact_daily_member_count_detail row whose (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id) figures are the same before and after the run keeps its id and all its values. The gold load's rows_updated, rows_inserted and rows_deleted equal the number of fact cells whose figures changed, that are new and that are gone."
+          "criterion": "In each case of AC-024-03, every fact_daily_member_count_detail row whose grain key (RULE-164) has the same figures before and after the run keeps its id and all its values. The gold load's rows_updated, rows_inserted and rows_deleted equal the number of fact cells whose figures changed, that are new and that are gone."
         },
         {
           "id": "AC-025-02",
@@ -2651,7 +2655,7 @@
         },
         {
           "id": "AC-025-03",
-          "criterion": "A fact_daily_member_count_detail row is added by hand for a (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id) that silver does not hold. The next usp_run_daily_load deletes it, logs 'Success' for usp_load_fact_daily_member_count_detail with its row-count check against silver passing, and changes no other fact row."
+          "criterion": "A fact_daily_member_count_detail row is added by hand for a grain key (RULE-164) that silver does not hold. The next usp_run_daily_load deletes it, logs 'Success' for usp_load_fact_daily_member_count_detail with its row-count check against silver passing, and changes no other fact row."
         },
         {
           "id": "AC-025-04",
@@ -2671,7 +2675,7 @@
       "business_rules": [
         {
           "id": "RULE-155",
-          "rule": "Layercake.silv_daily_count_detail gains payment_method_id, payer_type_id and concession_type_id (silver ids, never null) in its grain, which becomes ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id). Layercake.fact_daily_member_count_detail gains the same three columns (int not null, keys of dim_payment_method, dim_payer_type and dim_concession_type), and they join the star grain and its unique clustered index. The same three columns join the grain of Layercake.silv_daily_count_adjustment, Layercake.etl_daily_count_cell_contacts, Layercake.fn_silv_daily_count_detail_as_known_at and Layercake.vw_silv_daily_count_adjustment_review. Layercake.silv_daily_count and Layercake.fn_silv_daily_count_as_known_at keep their grain and their figures."
+          "rule": "Layercake.silv_daily_count_detail gains payment_method_id, payer_type_id and concession_type_id (silver ids, never null) in its grain, which becomes ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id). Layercake.fact_daily_member_count_detail gains the same three columns (int not null, keys of dim_payment_method, dim_payer_type and dim_concession_type), and they join the star grain and its unique clustered index. The same three columns join the grain of Layercake.silv_daily_count_adjustment, Layercake.etl_daily_count_cell_contacts, Layercake.fn_silv_daily_count_detail_as_known_at and Layercake.vw_silv_daily_count_adjustment_review. Layercake.silv_daily_count and Layercake.fn_silv_daily_count_as_known_at keep their grain and their figures. From AMD-008, local_group_id and contact_country_id also join the grain of each of these detail-grain objects, with the own-country region carried alongside (REQ-027, RULE-176)."
         },
         {
           "id": "RULE-156",
@@ -2707,7 +2711,7 @@
         },
         {
           "id": "RULE-164",
-          "rule": "The gold cell-by-cell sync (RULE-150, RULE-151) uses the eight-column key (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id): changed cells updated, new cells inserted, cells no longer in silver deleted, unchanged cells not touched, and the final row-count check against silver stays. id stays bigint (RULE-152). No foreign keys are added for the three new columns, as on the segment columns of fact_membership_events."
+          "rule": "The gold cell-by-cell sync (RULE-150, RULE-151) uses the eight-column key (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id). From AMD-008 the key also includes local_group_id and contact_country_id (RULE-176). The sync updates changed cells, inserts new cells, deletes cells no longer in silver and does not touch unchanged cells. The final row-count check against silver stays. id stays bigint (RULE-152). No foreign keys are added for the three new columns, as on the segment columns of fact_membership_events."
         },
         {
           "id": "RULE-165",
@@ -2715,7 +2719,7 @@
         },
         {
           "id": "RULE-166",
-          "rule": "Downstream readers are checked and changed where the grain matters. Check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql rebuilds the expected star from silver, so it gains the three columns. active-member-difference.sql and paid-member-difference.sql only sum by date, so they are not changed, but are re-checked."
+          "rule": "Downstream readers are checked and changed where the grain matters. Check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql rebuilds the expected star from silver, so it gains the three columns. active-member-difference.sql and paid-member-difference.sql only sum by date, so AMD-007 does not change them, but they are re-checked. From AMD-008, the difference scripts are re-baselined where region is involved, and D2 also gains local_group_id and contact_country_id (RULE-181)."
         },
         {
           "id": "RULE-167",
@@ -2779,7 +2783,7 @@
       "acceptance_criteria": [
         {
           "id": "AC-026-01",
-          "criterion": "After deployment, silv_daily_count_detail and fact_daily_member_count_detail each have exactly their earlier columns plus payment_method_id, payer_type_id and concession_type_id, all not null (int on the fact). silv_daily_count_adjustment, etl_daily_count_cell_contacts, vw_silv_daily_count_adjustment_review and the result of fn_silv_daily_count_detail_as_known_at each gain the same three columns. The unique clustered index of fact_daily_member_count_detail covers exactly date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id and concession_type_id. No foreign key is defined on the fact's three new columns, and id is still bigint. The column list of silv_daily_count and the result columns of fn_silv_daily_count_as_known_at are unchanged."
+          "criterion": "After deployment, silv_daily_count_detail and fact_daily_member_count_detail each have exactly their earlier columns plus payment_method_id, payer_type_id and concession_type_id, all not null (int on the fact), and the AMD-008 columns of REQ-027. silv_daily_count_adjustment, etl_daily_count_cell_contacts, vw_silv_daily_count_adjustment_review and the result of fn_silv_daily_count_detail_as_known_at each gain the same three columns. The unique clustered index of fact_daily_member_count_detail covers exactly date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id and concession_type_id, and from AMD-008 also local_group_id and contact_country_id (RULE-176). No foreign key is defined on the fact's three new columns, and id is still bigint. The column list of silv_daily_count and the result columns of fn_silv_daily_count_as_known_at are unchanged."
         },
         {
           "id": "AC-026-02",
@@ -2839,7 +2843,7 @@
         },
         {
           "id": "AC-026-16",
-          "criterion": "In the AC-026-09 run, every fact_daily_member_count_detail row whose eight-column key has the same figures before and after keeps its id and all its values. The gold load's rows_updated, rows_inserted and rows_deleted equal the number of fact cells, on the eight-column key, whose figures changed, that are new and that are gone. A fact row added by hand that matches a silver cell in every grain column except payment_method_id is deleted by the next usp_run_daily_load. That run logs 'Success' for usp_load_fact_daily_member_count_detail, with the row-count check passing, and changes no other fact row."
+          "criterion": "In the AC-026-09 run, every fact_daily_member_count_detail row whose grain key (RULE-164) has the same figures before and after keeps its id and all its values. The gold load's rows_updated, rows_inserted and rows_deleted equal the number of fact cells, on the grain key, whose figures changed, that are new and that are gone. A fact row is then added by hand that matches a silver cell in every grain column except payment_method_id. The next usp_run_daily_load deletes it, logs 'Success' for usp_load_fact_daily_member_count_detail with the row-count check passing, and changes no other fact row."
         },
         {
           "id": "AC-026-17",
@@ -2855,7 +2859,7 @@
         },
         {
           "id": "AC-026-20",
-          "criterion": "After one usp_run_daily_load on the test database loaded with the synthetic data, check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql compares fact_daily_member_count_detail with the star it rebuilds from silver, including payment_method_id, payer_type_id and concession_type_id, and reports no difference. active-member-difference.sql and paid-member-difference.sql, unchanged, both read PASS."
+          "criterion": "After one usp_run_daily_load on the test database loaded with the synthetic data, check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql compares fact_daily_member_count_detail with the star it rebuilds from silver, including payment_method_id, payer_type_id and concession_type_id, and reports no difference. active-member-difference.sql and paid-member-difference.sql both read PASS. They are unchanged by AMD-007; from AMD-008 they are re-baselined for region (RULE-181)."
         },
         {
           "id": "AC-026-21",
@@ -2864,6 +2868,256 @@
         {
           "id": "AC-026-22",
           "criterion": "After the change, every test in the MOD-021, MOD-022, MOD-026 and MOD-027 tSQLt suites passes. Each test differs from its version before the change only where it names the grain of the daily detail tables, the adjustment history, the cell counts, the 'as known at' functions, the review view or the gold fact."
+        }
+      ]
+    },
+    {
+      "id": "REQ-027",
+      "title": "Member country and region by local group",
+      "type": "functional",
+      "priority": "must",
+      "source_br_ids": [
+        "BR-001"
+      ],
+      "description": "Mike, 2026-11-26 (AMD-008): 'the decision is to add a new dimension but feed the values into the existing fields - so that PBI does not need to change ... The old values can be kept but added as a new column where necessary.' Then: 'BR-001 can be overridden ... Region can change. Greater rows and grain is fine.' The business's paid membership by region on 30 Sep 2026 (the Subs paid and Member Demographics figures) does not match Layercake by region, although both sides count the same 141,224 paid contacts. Layercake gives a member a region from the member's own country (CE.vwContact.rics_countryid). The business figures give a member a region from the member's local group (CE.vwContact.rics_localgroupid, through CE.vwLocalGroup). About 2,000 paid members have a local group in a different region from their country, for example members whose country is the United Kingdom, India or Sri Lanka in Gulf local groups. A production check reproduced the business figures from the local group to within one or two members per region. From this change a member's local group is a reported attribute, a new dimension. The existing country and region fields that reports read today carry the values that follow from the member's local group, so Power BI reports need no change and their regional figures agree with the business's. The values those fields carry today, from the member's own country, are kept and stay reportable in new columns. The scope is everywhere a member's country or region is reported today: the daily member counts, the membership events and the annual rate base, in silver and gold, for every date including closed Campaign Years and anything rebuilt or restated. Region and country figures change, history included. This overrides BR-001's rule that Phase 1 counts by region must not change (REQ-001), and the Phase 1 difference scripts are re-baselined where region is involved. Totals not split by region or country do not change. More rows and a finer grain are accepted. AMD-009 (Mike, 2026-11-26) sets the fallback: a member's local group gives their country and region only when it is usable (RULE-171). Any other member keeps their own country and their own country's region in every field, exactly as today, with local_group_id 0 Unknown, and fields are never mixed. Adjustment rows written before deployment take local_group_id -2 Not applicable, a reserved row of the local group list. Column names marked as proposed are the design's to confirm.",
+      "business_rules": [
+        {
+          "id": "RULE-169",
+          "rule": "Layercake.brnz_contact gains rics_localgroupid, landed 1:1 from CE.vwContact like its existing rics_countryid (RULE-004). CE.vwLocalGroup is landed 1:1 at local group grain, one row per apuk_localgroupid, with the standard bronze audit columns. Whether that is a new bronze table or a change to the Phase 1 Layercake.brnz_local_group is the design's decision. Either way, the own-country region values Phase 1 derives today (silv_ref_country.region_name and market_reporting_region) must stay unchanged."
+        },
+        {
+          "id": "RULE-170",
+          "rule": "Layercake.silv_ref_local_group (name proposed) holds one row per local group in CE.vwLocalGroup, plus two reserved rows: 0 Unknown and -2 Not applicable. It is insert-and-update by apuk_localgroupid, as silv_ref_country is: new groups are added, changed values are updated, and existing ids never change. Each row holds the group's name, its code, the silv_ref_country id of its country (apuk_countryid), and its region values apuk_worldregionid_name and Market_reporting_region. An inactive local group (statecode not 0), or one with no country or no region, stays in the list, but it is not usable and gives no member their country or region (RULE-171; Q-063, Q-066). -2 Not applicable is used only on adjustment rows written before deployment (RULE-179); no member is ever given -2. Gold Layercake.dim_local_group (name proposed) is copied from it, including both reserved rows."
+        },
+        {
+          "id": "RULE-171",
+          "rule": "A member's local group is usable only when all of these hold: the member has a local group (CE.vwContact.rics_localgroupid is not NULL); CE.vwLocalGroup holds that group; the group is active (statecode 0); it has a country (apuk_countryid is not NULL); and its row gives a region in both region fields (apuk_worldregionid_name and Market_reporting_region are each neither NULL nor blank, blank meaning empty or only spaces). A member whose local group is usable has local_group_id that group's silv_ref_local_group id. Every other member, whichever condition fails, has local_group_id 0 Unknown (Q-062, Q-063, Q-066; Mike, AMD-009). The member's current local group applies to every date of the member's history, including closed Campaign Years (Q-064)."
+        },
+        {
+          "id": "RULE-172",
+          "rule": "Wherever country_id is held for a member today, it holds the silv_ref_country id of the country of the member's usable local group (CE.vwLocalGroup.apuk_countryid; RULE-171). That covers silv_member_base, silv_member_profile, silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail, fact_daily_member_count_detail, etl_daily_count_cell_contacts and the daily count adjustment history. A member with no usable local group (local_group_id 0) keeps their own country in country_id, exactly as today (Q-066; Mike, AMD-009)."
+        },
+        {
+          "id": "RULE-173",
+          "rule": "Every region field that reports read today for a member carries the region of the member's usable local group (RULE-171), as CE.vwLocalGroup gives it for that local group row. These fields are silv_daily_count_detail.region, silv_daily_count.region, and in gold the region_name and market_reporting_region reached from a fact row's country_id through dim_country. Each field keeps the flavour it carries today: the world region field takes apuk_worldregionid_name, and market_reporting_region takes Market_reporting_region, both from the local group row (Q-061). For a usable local group, the row's value wins even where the local group's country gives a different region. A member with no usable local group (local_group_id 0) keeps their own country's value in every region field, exactly as today. There is no field-by-field mixing: a member never takes the local group's region with their own country, or the local group's country with their own region. Either every country and region field follows the usable local group, or every one follows the member's own country (Q-066; Mike, AMD-009). How gold reaches these values is the design's decision, provided reports read them through the same tables and columns as today (RULE-180)."
+        },
+        {
+          "id": "RULE-174",
+          "rule": "RULE-172 and RULE-173 apply on every date and every path, including closed Campaign Years and anything rebuilt or restated: the normal run, the changed-contacts path, usp_load_silver @FullRebuild and @RebuildFrom, and the full re-derivation of the annual rate base (Q-061)."
+        },
+        {
+          "id": "RULE-175",
+          "rule": "The values these fields carry today, from the member's own country, are kept. contact_country_id holds the silv_ref_country id of the member's own country (CE.vwContact.rics_countryid), derived exactly as Phase 1 derives country_id today. It is kept wherever country_id is kept for a member (RULE-172). The region from the member's own country is kept alongside it, in the flavour of each region field (Q-061, Q-065). Where a table stores region as a column today (silv_daily_count_detail, etl_daily_count_cell_contacts, the adjustment history, fn_silv_daily_count_detail_as_known_at and vw_silv_daily_count_adjustment_review), a new own-country region column (named by the design) holds it. Elsewhere it is reached through contact_country_id and silv_ref_country or dim_country."
+        },
+        {
+          "id": "RULE-176",
+          "rule": "local_group_id (never null) is carried on every table listed in RULE-172. local_group_id and contact_country_id join the grain wherever country_id is in the grain: silv_daily_count_detail, etl_daily_count_cell_contacts, the daily count adjustment history, fn_silv_daily_count_detail_as_known_at, vw_silv_daily_count_adjustment_review, fact_daily_member_count_detail and its unique clustered index, silv_annual_rate_base and fact_annual_rate_base (Q-065). The own-country region column is carried alongside contact_country_id. silv_daily_count and fn_silv_daily_count_as_known_at keep their grain ([date], region, grade). In gold, local_group_id is a key of dim_local_group and contact_country_id is a key of dim_country."
+        },
+        {
+          "id": "RULE-177",
+          "rule": "Totals not split by region, country or local group do not change: every measure of the daily counts, the events and the annual rate base, summed over region, country_id, local_group_id, contact_country_id and the own-country region, is the same as without this change. The number of events, every event_nk and every event_id are unchanged. Results split by region or country change, history included (Mike, AMD-008)."
+        },
+        {
+          "id": "RULE-178",
+          "rule": "A change to a member's local group or own country, or to a local group's country, region or status (statecode) in CE.vwLocalGroup, including a change that makes a group usable or not usable (RULE-171), reaches every date of the affected members' history on the next usp_run_daily_load, with no manual step. The results stay identical to usp_load_silver @FullRebuild = 1 on the same data (RULE-143). A member whose local group or own country changes is a changed contact on the changed-contacts path (RULE-141), and the moves between cells are written to the adjustment history as RULE-115 requires (Q-064). Whether a change to a local group's own values takes the full-recompute path is the design's decision."
+        },
+        {
+          "id": "RULE-179",
+          "rule": "Deployment (Q-067; Mike, AMD-009). The first run after deployment restates every stored date at the local group values and the new grain, from 2020-10-01. The restatement is a change of basis, as AMD-007's change of grain was (RULE-162), so the migration and the restatement write no adjustment rows of their own. Adjustment rows written before deployment keep their run_id, written_at, date, existing grain columns and seven changes. Their contact_country_id is set to their stored country_id, their own-country region to their stored region, and their local_group_id to -2 Not applicable, because the local group was not recorded then (RULE-170). 'As known at' a time before deployment is then exact by the member's own country and wherever region, country_id and local_group_id are summed over, but it is not split by the local group's region or country."
+        },
+        {
+          "id": "RULE-180",
+          "rule": "Power BI needs no change. Every existing column of the gold tables and dimensions that reports read (fact_daily_member_count_detail, fact_membership_events, fact_annual_rate_base, dim_country) keeps its name and data type, and none is removed. This change adds columns and rows only."
+        },
+        {
+          "id": "RULE-181",
+          "rule": "The Phase 1 difference scripts (reference/phase1/Scripts/Reconciliation/active-member-difference.sql and paid-member-difference.sql) are re-baselined where region is involved, and their checks not split by region are not changed. Check D2 of pipeline-reconciliation-report.sql gains local_group_id and contact_country_id, as RULE-166 requires. Editing and running these scripts is a human step at handover."
+        },
+        {
+          "id": "RULE-182",
+          "rule": "The handover pack describes the local group dimension, the local-group-based country and region, contact_country_id and the own-country region (RULE-072). It says that any report reading the daily fact or the annual rate base must sum over local_group_id and contact_country_id. Its known limitations state that a member's history uses their current local group (Q-064) and how 'as known at' behaves for a time before deployment (RULE-179, Q-067)."
+        }
+      ],
+      "mappings": [
+        {
+          "source": "CE.vwContact.rics_localgroupid",
+          "target": "Layercake.brnz_contact.rics_localgroupid",
+          "transformation": "1:1, new column, landed like rics_countryid (RULE-169).",
+          "nullable": true
+        },
+        {
+          "source": "CE.vwLocalGroup.apuk_localgroupid",
+          "target": "Bronze landing of CE.vwLocalGroup at local group grain (named by the design).apuk_localgroupid",
+          "transformation": "1:1; one row per local group (RULE-169)."
+        },
+        {
+          "source": "CE.vwLocalGroup.apuk_name",
+          "target": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_name",
+          "transformation": "1:1",
+          "nullable": true
+        },
+        {
+          "source": "CE.vwLocalGroup.apuk_code",
+          "target": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_code",
+          "transformation": "1:1",
+          "nullable": true
+        },
+        {
+          "source": "CE.vwLocalGroup.apuk_countryid",
+          "target": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_countryid",
+          "transformation": "1:1",
+          "nullable": true
+        },
+        {
+          "source": "CE.vwLocalGroup.apuk_worldregionid_name",
+          "target": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_worldregionid_name",
+          "transformation": "1:1",
+          "nullable": true
+        },
+        {
+          "source": "CE.vwLocalGroup.Market_reporting_region",
+          "target": "Bronze landing of CE.vwLocalGroup at local group grain.market_reporting_region",
+          "transformation": "1:1",
+          "nullable": true
+        },
+        {
+          "source": "CE.vwLocalGroup.statecode",
+          "target": "Bronze landing of CE.vwLocalGroup at local group grain.statecode",
+          "transformation": "1:1",
+          "nullable": true
+        },
+        {
+          "source": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_localgroupid",
+          "target": "Layercake.silv_ref_local_group.local_group_bk (name proposed)",
+          "transformation": "Business key for insert-and-update; identity id that never changes. Reserved rows 0 Unknown and -2 Not applicable, each with a null key (RULE-170)."
+        },
+        {
+          "source": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_name",
+          "target": "Layercake.silv_ref_local_group.local_group_name (name proposed)",
+          "transformation": "Updated when the source name changes. 'Unknown' and 'Not applicable' for the two reserved rows."
+        },
+        {
+          "source": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_countryid",
+          "target": "Layercake.silv_ref_local_group.country_id",
+          "transformation": "The Layercake.silv_ref_country.id of the row whose country_id equals apuk_countryid. Null when the group has no country, which makes the group not usable (RULE-171).",
+          "nullable": true
+        },
+        {
+          "source": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_worldregionid_name",
+          "target": "Layercake.silv_ref_local_group.region_name",
+          "transformation": "Copy. Null when the source is null or blank, which makes the group not usable (RULE-171).",
+          "nullable": true
+        },
+        {
+          "source": "Bronze landing of CE.vwLocalGroup at local group grain.market_reporting_region",
+          "target": "Layercake.silv_ref_local_group.market_reporting_region",
+          "transformation": "Copy. Null when the source is null or blank, which makes the group not usable (RULE-171).",
+          "nullable": true
+        },
+        {
+          "source": "Layercake.silv_ref_local_group.id, local_group_name",
+          "target": "Layercake.dim_local_group (id, local_group_name) (name proposed)",
+          "transformation": "Copy, including the reserved rows 0 Unknown and -2 Not applicable (RULE-170)."
+        },
+        {
+          "source": "Layercake.brnz_contact.rics_localgroupid",
+          "target": "local_group_id on every table in RULE-172 (silv_member_base, silv_member_profile, silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail, fact_daily_member_count_detail, etl_daily_count_cell_contacts, daily count adjustment history)",
+          "transformation": "silv_ref_local_group.id matched on local_group_bk when the member's local group is usable (RULE-171): CE.vwLocalGroup holds it, its statecode is 0, it has a country, and both its region values are neither null nor blank. 0 Unknown for every other member, including where rics_localgroupid is NULL or not found (Q-062, Q-063, Q-066). Copied downstream as country_id is today. Never null, and never -2 for a member. On daily count adjustment history rows written before deployment, -2 Not applicable (RULE-179).",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_ref_local_group.country_id",
+          "target": "country_id on every table in RULE-172 (existing column, new values)",
+          "transformation": "The country of the member's usable local group. The member's own country (as contact_country_id) where local_group_id is 0, that is where the member has no usable local group (RULE-171, RULE-172).",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_ref_local_group.region_name, market_reporting_region",
+          "target": "Layercake.silv_daily_count_detail.region and Layercake.silv_daily_count.region (existing columns, new values)",
+          "transformation": "The member's usable local group's value, in the flavour the column carries today (RULE-173, Q-061). Where local_group_id is 0, the member's own country's value (Layercake.silv_ref_country.region_name or market_reporting_region), together with the member's own country in country_id; never a mix of the two (Q-066)."
+        },
+        {
+          "source": "Layercake.silv_ref_local_group.region_name, market_reporting_region",
+          "target": "Region reached in gold through a fact row's country_id: dim_country.region_name and dim_country.market_reporting_region, for fact_daily_member_count_detail, fact_membership_events and fact_annual_rate_base",
+          "transformation": "Equals the member's usable local group's region_name and market_reporting_region, or the member's own country's values in both where local_group_id is 0, with no mixing, as for the silver region (RULE-173). How the fact's country_id and dim_country carry it is the design's decision, within RULE-180."
+        },
+        {
+          "source": "Layercake.brnz_contact.rics_countryid",
+          "target": "contact_country_id on every table in RULE-172 (new column)",
+          "transformation": "Layercake.silv_ref_country.id, derived exactly as Phase 1 derives country_id today. A key of dim_country in gold (RULE-175, Q-065). Never null.",
+          "nullable": false
+        },
+        {
+          "source": "Layercake.silv_ref_country.region_name, market_reporting_region",
+          "target": "Own-country region column (named by the design) on silv_daily_count_detail, etl_daily_count_cell_contacts, the daily count adjustment history, fn_silv_daily_count_detail_as_known_at and vw_silv_daily_count_adjustment_review",
+          "transformation": "The region of the member's own country (contact_country_id), in the flavour of the region column it mirrors (RULE-175, Q-061, Q-065).",
+          "nullable": false
+        }
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-027-01",
+          "criterion": "Synthetic reference data: silv_ref_country holds United Kingdom (region_name 'UK&I', market_reporting_region 'UK&I'), United Arab Emirates ('MEA', 'MEA') and India ('APAC', 'APAC'). CE.vwLocalGroup holds 'Gulf' (apuk_countryid United Arab Emirates, apuk_worldregionid_name 'MEA', Market_reporting_region 'MEA', statecode 0) and 'London' (United Kingdom, 'UK&I', 'UK&I', statecode 0). Contact G1 has rics_countryid United Kingdom and rics_localgroupid 'Gulf'. G1 is active in grade 'election', Practising, gender_id 1, on every date from 2020-10-01 to the run date, with Renewals dated 2020-10-20 (Campaign Year 2021) and 2024-10-15 (Campaign Year 2025). After one usp_run_daily_load, G1's rows in silv_member_base and silv_member_profile, and both Renewals in silv_membership_events and fact_membership_events, have country_id United Arab Emirates, contact_country_id United Kingdom and local_group_id 'Gulf'. On 2020-10-01 and 2025-01-10, G1 is counted (active_count 1) in the silv_daily_count_detail cell with region 'MEA', country_id United Arab Emirates, local_group_id 'Gulf', contact_country_id United Kingdom and own-country region 'UK&I'. In silv_daily_count, G1 is counted under region 'MEA'. G1's rows in fact_daily_member_count_detail and fact_membership_events, and its fact_annual_rate_base rows for 2021 and 2025, reach region_name 'MEA' and market_reporting_region 'MEA' through country_id and dim_country, and 'UK&I' through contact_country_id. silv_annual_rate_base counts G1 for 2021 and 2025 under country_id United Arab Emirates, local_group_id 'Gulf' and contact_country_id United Kingdom."
+        },
+        {
+          "id": "AC-027-02",
+          "criterion": "CE.vwLocalGroup also holds 'Gulf India' (apuk_countryid India, apuk_worldregionid_name 'MEA', Market_reporting_region 'MEA', statecode 0). Contact G2 has rics_countryid India and rics_localgroupid 'Gulf India', and is active in grade 'election' on 2025-01-10. G2 has country_id India, local_group_id 'Gulf India' and contact_country_id India. On 2025-01-10, G2 is counted under region 'MEA' in silv_daily_count_detail and silv_daily_count, with own-country region 'APAC'. G2's fact_daily_member_count_detail row reaches region_name 'MEA' and market_reporting_region 'MEA' through country_id and dim_country, and 'APAC' through contact_country_id. The local group row's region wins over the region of the local group's country (Q-061)."
+        },
+        {
+          "id": "AC-027-03",
+          "criterion": "Contacts N1 and N2 both have rics_countryid India and are active in grade 'election' on 2025-01-10. N1 has rics_localgroupid NULL, and N2 has a rics_localgroupid that CE.vwLocalGroup does not hold. Both have local_group_id 0, country_id India and contact_country_id India. On 2025-01-10 both are counted under region 'APAC' in silv_daily_count_detail and silv_daily_count, with own-country region 'APAC', and their fact_daily_member_count_detail rows reach region_name 'APAC' and market_reporting_region 'APAC' through country_id and dim_country (Q-062, Q-066)."
+        },
+        {
+          "id": "AC-027-04",
+          "criterion": "CE.vwLocalGroup also holds four groups that are not usable. 'No Country': apuk_countryid NULL, apuk_worldregionid_name 'MEA', Market_reporting_region 'MEA', statecode 0. 'No Region': United Arab Emirates, both region values NULL, statecode 0. 'Closed Gulf': United Arab Emirates, 'MEA', 'MEA', statecode 1. 'Half Region': United Arab Emirates, apuk_worldregionid_name 'MEA', Market_reporting_region ' ' (blank), statecode 0. Contacts N3, N4, N5 and N6 all have rics_countryid United Kingdom and are active in grade 'election' on 2025-01-10, in 'No Country', 'No Region', 'Closed Gulf' and 'Half Region' respectively. After one usp_run_daily_load, each of N3 to N6 has local_group_id 0, country_id United Kingdom and contact_country_id United Kingdom in silv_member_base, silv_member_profile and silv_daily_count_detail. On 2025-01-10 each is counted in silv_daily_count_detail and silv_daily_count under region 'UK&I', with own-country region 'UK&I', and each one's fact_daily_member_count_detail row reaches region_name 'UK&I' and market_reporting_region 'UK&I' through country_id and dim_country. None of N3 to N6 is in any cell with region 'MEA', country_id United Arab Emirates or the local_group_id of its group (Q-063, Q-066)."
+        },
+        {
+          "id": "AC-027-05",
+          "criterion": "On the same synthetic source data, compare the results before and after the change. silv_daily_count summed over region, matched on ([date], grade): 0 rows differ in any of the seven measures, 0 missing, 0 extra. silv_daily_count_detail summed over region, country_id, local_group_id, contact_country_id and the own-country region, matched on ([date], gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id): 0 differences. fact_daily_member_count_detail summed over country_id, local_group_id and contact_country_id, matched on (date_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id): 0 differences. silv_annual_rate_base and fact_annual_rate_base summed over country_id, local_group_id and contact_country_id, matched on (campaign_year, grade_id, membership_status_id, gender_id): 0 differences. silv_membership_events and fact_membership_events have the same row counts by event_type and the same (event_nk, event_id) pairs: 0 added, 0 removed, 0 changed."
+        },
+        {
+          "id": "AC-027-06",
+          "criterion": "On the same synthetic source data, every event in silv_membership_events and fact_membership_events has a contact_country_id equal to the country_id the same event had before the change: 0 mismatches. silv_daily_count_detail summed by ([date], contact_country_id, own-country region, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id) equals the same table before the change summed by ([date], country_id, region and the same other columns): 0 differences. silv_annual_rate_base summed by (campaign_year, grade_id, membership_status_id, contact_country_id, gender_id) equals it before the change by (campaign_year, grade_id, membership_status_id, country_id, gender_id): 0 differences."
+        },
+        {
+          "id": "AC-027-07",
+          "criterion": "On the AC-027-01 data, usp_load_silver @FullRebuild = 1 runs, followed by the gold load, and separately usp_load_silver @RebuildFrom = '2021-01-01'. After each, G1's silv_daily_count_detail cells and fact_daily_member_count_detail rows are as AC-027-01 states on every loaded date, including 2020-10-01 in the closed Campaign Year 2021. silv_daily_count has G1 under region 'MEA' on those dates."
+        },
+        {
+          "id": "AC-027-08",
+          "criterion": "From the fully loaded AC-027-01 state, G1's rics_localgroupid changes from 'Gulf' to 'London' and nothing else in the source changes. The next usp_run_daily_load runs with no @RebuildFrom, @FullRebuild or manual step. On every loaded date from 2020-10-01, G1 is counted in silv_daily_count_detail under region 'UK&I', country_id United Kingdom and local_group_id 'London', with contact_country_id United Kingdom, and not in a 'Gulf' cell. Both Renewals and the silv_annual_rate_base rows for 2021 and 2025 carry country_id United Kingdom and local_group_id 'London'. usp_load_silv_daily_count logs 1 contact recomputed and the normal path (Q-064). silv_daily_count_detail, silv_daily_count and fact_daily_member_count_detail (except id) equal the result of usp_load_silver @FullRebuild = 1 and the gold load on the same data: 0 rows differ, 0 missing, 0 extra. For every cell and measure, the run's adjustment rows equal the stored figure after the run minus before it: 0 mismatches. Summed over region, country_id and local_group_id, the run's changes are 0 for every measure."
+        },
+        {
+          "id": "AC-027-09",
+          "criterion": "From the fully loaded AC-027-01 state, the 'Gulf' row of CE.vwLocalGroup changes apuk_worldregionid_name and Market_reporting_region from 'MEA' to 'GCC', and nothing else changes. After the next usp_run_daily_load, with no manual step, G1 is counted under region 'GCC' on every loaded date in silv_daily_count_detail and silv_daily_count. G1's fact rows reach region_name 'GCC' and market_reporting_region 'GCC' through country_id and dim_country, and its own-country region stays 'UK&I'. silv_daily_count_detail, silv_daily_count and fact_daily_member_count_detail (except id) equal the result of usp_load_silver @FullRebuild = 1 and the gold load on the same data: 0 differences. For every cell and measure, the run's adjustment rows equal the stored figure after the run minus before it: 0 mismatches."
+        },
+        {
+          "id": "AC-027-10",
+          "criterion": "With the 7 synthetic local groups of AC-027-01 to AC-027-04, silv_ref_local_group holds exactly 9 rows: -2 Not applicable, 0 Unknown and the 7 groups, including the groups that are not usable ('No Country', 'No Region', 'Closed Gulf' and 'Half Region'). dim_local_group has the same row count and (id, local_group_name) pairs. A reload on unchanged data keeps every id. Renaming 'Gulf' in the source and reloading updates its name and keeps its id. No row of silv_member_base, silv_member_profile, silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail, fact_daily_member_count_detail or etl_daily_count_cell_contacts has a null local_group_id or contact_country_id, or a local_group_id of -2. Every local_group_id in silv_member_base, silv_member_profile, silv_membership_events, silv_annual_rate_base, silv_daily_count_detail, etl_daily_count_cell_contacts and the daily count adjustment history resolves to silv_ref_local_group, and every local_group_id in fact_membership_events, fact_annual_rate_base and fact_daily_member_count_detail resolves to dim_local_group: 0 orphans. Every contact_country_id in gold resolves to dim_country: 0 orphans."
+        },
+        {
+          "id": "AC-027-11",
+          "criterion": "After deployment, no two rows of silv_daily_count_detail share ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id). No two rows of silv_annual_rate_base share (campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id). The unique clustered index of fact_daily_member_count_detail covers exactly date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id and contact_country_id. The column list of silv_daily_count is unchanged."
+        },
+        {
+          "id": "AC-027-12",
+          "criterion": "Every column that fact_daily_member_count_detail, fact_membership_events, fact_annual_rate_base and dim_country had before the change is present after it, with the same name and data type: 0 removed, 0 renamed, 0 retyped."
+        },
+        {
+          "id": "AC-027-13",
+          "criterion": "The synthetic set, including G1 and N1, is loaded by the procedures as they are before this change, over at least two runs that write adjustment rows. The migration is applied, and then the first usp_run_daily_load runs with no source change since the last load. It logs 'Success'. Together, the migration and that run write 0 adjustment rows (Q-067). Every adjustment row written before deployment is still present with the same run_id, written_at, date, existing grain columns and seven changes. Its contact_country_id equals its country_id, its own-country region equals its region, and its local_group_id is -2 Not applicable, which resolves to silv_ref_local_group (Q-067; RULE-170). silv_daily_count_detail, silv_daily_count, silv_annual_rate_base, and fact_daily_member_count_detail and fact_annual_rate_base (except id) equal the result of usp_load_silver @FullRebuild = 1 and the gold loads on the same data: 0 differences. G1 is counted under region 'MEA' on 2020-10-01."
+        },
+        {
+          "id": "AC-027-14",
+          "criterion": "As a human step at handover, check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql gains local_group_id and contact_country_id. active-member-difference.sql and paid-member-difference.sql are re-baselined where region is involved, and their checks not split by region are left unchanged. After one usp_run_daily_load on the test database loaded with the synthetic data, D2 reports no difference and both difference scripts read PASS."
+        },
+        {
+          "id": "AC-027-15",
+          "criterion": "The handover pack's data lineage and glossary describe silv_ref_local_group, dim_local_group, local_group_id, contact_country_id and the own-country region, and say that country_id and region now follow the member's local group. Its runbook or data lineage says that reports reading fact_daily_member_count_detail or fact_annual_rate_base must sum over local_group_id and contact_country_id. docs/handover/06-known-limitations.md states that a member's whole history uses their current local group (Q-064), and that 'as known at' a time before deployment is not split by the local group's region or country (Q-067)."
+        },
+        {
+          "id": "AC-027-16",
+          "criterion": "From the fully loaded AC-027-01 state, the 'Gulf' row of CE.vwLocalGroup changes statecode from 0 to 1, and nothing else in the source changes. The next usp_run_daily_load runs with no @RebuildFrom, @FullRebuild or manual step. On every loaded date from 2020-10-01, G1 is counted in silv_daily_count_detail under region 'UK&I', country_id United Kingdom, local_group_id 0 and contact_country_id United Kingdom, with own-country region 'UK&I', and not in any cell with region 'MEA', country_id United Arab Emirates or local_group_id 'Gulf'. silv_daily_count has G1 under region 'UK&I'. Both Renewals in silv_membership_events and G1's silv_annual_rate_base rows for 2021 and 2025 carry country_id United Kingdom and local_group_id 0. G1's rows in fact_membership_events, fact_annual_rate_base and fact_daily_member_count_detail carry local_group_id 0 and reach region_name 'UK&I' and market_reporting_region 'UK&I' through country_id and dim_country. silv_daily_count_detail, silv_daily_count and fact_daily_member_count_detail (except id) equal the result of usp_load_silver @FullRebuild = 1 and the gold load on the same data: 0 rows differ, 0 missing, 0 extra. For every cell and measure, the run's adjustment rows equal the stored figure after the run minus before it: 0 mismatches."
         }
       ]
     }
@@ -2897,10 +3151,15 @@
     "The repository holds no Power BI model or extract definition, so it cannot be shown that nothing outside the database reads fact_daily_member_count_detail.id. The design widens it to bigint and keeps it (Q-056, answered by Product Owner assumption ASM-012).",
     "The AMD-006 speed target (daily count under 5 minutes, whole daily run under 15 minutes on a normal day) is the one real-data check in this release. A human checks it on production from Layercake.etl_run_log as a listed handover step. The agents' tests check on synthetic data that a normal run recomputes only the changed contacts and gives the same results as a full recompute, with no time limit. Q-026 still holds for data results (Q-057, answered by Product Owner assumption ASM-013).",
     "Only a change to reference data covering dates from 2020-10-01 to the run date makes the daily count recompute the whole spine. The routine extension of ref_date_spine with dates after the run date, and the addition of a Campaign Year to ref_campaign_year_config that starts after the run date, do not (Q-058).",
-    "Every measure counted for a contact on a day, including the Join, Renewal, Readmission and Lapse counts, sits in the cell of the contact's attributes for that day's Campaign Year, so a contact stays in one cell per day. A Join whose first paid position is in a later Campaign Year is therefore counted in the daily fact under the attributes of the Join day's Campaign Year, while fact_membership_events carries the later year's (RULE-017). Daily Join counts by segment therefore need not match the event fact (Q-060)."
+    "Every measure counted for a contact on a day, including the Join, Renewal, Readmission and Lapse counts, sits in the cell of the contact's attributes for that day's Campaign Year, so a contact stays in one cell per day. A Join whose first paid position is in a later Campaign Year is therefore counted in the daily fact under the attributes of the Join day's Campaign Year, while fact_membership_events carries the later year's (RULE-017). Daily Join counts by segment therefore need not match the event fact (Q-060).",
+    "A member with no local group (CE.vwContact.rics_localgroupid NULL, or a group CE.vwLocalGroup does not hold) gets local_group_id 0 Unknown and keeps their own country and their own country's region in every field, exactly as today (Q-062, answered by Q-066; Mike, AMD-009).",
+    "A member whose local group is inactive (statecode not 0), has no country, or whose row gives no region in either region field (apuk_worldregionid_name or Market_reporting_region NULL or blank) is treated as having no usable local group: local_group_id 0 Unknown, and their own country and their own country's region in every field. Fields are never mixed between the local group and the own country (Q-063, answered by Q-066; Mike, AMD-009).",
+    "CE holds only a member's current local group, with no history. The current local group applies to every date of the member's history, including closed Campaign Years, and a change of local group moves the whole history on the next run, as a change of country does (Q-064, accepted by Mike on 2026-11-26 and confirmed in AMD-009).",
+    "contact_country_id and the region from the member's own country are kept on every table that keeps country_id for a member. They join the grain, with local_group_id, wherever country_id is in the grain (Q-065, accepted by Mike on 2026-11-26 and confirmed in AMD-009).",
+    "The deployment restatement to local-group regions is a change of basis and writes no adjustment rows of its own, as AMD-007's change of grain did (RULE-162). Adjustment rows written before deployment keep their figures and existing columns. They take contact_country_id equal to their stored country_id, an own-country region equal to their stored region, and local_group_id -2 Not applicable, a reserved row of silv_ref_local_group and dim_local_group. 'As known at' a time before deployment is therefore exact by own country and wherever region, country and local group are summed over, but is not split by the local group's region or country (Q-067; Mike, AMD-009)."
   ],
   "out_of_scope": [
-    "Power BI work: semantic model, DAX and report pages.",
+    "Power BI work: semantic model, DAX and report pages. AMD-008 is built so that Power BI needs no change.",
     "Payment method, payer type and concession keys on the annual rate base tables, fact_annual_rate_base and silv_annual_rate_base (AMD-007; Q-007).",
     "Building the employer segment (landing, grouping, key and dimension). This release delivers findings only; full employer segmentation is planned for early 2027 (Q-020).",
     "Spreading corporate firm-level discounts across individuals (working default for Q-005).",
@@ -2921,10 +3180,13 @@
     "Setting the licence key (CE.vwRicsv2Subscription.apuk_licensekey) on CRM schemes, which is a CRM data change (AMD-005).",
     "A data anomaly type for corporate subscription rows with no Campaign Year (AMD-005).",
     "Speeding up the payment segment loads (about 3.5 minutes) and the bronze loads (AMD-006).",
-    "The run schedule, including moving usp_run_daily_load after Subs.usp_Subs_Refresh_Data, which is a scheduling change (AMD-006).",
-    "Any change to the daily count rule or its results at the old grain, to the adjustment history, or to the 'as known at' and adjustments review objects, beyond adding payment_method_id, payer_type_id and concession_type_id to their detail grain (AMD-006, AMD-007).",
+    "The run schedule, including moving usp_run_daily_load after Subs.usp_Subs_Refresh_Data, which is a scheduling change (AMD-006, AMD-008).",
+    "Any change to the daily count rule or its results at the old grain, to the adjustment history, or to the 'as known at' and adjustments review objects, other than two changes: adding payment_method_id, payer_type_id and concession_type_id to their detail grain (AMD-006, AMD-007), and the local group, country and region changes of REQ-027 (AMD-008).",
     "Further segments on the daily counts: employer (corporate account), currency and amounts (AMD-007).",
-    "The payment_method_carried, payer_type_carried and concession_type_carried flags on the daily count tables and the gold daily fact (AMD-007)."
+    "The payment_method_carried, payer_type_carried and concession_type_carried flags on the daily count tables and the gold daily fact (AMD-007).",
+    "Members' address data (AMD-008).",
+    "A history of members' local groups over time. CE holds only the current local group, which applies to every date (AMD-008; Q-064).",
+    "Any change to CE.vwContact, CE.vwLocalGroup or the CRM local group data behind them (AMD-008)."
   ],
   "open_questions": [
     {
@@ -3395,6 +3657,76 @@
         "REQ-026"
       ],
       "answer": "Yes. Every measure on a day uses that day's Campaign Year, so the one-cell rule holds; daily Join counts by segment need not match fact_membership_events."
+    },
+    {
+      "id": "Q-061",
+      "question": "Once region follows the member's local group, which region flavour does the existing region field carry: the Finance mapping (South Asia in APAC), as the business Subs figures use, or the CRM world region, as Member Demographics uses? (AMD-008)",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "The existing region fields carry the region of the member's local group, so the figures match the local-group-based figures, on every date, including anything rebuilt or restated. The region is the local group's own region as CE.vwLocalGroup gives it for that local group row. Each existing field keeps the flavour it carries today: the world region field from apuk_worldregionid_name, and market_reporting_region from Market_reporting_region, both from the local group row. The region from the member's own country is kept in a new column, alongside the member's own country (contact_country_id), wherever that country is kept (Q-065) (Mike, 2026-11-26).",
+      "blocks": [
+        "REQ-027"
+      ]
+    },
+    {
+      "id": "Q-062",
+      "question": "What does a member with no local group get: one with no rics_localgroupid on CE.vwContact, or one whose group CE.vwLocalGroup does not hold? (AMD-008)",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "Answered by Q-066 (Mike, 2026-11-26; AMD-009). local_group_id 0 Unknown, and the member keeps their own country and their own country's region in every field, exactly as today.",
+      "blocks": [
+        "REQ-027"
+      ]
+    },
+    {
+      "id": "Q-063",
+      "question": "What does a member get whose local group has no country, or no region, in CE.vwLocalGroup? Is an inactive local group still used? (AMD-008)",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "Answered by Q-066 (Mike, 2026-11-26; AMD-009). A local group is usable only when CE.vwLocalGroup holds it, it is active (statecode 0), it has a country, and its row gives a region in both apuk_worldregionid_name and Market_reporting_region (not null or blank). An inactive group, a group with no country, or a group missing either region value is not usable. Its members keep their own country and their own country's region in every field, with local_group_id 0 Unknown, and fields are never mixed.",
+      "blocks": [
+        "REQ-027"
+      ]
+    },
+    {
+      "id": "Q-064",
+      "question": "Which local group applies to past dates and closed Campaign Years, given that CE holds only a member's current local group? (AMD-008)",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "Mike accepted the working default (2026-11-26), confirmed in AMD-009. The current local group applies to every date of the member's history, including closed Campaign Years. When a member's local group changes, their whole history moves on the next run, as a change of country does today.",
+      "blocks": [
+        "REQ-027"
+      ]
+    },
+    {
+      "id": "Q-065",
+      "question": "Where are the member's own country (contact_country_id) and the region from it kept, and do they join the grain? (AMD-008)",
+      "raised_by": "analyst",
+      "status": "answered",
+      "answer": "Mike accepted the working default (2026-11-26), confirmed in AMD-009. They are kept as new columns on every table that keeps country_id for a member (silv_member_base, silv_member_profile, silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail, fact_daily_member_count_detail, etl_daily_count_cell_contacts and the daily count adjustment history). With local_group_id, they join the grain wherever country_id is in the grain.",
+      "blocks": [
+        "REQ-027"
+      ]
+    },
+    {
+      "id": "Q-066",
+      "question": "Mike's spec sign-off accepted the Analyst's working defaults for Q-062 to Q-065 'as written', but the draft that held them is not available to this version, which restates them in Q-062 to Q-065 and the assumptions. Do the restated defaults match what was accepted? If any differs, which wording applies?",
+      "raised_by": "analyst",
+      "status": "answered",
+      "blocks": [
+        "REQ-027"
+      ],
+      "answer": "No. The restated defaults differ from what Mike accepted (Mike, 2026-11-26, agreed in AMD-009). A member's local group gives their country and region only when it is usable: the member has a local group, CE.vwLocalGroup holds it, it is active, it has a country, and its row gives a region in both region fields. A member whose local group is missing, unknown, inactive, has no country or gives no region keeps their own country and their own country's region in every field, with local_group_id 0 Unknown. No field-by-field mixing. Q-064 (current local group for all dates) and Q-065 (wider table list) are accepted as written. RULE-170 to RULE-173 and AC-027-04 are amended to match."
+    },
+    {
+      "id": "Q-067",
+      "question": "On deployment, every stored daily count date is restated so that members move from their own country's region and country to their local group's. Should those moves be written to the adjustment history like any other change (RULE-115), so the size of the move by region can be read from it? Or should they be treated like AMD-007's change of grain (RULE-162) and write no rows? And what do adjustment rows written before deployment hold in local_group_id, contact_country_id and the own-country region? Working default: no rows for the restatement. Pre-deployment rows keep their figures, and take contact_country_id equal to their country_id, the own-country region equal to their region, and local_group_id 0 Unknown. 'As known at' a time before deployment is then exact by own country, but not split by the local group's region or country.",
+      "raised_by": "analyst",
+      "status": "answered",
+      "blocks": [
+        "REQ-027"
+      ],
+      "answer": "No adjustment rows for the deployment restatement (a change of basis, like AMD-007 RULE-162). Adjustment rows written before deployment keep their figures, take contact_country_id = their stored country_id and own-country region = their stored region, and local_group_id -2 Not applicable, because the local group was not recorded then (Mike, 2026-11-26, agreed in AMD-009). silv_ref_local_group and dim_local_group hold -2 Not applicable as a reserved row beside 0 Unknown, and no member is ever given -2. RULE-179 and AC-027-13 are amended to -2."
     }
   ]
 }

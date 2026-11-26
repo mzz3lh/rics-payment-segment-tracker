@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "DES-001",
-    "version": 8,
+    "version": 10,
     "produced_by": "technical_architect",
-    "produced_at": "2026-11-23T09:11:34Z",
+    "produced_at": "2026-11-26T17:09:49Z",
     "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
@@ -16,31 +16,34 @@
       "docs/amendments/AMD-004.json",
       "docs/amendments/AMD-005.json",
       "docs/amendments/AMD-006.json",
-      "docs/amendments/AMD-007.json"
+      "docs/amendments/AMD-007.json",
+      "docs/amendments/AMD-008.json",
+      "docs/amendments/AMD-009.json"
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-23T14:40:49Z",
-      "gate": "architecture_validation"
+      "approved_at": "2026-11-26T17:17:22Z",
+      "gate": "architecture_validation",
+      "comments": "DES-001 adjustment history local_group_id: drop 'and on the restatement run's rows'. RULE-179 writes no adjustment rows for the restatement; -2 is only on rows written before deployment."
     }
   },
   "spec_ref": "docs/specs/SPEC-001.json",
-  "overview": "Extends the Phase 1 Layercake membership solution so that every membership event (Join, Change, Lapse, Readmission, Renewal) can be segmented by payment method, payer type and concession type, every Join, Renewal and Readmission can carry its contact-year's invoiced amount in GBP, and Practising / Retired is set from a retirement date derived from retired concessions (AMD-001). Subscription invoices, invoice lines, corporate subscriptions and the concession reference are landed 1:1 in bronze from objects other systems own, and the Phase 1 brnz_subs_status gains 'Inv Total Amount' and 'Retired Concession' from Subs.vwSubsMemberStatuses. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction (AMD-002, ADR-006). Silver adds the segment reference lists, an item-code line-type mapping, a currency list and one attributes row per contact per Campaign Year, set from each year's segment invoice. It adds silv_event_amount, which places each contact-year's Inv Total Amount on one event and pairs each event with its own eligible invoice for the invoice checks only, and ten new anomaly types in the existing silv_data_anomaly. A new view derives each contact's retirement date from brnz_subs_status, and the Phase 1 silv_member_base load takes it in place of apuk_retirementdate (ADR-005), so in Phase 1 only results split by membership status change. Four new gold dimensions are added, and the existing silver and gold event tables carry the segment keys, carried flags, subs_amount_gbp, invoiced_subtotal_gbp and amount_status. The daily load is made accurate (AMD-003). On every run, the Phase 1 daily count finds the past dates whose silver inputs changed by comparing the inputs with a stored basis (ADR-007). It recomputes them from 2020-10-01 onward and writes only the differences, so stored daily history always equals a full rebuild. Each change to a date already loaded is recorded in the new Layercake.silv_daily_count_adjustment. Two table functions give the figures as known at any time, and a view lists the adjustments for review (ADR-008). The daily load is then made faster without changing its results (AMD-006). Each measure is counted as the sum of per-contact contributions, guarded by a check that no contact holds overlapping state ranges. A normal run recomputes only the contacts whose inputs changed: it takes out each one's contribution as last applied, worked out from a snapshot of its inputs, and adds its new one (ADR-011). @FullRebuild, @RebuildFrom, a changed reference table and recovery from a run that did not finish still recompute the whole spine. The gold fact_daily_member_count_detail is synced cell by cell, and its id is widened to bigint. The daily counts then gain the three segments (AMD-007): silv_daily_count_detail, its adjustment history, its cell counts, the detail as-known-at function, the review view and fact_daily_member_count_detail add payment_method_id, payer_type_id and concession_type_id to their grain, taken from each contact's attributes for the Campaign Year of the day, while silv_daily_count and every total at the old grain are unchanged. Layercake.usp_run_daily_load runs the segment loads (usp_run_payment_segments, ADR-001) under the same run_id after the Phase 1 gold step and holds the daily count and the gold daily fact back until after them, so one call populates everything and the daily count uses the same run's attributes (ADR-012). The first run after that change is deployed restates stored daily history at the new grain without recording the change of grain as an adjustment (ADR-013). Subs.vwCorpSubscriptions is at subscription-user grain, so a corporate subscription key can repeat: the bronze load lands one copy per key in a fixed order, logs how many source rows it did not land, and does not fail on a repeat (AMD-004, ADR-009, ADR-010). Count-only profiling, coverage, retirement and employer findings queries are delivered as read-only procedures (ADR-003). Employer segmentation is findings only, so no employer objects are created. Every change ships as a framework migration with a tested down script, all objects live in the Layercake schema, and names follow the Phase 1 conventions.",
+  "overview": "Extends the Phase 1 Layercake membership solution so that every membership event (Join, Change, Lapse, Readmission, Renewal) can be segmented by payment method, payer type and concession type, every Join, Renewal and Readmission can carry its contact-year's invoiced amount in GBP, and Practising / Retired is set from a retirement date derived from retired concessions (AMD-001). Subscription invoices, invoice lines, corporate subscriptions and the concession reference are landed 1:1 in bronze from objects other systems own, and the Phase 1 brnz_subs_status gains 'Inv Total Amount' and 'Retired Concession' from Subs.vwSubsMemberStatuses. Invoice lines are landed at the source's ledger-distribution grain, one row per (recid, postingtype, accountdisplayvalue), and every reader takes a transaction's settled amount once per transaction (AMD-002, ADR-006). Silver adds the segment reference lists, an item-code line-type mapping, a currency list and one attributes row per contact per Campaign Year, set from each year's segment invoice. It adds silv_event_amount, which places each contact-year's Inv Total Amount on one event and pairs each event with its own eligible invoice for the invoice checks only, and ten new anomaly types in the existing silv_data_anomaly. A new view derives each contact's retirement date from brnz_subs_status, and the Phase 1 silv_member_base load takes it in place of apuk_retirementdate (ADR-005), so in Phase 1 only results split by membership status change. Four new gold dimensions are added, and the existing silver and gold event tables carry the segment keys, carried flags, subs_amount_gbp, invoiced_subtotal_gbp and amount_status. The daily load is made accurate (AMD-003). On every run, the Phase 1 daily count finds the past dates whose silver inputs changed by comparing the inputs with a stored basis (ADR-007). It recomputes them from 2020-10-01 onward and writes only the differences, so stored daily history always equals a full rebuild. Each change to a date already loaded is recorded in the new Layercake.silv_daily_count_adjustment. Two table functions give the figures as known at any time, and a view lists the adjustments for review (ADR-008). The daily load is then made faster without changing its results (AMD-006). Each measure is counted as the sum of per-contact contributions, guarded by a check that no contact holds overlapping state ranges. A normal run recomputes only the contacts whose inputs changed: it takes out each one's contribution as last applied, worked out from a snapshot of its inputs, and adds its new one (ADR-011). @FullRebuild, @RebuildFrom, a changed reference table and recovery from a run that did not finish still recompute the whole spine. The gold fact_daily_member_count_detail is synced cell by cell, and its id is widened to bigint. The daily counts then gain the three segments (AMD-007): silv_daily_count_detail, its adjustment history, its cell counts, the detail as-known-at function, the review view and fact_daily_member_count_detail add payment_method_id, payer_type_id and concession_type_id to their grain, taken from each contact's attributes for the Campaign Year of the day, while silv_daily_count and every total at the old grain are unchanged. Layercake.usp_run_daily_load runs the segment loads (usp_run_payment_segments, ADR-001) under the same run_id after the Phase 1 gold step and holds the daily count and the gold daily fact back until after them, so one call populates everything and the daily count uses the same run's attributes (ADR-012). The first run after that change is deployed restates stored daily history at the new grain without recording the change of grain as an adjustment (ADR-013). Subs.vwCorpSubscriptions is at subscription-user grain, so a corporate subscription key can repeat: the bronze load lands one copy per key in a fixed order, logs how many source rows it did not land, and does not fail on a repeat (AMD-004, ADR-009, ADR-010). Members' country and region then follow their local group (AMD-008, REQ-027). CE.vwLocalGroup is landed at local group grain beside the unchanged Phase 1 country-grain landing (ADR-014). A local group list and dimension are added, and one view decides each member's local group, country and regions, falling back wholly to the member's own country where the group cannot give them (ADR-016, provisional under Q-068). The existing country and region fields carry the local group's values on every date, closed Campaign Years included. The member's own country and its region are kept as contact_country_id and contact_region, and local_group_id and contact_country_id join the grain of the daily counts and the annual rate base. Gold reaches the group's region through the unchanged country_id and dim_country, which gains a row for each country and region combination a group needs (ADR-015), so Power BI needs no change. The first run after deployment restates stored daily history at the local group values without recording the move as adjustments (Q-067). Count-only profiling, coverage, retirement and employer findings queries are delivered as read-only procedures (ADR-003). Employer segmentation is findings only, so no employer objects are created. Every change ships as a framework migration with a tested down script, all objects live in the Layercake schema, and names follow the Phase 1 conventions.",
   "layers": [
     {
       "name": "bronze",
       "schema": "Layercake",
-      "purpose": "brnz_* tables: 1:1 landings of external sources (Subs.tblSubsInvoices, synapse_fo.CUSTTRANS_RICS at its ledger-distribution grain, Subs.vwCorpSubscriptions, CE.vwConcessionType) with the standard bronze audit columns and soft delete, and the Phase 1 brnz_subs_status (Subs.vwSubsMemberStatuses) extended with inv_total_amount and retired_concession. No value transformation and no aggregation."
+      "purpose": "brnz_* tables: 1:1 landings of external sources (Subs.tblSubsInvoices, synapse_fo.CUSTTRANS_RICS at its ledger-distribution grain, Subs.vwCorpSubscriptions, CE.vwConcessionType) with the standard bronze audit columns and soft delete, and the Phase 1 brnz_subs_status (Subs.vwSubsMemberStatuses) extended with inv_total_amount and retired_concession. From AMD-008 Layercake.brnz_local_group_detail lands CE.vwLocalGroup at local group grain beside the unchanged country-grain brnz_local_group (ADR-014), and the Phase 1 brnz_contact gains rics_localgroupid. No value transformation and no aggregation."
     },
     {
       "name": "silver",
       "schema": "Layercake",
-      "purpose": "silv_* tables and views: segment reference lists with reserved ids, the line-type mapping, the currency list, the eligible-invoice view, silv_member_year_attributes, silv_event_amount, the derived retirement date view, the new columns on the existing silv_membership_events, anomaly rows in the existing silv_data_anomaly, and the derived date held in the existing silv_member_base.retirement_date. The Phase 1 daily counts (silv_daily_count_detail, silv_daily_count) are corrected for every changed past date on every run. From AMD-007 silv_daily_count_detail carries payment_method_id, payer_type_id and concession_type_id in its grain, from the attributes of each day's Campaign Year, while silv_daily_count keeps its grain. silv_daily_count_adjustment holds their adjustment history at the detail grain, read through the as-known-at functions and the adjustments review view."
+      "purpose": "silv_* tables and views: segment reference lists with reserved ids, the line-type mapping, the currency list, the eligible-invoice view, silv_member_year_attributes, silv_event_amount, the derived retirement date view, the new columns on the existing silv_membership_events, anomaly rows in the existing silv_data_anomaly, and the derived date held in the existing silv_member_base.retirement_date. The Phase 1 daily counts (silv_daily_count_detail, silv_daily_count) are corrected for every changed past date on every run. From AMD-007 silv_daily_count_detail carries payment_method_id, payer_type_id and concession_type_id in its grain, from the attributes of each day's Campaign Year, while silv_daily_count keeps its grain. silv_daily_count_adjustment holds their adjustment history at the detail grain, read through the as-known-at functions and the adjustments review view. From AMD-008 silv_ref_local_group and silv_ref_country_region hold the local groups and the country and region combinations they need, vw_silv_contact_local_group decides each member's local group, country and regions, and the member base, member profile, state ranges, events, daily counts and annual rate base carry the local-group country and region with local_group_id, contact_country_id and, where region is stored, contact_region."
     },
     {
       "name": "gold",
       "schema": "Layercake",
-      "purpose": "dim_payment_method, dim_payer_type, dim_currency and dim_concession_type copied from silver, and the new keys, flags and GBP amount measures on the existing fact_membership_events. fact_annual_rate_base keeps its grain and columns (Q-007); only its Practising / Retired split changes, through the Phase 1 load (REQ-017). fact_daily_member_count_detail is synced from silver cell by cell and its id is widened from int to bigint (REQ-025). From AMD-007 it gains payment_method_id, payer_type_id and concession_type_id in its grain, holding the dim_payment_method, dim_payer_type and dim_concession_type keys, so a report needs to sum over them to get the old grain (REQ-026)."
+      "purpose": "dim_payment_method, dim_payer_type, dim_currency and dim_concession_type copied from silver, and the new keys, flags and GBP amount measures on the existing fact_membership_events. fact_annual_rate_base keeps its segment-free grain (Q-007); its Practising / Retired split changes through the Phase 1 load (REQ-017). fact_daily_member_count_detail is synced from silver cell by cell and its id is widened from int to bigint (REQ-025). From AMD-007 it gains payment_method_id, payer_type_id and concession_type_id in its grain, holding the dim_payment_method, dim_payer_type and dim_concession_type keys, so a report needs to sum over them to get the old grain (REQ-026). From AMD-008 dim_local_group is added, dim_country gains the country and region combination rows (ADR-015), and fact_daily_member_count_detail, fact_membership_events and fact_annual_rate_base gain local_group_id and contact_country_id, with country_id pointing at the dim_country row that gives the member's region by local group (REQ-027)."
     },
     {
       "name": "reporting queries",
@@ -50,7 +53,7 @@
     {
       "name": "load logging",
       "schema": "Layercake",
-      "purpose": "Every load records start, row counts and outcome in Layercake.etl_run_log through the existing Layercake.usp_etl_log_start and Layercake.usp_etl_log_end (project override of base standards 3). The Phase 1 daily count control tables etl_daily_count_loaded and etl_daily_count_pending_rebuild stay; the pending-rebuild table becomes a diagnostic only. etl_daily_count_input_basis is added to hold the daily count's silver inputs as last applied (ADR-007). From AMD-006 it is joined by the snapshot tables etl_daily_count_applied_contact, etl_daily_count_applied_state_range, etl_daily_count_applied_payment and etl_daily_count_applied_event, and by etl_daily_count_cell_contacts (ADR-011). From AMD-007 etl_daily_count_applied_attribute holds each contact's attributes as last applied, and etl_daily_count_cell_contacts carries the three segment columns. The daily count logs its contacts recomputed and its path as etl_progress_log sub-steps."
+      "purpose": "Every load records start, row counts and outcome in Layercake.etl_run_log through the existing Layercake.usp_etl_log_start and Layercake.usp_etl_log_end (project override of base standards 3). The Phase 1 daily count control tables etl_daily_count_loaded and etl_daily_count_pending_rebuild stay; the pending-rebuild table becomes a diagnostic only. etl_daily_count_input_basis is added to hold the daily count's silver inputs as last applied (ADR-007). From AMD-006 it is joined by the snapshot tables etl_daily_count_applied_contact, etl_daily_count_applied_state_range, etl_daily_count_applied_payment and etl_daily_count_applied_event, and by etl_daily_count_cell_contacts (ADR-011). From AMD-007 etl_daily_count_applied_attribute holds each contact's attributes as last applied, and etl_daily_count_cell_contacts carries the three segment columns. From AMD-008 the snapshot also holds each contact's local group, own country and own-country region as last applied, and etl_daily_count_input_basis holds a 'local_group_restatement' marker until the first run after deployment completes. The daily count logs its contacts recomputed and its path as etl_progress_log sub-steps."
     },
     {
       "name": "control",
@@ -1214,13 +1217,14 @@
       "name": "Layercake.silv_membership_events",
       "kind": "table",
       "load_pattern": "scd1",
-      "description": "Existing Phase 1 table; row count, event_nk and event_id are unchanged. MOD-007 added seventeen columns. MOD-012 drops eight of them through a change script: subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, fee_amount_gbp, credited_amount_gbp and net_amount_gbp, which Subs.vwSubsMemberStatuses cannot supply (Q-038, Mike, 2026-11-06). They hold only nulls, because no load has written them, and the down script adds them back as MOD-007 built them. The nine columns below remain: keys and flags not null with default 0; amounts and amount_status nullable and null on Change and Lapse. Their values are written by usp_load_silv_membership_events_segments. membership_status_id is still set by the Phase 1 load, now from the derived retirement date (REQ-017).",
+      "description": "Existing Phase 1 table; row count, event_nk and event_id are unchanged. MOD-007 added seventeen columns. MOD-012 drops eight of them through a change script: subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, fee_amount_gbp, credited_amount_gbp and net_amount_gbp, which Subs.vwSubsMemberStatuses cannot supply (Q-038, Mike, 2026-11-06). They hold only nulls, because no load has written them, and the down script adds them back as MOD-007 built them. The nine segment and amount columns below remain: keys and flags not null with default 0; amounts and amount_status nullable and null on Change and Lapse. Their values are written by usp_load_silv_membership_events_segments. membership_status_id is still set by the Phase 1 load, now from the derived retirement date (REQ-017). MOD-032 (REQ-027): country_id carries the member's country by local group, and local_group_id and contact_country_id (int not null) are added through a change script, the existing rows taking 0 and their country_id until the next run. All three are written by the Phase 1 events load. Row count, event_nk and event_id are unchanged (RULE-177). The down script drops the two columns.",
       "requirement_ids": [
         "REQ-005",
         "REQ-006",
         "REQ-008",
         "REQ-011",
-        "REQ-017"
+        "REQ-017",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -1284,6 +1288,20 @@
           "data_type": "varchar(30)",
           "nullable": true,
           "key": "none"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "REQ-027; resolves to silv_ref_local_group; 0 where the member has no reportable group"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "REQ-027; the member's own country (silv_ref_country id), equal to the country_id the event had before the change (AC-027-06)"
         }
       ]
     },
@@ -1291,13 +1309,14 @@
       "name": "Layercake.fact_membership_events",
       "kind": "table",
       "load_pattern": "scd1",
-      "description": "Existing Phase 1 gold fact; row count and event_id are unchanged. MOD-007 added the same seventeen columns as on silv_membership_events; MOD-012 drops the same eight through a change script (Q-038), and the down script adds them back. The nine columns below remain, with the same types, defaults and nullability as in silver. Keys resolve to the gold dimensions; the two GBP amounts are additive measures. Values are written by usp_load_fact_membership_events_segments; membership_status_id still comes from the Phase 1 gold load.",
+      "description": "Existing Phase 1 gold fact; row count and event_id are unchanged. MOD-007 added the same seventeen columns as on silv_membership_events; MOD-012 drops the same eight through a change script (Q-038), and the down script adds them back. The nine segment and amount columns below remain, with the same types, defaults and nullability as in silver. Keys resolve to the gold dimensions; the two GBP amounts are additive measures. Values are written by usp_load_fact_membership_events_segments; membership_status_id still comes from the Phase 1 gold load. MOD-032 (REQ-027) adds local_group_id and contact_country_id (int not null; keys of dim_local_group and dim_country, with no foreign keys) through a change script. country_id keeps its name and type and holds the dim_country id for the member's region by local group (gold country by local group pattern, ADR-015); contact_country_id reaches the own-country regions. Every existing column keeps its name and type (RULE-180). The down script drops the two columns.",
       "requirement_ids": [
         "REQ-005",
         "REQ-006",
         "REQ-008",
         "REQ-011",
-        "REQ-017"
+        "REQ-017",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -1356,6 +1375,20 @@
           "data_type": "varchar(30)",
           "nullable": true,
           "key": "none"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "dim_local_group key, copied from silver; no foreign key"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "dim_country key of the member's own country, copied from silver; no foreign key"
         }
       ]
     },
@@ -1732,31 +1765,34 @@
       "name": "Layercake.usp_load_silv_member_base",
       "kind": "procedure",
       "load_pattern": "n/a",
-      "description": "Existing Phase 1 full re-derive of silv_member_base (ADR-005). Changed in one respect only: retirement_date is taken from vw_silv_derived_retirement_date for the contact_no, in place of the latest brnz_rics_record row's apuk_retirementdate, and is null where the contact has no derived date. Every other column, the row set and the logging are unchanged. The events load and the annual rate base read silv_member_base.retirement_date, and the member profile copies it for the daily count, so every Practising / Retired status then uses the derived date with no other Phase 1 change (RULE-100, Q-048). The down script restores the Phase 1 definition.",
+      "description": "Existing Phase 1 full re-derive of silv_member_base (ADR-005). Changed in one respect only: retirement_date is taken from vw_silv_derived_retirement_date for the contact_no, in place of the latest brnz_rics_record row's apuk_retirementdate, and is null where the contact has no derived date. Every other column, the row set and the logging are unchanged. The events load and the annual rate base read silv_member_base.retirement_date, and the member profile copies it for the daily count, so every Practising / Retired status then uses the derived date with no other Phase 1 change (RULE-100, Q-048). The down script restores the Phase 1 definition. MOD-031 changes it again (REQ-027): country_id, local_group_id and contact_country_id are taken from vw_silv_contact_local_group for the contact, in place of the Phase 1 country lookup, which the view keeps for contact_country_id. Everything else is unchanged, and MOD-031's down script restores the MOD-018 definition.",
       "requirement_ids": [
         "REQ-017",
-        "REQ-001"
+        "REQ-001",
+        "REQ-027"
       ]
     },
     {
       "name": "Layercake.usp_load_silv_membership_events",
       "kind": "procedure",
       "load_pattern": "n/a",
-      "description": "Existing Phase 1 events load, changed by MOD-018 (answers.md, MOD-018 events load collation) in one respect only: the string columns of its temp table #ev_stage (event_nk, event_type, event_subtype, contact_no, campaign_quarter) are declared COLLATE DATABASE_DEFAULT, so the procedure compiles where tempdb's collation differs from the database's (error 468 against silv_payment_events.contact_no). Its event logic, row set and logging are unchanged, and it still reads silv_member_base.retirement_date for status (ADR-005). The down script restores the Phase 1 definition.",
+      "description": "Existing Phase 1 events load, changed by MOD-018 (answers.md, MOD-018 events load collation) in one respect only: the string columns of its temp table #ev_stage (event_nk, event_type, event_subtype, contact_no, campaign_quarter) are declared COLLATE DATABASE_DEFAULT, so the procedure compiles where tempdb's collation differs from the database's (error 468 against silv_payment_events.contact_no). Its event logic, row set and logging are unchanged, and it still reads silv_member_base.retirement_date for status (ADR-005). The down script restores the Phase 1 definition. MOD-032 changes it again (REQ-027): every event takes country_id, local_group_id and contact_country_id from silv_member_base, or, for the Join/Subscription cohort that reads brnz_contact directly, from vw_silv_contact_local_group, in place of its own country lookup, and the diff-sync on event_nk includes the two new columns. Event logic, row set, event_nk and event_id are unchanged (RULE-177). MOD-032's down script restores the MOD-018 definition.",
       "requirement_ids": [
         "REQ-017",
-        "REQ-001"
+        "REQ-001",
+        "REQ-027"
       ]
     },
     {
       "name": "Layercake.silv_daily_count_adjustment",
       "kind": "table",
       "load_pattern": "append",
-      "description": "Adjustment history of the daily counts (REQ-019). There is one row per daily count cell per run that changed any of the cell's seven measures. The cell is the grain of silv_daily_count_detail: [date], region, country_id, gender_id, grade, membership_status_id and, from AMD-007, payment_method_id, payer_type_id and concession_type_id (RULE-155). Each row holds new minus old for each measure. A cell missing on either side counts as 0 (RULE-113). A measure the run did not change holds 0, and a check constraint rejects a row whose seven changes are all 0. The first load of a date never loaded before writes no row. Every later change writes one: repeat loads of today, corrections of past dates, and manual @RebuildFrom and @FullRebuild calls (RULE-114, RULE-115). Rows are written in the same transaction as the change they record, so a rolled-back change leaves no row (RULE-116). The table is insert-only: no load updates or deletes a row, and nothing purges it (RULE-117). grade holds the silver grades ('enrolment', 'election', 'lapse'), as silv_daily_count_detail does. Unique on (run_id, [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id). MOD-028 adds the three segment columns through a change script and sets them to -2 Not applicable on every row written before deployment, keeping those rows' figures, run_id, load_id and written_at (RULE-162). The restatement run after deployment records its changes at the old grain with -2 in the three columns (ADR-013, Q-061). Every later row carries its cell's actual ids (AC-026-10).",
+      "description": "Adjustment history of the daily counts (REQ-019). There is one row per daily count cell per run that changed any of the cell's seven measures. The cell is the grain of silv_daily_count_detail: [date], region, country_id, gender_id, grade, membership_status_id and, from AMD-007, payment_method_id, payer_type_id and concession_type_id (RULE-155). Each row holds new minus old for each measure. A cell missing on either side counts as 0 (RULE-113). A measure the run did not change holds 0, and a check constraint rejects a row whose seven changes are all 0. The first load of a date never loaded before writes no row. Every later change writes one: repeat loads of today, corrections of past dates, and manual @RebuildFrom and @FullRebuild calls (RULE-114, RULE-115). Rows are written in the same transaction as the change they record, so a rolled-back change leaves no row (RULE-116). The table is insert-only: no load updates or deletes a row, and nothing purges it (RULE-117). grade holds the silver grades ('enrolment', 'election', 'lapse'), as silv_daily_count_detail does. Unique on (run_id, [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id). MOD-028 adds the three segment columns through a change script and sets them to -2 Not applicable on every row written before deployment, keeping those rows' figures, run_id, load_id and written_at (RULE-162). The restatement run after deployment records its changes at the old grain with -2 in the three columns (ADR-013, Q-061). Every later row carries its cell's actual ids (AC-026-10). MOD-031 adds local_group_id, contact_country_id and contact_region (RULE-176) through a change script and widens the unique key to the run and the twelve grain columns. Every row written before deployment keeps its run_id, load_id, written_at, date, existing grain columns and seven changes, and takes contact_country_id equal to its country_id, contact_region equal to its region and local_group_id -2 Not applicable (Q-067 answer; RULE-179 and AC-027-13 say 0, Q-068). The restatement run records its real changes in the same form (restatement by local group pattern). Every later row carries its cell's actual values. -2 appears in local_group_id only here and in the as-known-at function and review view, never in a stored daily count or in gold.",
       "requirement_ids": [
         "REQ-019",
         "REQ-020",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -1888,6 +1924,27 @@
           "data_type": "int",
           "nullable": false,
           "key": "none"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk",
+          "description": "The changed cell's local group id (REQ-027); -2 Not applicable, the reserved row of silv_ref_local_group, on rows written before AMD-008 was deployed and on the restatement run's rows (RULE-179)"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk",
+          "description": "The changed cell's own country; equal to country_id on rows written before deployment"
+        },
+        {
+          "name": "contact_region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "bk",
+          "description": "The changed cell's own-country region; equal to region on rows written before deployment"
         }
       ]
     },
@@ -1895,10 +1952,11 @@
       "name": "Layercake.fn_silv_daily_count_detail_as_known_at",
       "kind": "function",
       "load_pattern": "n/a",
-      "description": "Table function giving the daily counts as known at a time, at the detail grain (ADR-008, RULE-119 to RULE-121). Parameters: @date_from date and @date_to date, both inclusive, and @as_known_at datetime2(3). If any parameter is NULL, no rows are returned. It returns one row per detail cell in the date range that has a stored row in silv_daily_count_detail or an adjustment written after @as_known_at. Each of the seven figures is the stored figure (0 where the cell has no stored row) minus the sum of that cell's changes in silv_daily_count_adjustment written strictly after @as_known_at. A change written exactly at @as_known_at is part of the figure (Q-049). A cell with no stored row whose seven figures all come to 0 is not returned. A date first loaded after @as_known_at returns its first-load figures (Q-050). With @as_known_at after the latest adjustment, it returns exactly the stored rows. MOD-028 changes it to the AMD-007 detail grain (RULE-155): payment_method_id, payer_type_id and concession_type_id follow membership_status_id in the result and in the cell match, taken from the stored cell and the adjustment rows. Its parameters and rules are otherwise unchanged. Adjustment rows written before deployment, and by the restatement run, carry -2, so for a time before deployment the figures are exact summed over the three columns, but are not split by segment, and a -2 cell can show figures that only add up when summed (RULE-163).",
+      "description": "Table function giving the daily counts as known at a time, at the detail grain (ADR-008, RULE-119 to RULE-121). Parameters: @date_from date and @date_to date, both inclusive, and @as_known_at datetime2(3). If any parameter is NULL, no rows are returned. It returns one row per detail cell in the date range that has a stored row in silv_daily_count_detail or an adjustment written after @as_known_at. Each of the seven figures is the stored figure (0 where the cell has no stored row) minus the sum of that cell's changes in silv_daily_count_adjustment written strictly after @as_known_at. A change written exactly at @as_known_at is part of the figure (Q-049). A cell with no stored row whose seven figures all come to 0 is not returned. A date first loaded after @as_known_at returns its first-load figures (Q-050). With @as_known_at after the latest adjustment, it returns exactly the stored rows. MOD-028 changes it to the AMD-007 detail grain (RULE-155): payment_method_id, payer_type_id and concession_type_id follow membership_status_id in the result and in the cell match, taken from the stored cell and the adjustment rows. Its parameters and rules are otherwise unchanged. Adjustment rows written before deployment, and by the restatement run, carry -2, so for a time before deployment the figures are exact summed over the three columns, but are not split by segment, and a -2 cell can show figures that only add up when summed (RULE-163). MOD-031 adds local_group_id, contact_country_id and contact_region after concession_type_id, in the result and in the cell match, taken from the stored cell and the adjustment rows (RULE-176). Rows written before that deployment carry their own country and region in the contact columns and -2 in local_group_id, so for a time before it the figures are exact by own country and wherever region, country_id and local_group_id are summed over, but not split by the local group's region or country (RULE-179).",
       "requirement_ids": [
         "REQ-020",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -1997,6 +2055,25 @@
           "data_type": "int",
           "nullable": false,
           "key": "none"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "REQ-027; -2 for cells known only from adjustment rows written before deployment"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "contact_region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none"
         }
       ]
     },
@@ -2076,10 +2153,11 @@
       "name": "Layercake.vw_silv_daily_count_adjustment_review",
       "kind": "view",
       "load_pattern": "n/a",
-      "description": "The adjustments for review (RULE-122, Q-051): one row per silv_daily_count_adjustment row and measure whose change is not 0. Each row carries the cell's grain columns, the run, the time written, the measure name and the change. Rows are not summed to date level, so changes that cancel out across cells (for example Practising -1, Retired +1, or one payment method -1 and another +1) stay visible. MOD-028 adds payment_method_id, payer_type_id and concession_type_id after membership_status_id, copied from the adjustment row (RULE-155); rows written before deployment show -2 in them (RULE-162).",
+      "description": "The adjustments for review (RULE-122, Q-051): one row per silv_daily_count_adjustment row and measure whose change is not 0. Each row carries the cell's grain columns, the run, the time written, the measure name and the change. Rows are not summed to date level, so changes that cancel out across cells (for example Practising -1, Retired +1, or one payment method -1 and another +1) stay visible. MOD-028 adds payment_method_id, payer_type_id and concession_type_id after membership_status_id, copied from the adjustment row (RULE-155); rows written before deployment show -2 in them (RULE-162). MOD-031 adds local_group_id, contact_country_id and contact_region after concession_type_id, copied from the adjustment row (RULE-176), so a member's move from one local group or region to another shows as -1 and +1 on two rows; rows written before that deployment show -2 in local_group_id.",
       "requirement_ids": [
         "REQ-020",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -2167,6 +2245,24 @@
           "nullable": false,
           "key": "none",
           "description": "New minus old for that measure; never 0"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "contact_region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none"
         }
       ]
     },
@@ -2174,10 +2270,11 @@
       "name": "Layercake.etl_daily_count_input_basis",
       "kind": "table",
       "load_pattern": "scd1",
-      "description": "Control table for the daily count correction (ADR-007): the daily count's silver inputs as last applied. It holds one row per contact with daily count inputs (input_name 'contact', input_key = contact_no). It also holds one row per reference table the Phase 1 daily derivation reads (input_name = the table name, input_key empty). The fingerprint covers only the rows and columns the derivation reads. Changes to segment and amount columns on events, and to load audit columns, are therefore not input changes (AC-019-08). For ref_date_spine and ref_campaign_year_config it covers only the rows up to the latest loaded date, so the daily extension of the spine is not a change (RULE-147, Q-058). From AMD-007 a contact's fingerprint also covers its silv_member_year_attributes rows (campaign_year, payment_method_id, payer_type_id and concession_type_id; not the carried flags, corporate_account_ref, segment_invoice_rec_id or audit columns), so a change to any of the three ids makes it a changed contact (RULE-160). silv_ref_payment_method, silv_ref_payer_type and silv_ref_concession_type are not reference inputs (RULE-161). MOD-028's migration writes one marker row, input_name 'detail_grain_restatement' with input_key empty and earliest_affected_date 2020-10-01, meaning stored history is not yet restated at the segment grain; the final transaction of the first run that completes removes it (ADR-013). Only usp_load_silv_daily_count writes the table otherwise, and only in a run's final transaction, after every batch of the run has committed. Changed rows are updated, new ones inserted, and rows whose input has gone are deleted. From MOD-026 that final transaction also writes the snapshot tables, so a contact's basis row and its etl_daily_count_applied_* rows always describe the same inputs (ADR-011). Structure unchanged by AMD-006 and AMD-007. The table was empty after MOD-022's deployment, so its first run recomputed every date from 2020-10-01 (RULE-109).",
+      "description": "Control table for the daily count correction (ADR-007): the daily count's silver inputs as last applied. It holds one row per contact with daily count inputs (input_name 'contact', input_key = contact_no). It also holds one row per reference table the Phase 1 daily derivation reads (input_name = the table name, input_key empty). The fingerprint covers only the rows and columns the derivation reads. Changes to segment and amount columns on events, and to load audit columns, are therefore not input changes (AC-019-08). For ref_date_spine and ref_campaign_year_config it covers only the rows up to the latest loaded date, so the daily extension of the spine is not a change (RULE-147, Q-058). From AMD-007 a contact's fingerprint also covers its silv_member_year_attributes rows (campaign_year, payment_method_id, payer_type_id and concession_type_id; not the carried flags, corporate_account_ref, segment_invoice_rec_id or audit columns), so a change to any of the three ids makes it a changed contact (RULE-160). silv_ref_payment_method, silv_ref_payer_type and silv_ref_concession_type are not reference inputs (RULE-161). MOD-028's migration writes one marker row, input_name 'detail_grain_restatement' with input_key empty and earliest_affected_date 2020-10-01, meaning stored history is not yet restated at the segment grain; the final transaction of the first run that completes removes it (ADR-013). From AMD-008 a contact's fingerprint also covers local_group_id and contact_country_id on its silv_member_profile row and contact_region on its silv_member_state_ranges rows, beside country_id and region (RULE-178). silv_ref_local_group, silv_ref_country_region and silv_ref_country are not reference inputs: a change to a local group reaches the daily count through its members' own inputs, on the changed-contacts path. MOD-031's migration writes a second marker row, input_name 'local_group_restatement' with input_key empty and earliest_affected_date 2020-10-01, which the final transaction of the first run that completes removes (restatement by local group pattern). Only usp_load_silv_daily_count writes the table otherwise, and only in a run's final transaction, after every batch of the run has committed. Changed rows are updated, new ones inserted, and rows whose input has gone are deleted. From MOD-026 that final transaction also writes the snapshot tables, so a contact's basis row and its etl_daily_count_applied_* rows always describe the same inputs (ADR-011). Structure unchanged by AMD-006, AMD-007 and AMD-008. The table was empty after MOD-022's deployment, so its first run recomputed every date from 2020-10-01 (RULE-109).",
       "requirement_ids": [
         "REQ-018",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -2227,12 +2324,13 @@
       "name": "Layercake.silv_daily_count_detail",
       "kind": "table",
       "load_pattern": "incremental",
-      "description": "Existing Phase 1 silver daily counts: one row per [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id and concession_type_id (REQ-026, RULE-155), with campaign_year, campaign_quarter and the seven measures active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count. MOD-028 adds the three segment columns below through a change script, sets them to -2 on the rows stored before deployment until the first run restates them (ADR-013), and widens the table's unique key to the nine grain columns. The Phase 1 columns are unchanged. A contact-day takes the three ids from its silv_member_year_attributes row for the day's campaign_year, carried or not, for every grade and every measure counted that day, and 0 where it has no row (daily count segment grain pattern, RULE-156). Summed over the three columns, every figure is what it would be without them (RULE-157). MOD-022 changed how its rows are written: only where the figures differ, with each change to a date already loaded recorded in silv_daily_count_adjustment, and every changed past date from 2020-10-01 corrected on every run (REQ-018). From AMD-006, a normal run writes only the cells that the changed contacts' old or new contributions reach. A cell is removed when no contact sits in it any longer, as etl_daily_count_cell_contacts records (Q-059). The stored rows stay identical to the full recompute (RULE-143). grade holds 'enrolment', 'election' or 'lapse'. The gold fact_daily_member_count_detail follows it through usp_load_fact_daily_member_count_detail, synced cell by cell (REQ-025).",
+      "description": "Existing Phase 1 silver daily counts: one row per [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id and concession_type_id (REQ-026, RULE-155), with campaign_year, campaign_quarter and the seven measures active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count and event_lapse_count. MOD-028 adds the three segment columns below through a change script, sets them to -2 on the rows stored before deployment until the first run restates them (ADR-013), and widens the table's unique key to the nine grain columns. The Phase 1 columns are unchanged. A contact-day takes the three ids from its silv_member_year_attributes row for the day's campaign_year, carried or not, for every grade and every measure counted that day, and 0 where it has no row (daily count segment grain pattern, RULE-156). Summed over the three columns, every figure is what it would be without them (RULE-157). MOD-022 changed how its rows are written: only where the figures differ, with each change to a date already loaded recorded in silv_daily_count_adjustment, and every changed past date from 2020-10-01 corrected on every run (REQ-018). From AMD-006, a normal run writes only the cells that the changed contacts' old or new contributions reach. A cell is removed when no contact sits in it any longer, as etl_daily_count_cell_contacts records (Q-059). The stored rows stay identical to the full recompute (RULE-143). grade holds 'enrolment', 'election' or 'lapse'. The gold fact_daily_member_count_detail follows it through usp_load_fact_daily_member_count_detail, synced cell by cell (REQ-025). MOD-031 (REQ-027, RULE-172 to RULE-176): region and country_id now carry the member's region and country by local group, and local_group_id, contact_country_id and contact_region are added through a change script and join the grain, which becomes ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region). local_group_id and contact_country_id come from silv_member_profile and contact_region from silv_member_state_ranges, beside country_id and region. Rows stored before deployment take local_group_id 0, contact_country_id equal to country_id and contact_region equal to region until the first run restates them (restatement by local group pattern). Summed over region, country_id, local_group_id, contact_country_id and contact_region, every figure is unchanged (RULE-177).",
       "requirement_ids": [
         "REQ-018",
         "REQ-019",
         "REQ-024",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -2255,6 +2353,27 @@
           "nullable": false,
           "key": "bk",
           "description": "silv_ref_concession_type id from the same attributes row; 0 where there is no row"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk",
+          "description": "silv_ref_local_group id from silv_member_profile; 0 where the member has no reportable group; 0 on rows stored before deployment until restated"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk",
+          "description": "Own country (silv_ref_country id) from silv_member_profile"
+        },
+        {
+          "name": "contact_region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "bk",
+          "description": "Own country's region in the flavour of region, from silv_member_state_ranges"
         }
       ]
     },
@@ -2262,24 +2381,26 @@
       "name": "Layercake.silv_daily_count",
       "kind": "table",
       "load_pattern": "incremental",
-      "description": "Existing Phase 1 silver daily counts at the [date], region and grade grain, with campaign_year, campaign_quarter and the seven measures. Structure unchanged; no change script, including under AMD-007, which keeps its grain and its figures (RULE-155, RULE-157). It is written with the detail table: only where figures differ, and for every corrected date (REQ-018). It holds the detail figures summed over country_id, gender_id and membership_status_id (assumed under Q-052) and, from AMD-007, over payment_method_id, payer_type_id and concession_type_id too. Its changes are therefore not recorded separately: they are the sums of the detail adjustments.",
+      "description": "Existing Phase 1 silver daily counts at the [date], region and grade grain, with campaign_year, campaign_quarter and the seven measures. Structure unchanged; no change script, including under AMD-007, which keeps its grain and its figures (RULE-155, RULE-157), and AMD-008. It is written with the detail table: only where figures differ, and for every corrected date (REQ-018). It holds the detail figures summed over country_id, gender_id and membership_status_id (assumed under Q-052) and, from AMD-007, over payment_method_id, payer_type_id and concession_type_id too, and from AMD-008 over local_group_id, contact_country_id and contact_region. Its region values follow the detail table, so from AMD-008 they carry the member's region by local group, history included (RULE-173), and every figure summed over region is unchanged (RULE-177). Its changes are therefore not recorded separately: they are the sums of the detail adjustments.",
       "requirement_ids": [
         "REQ-018",
         "REQ-024",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ]
     },
     {
       "name": "Layercake.usp_load_silv_daily_count",
       "kind": "procedure",
       "load_pattern": "n/a",
-      "description": "Existing Phase 1 daily count load, called by usp_load_silver in the silver step after the member profile, and since MOD-029 by usp_run_daily_load after usp_run_payment_segments (ADR-012). It is changed by MOD-022, MOD-026 and MOD-028. The Phase 1 rule for which contacts are counted, and what each contributes, is unchanged throughout. MOD-022: every run compares the inputs with etl_daily_count_input_basis, finds the earliest affected date (ADR-007) and recomputes every date from there to today, in date-ordered batches. It writes differences only, with one silv_daily_count_adjustment row per changed detail cell of a date already marked loaded. MOD-026 makes three changes. (1) Every path counts each of the seven measures as the sum of the contacts' contributions (daily count form pattern, RULE-144, RULE-146). (2) Before anything is written, every path checks that no contact holds two overlapping non-zero-length state ranges. If one does, the load fails with a clear error naming the contact and writes nothing (RULE-145). (3) A normal run takes the changed-contacts path (ADR-011). It applies only the contacts whose inputs changed since they were last applied. For each, it takes out the contribution worked out from its snapshot in the etl_daily_count_applied_* tables and adds the contribution from its current inputs, on the loaded dates either reaches. Dates not yet loaded are first-loaded from all contacts. These take the full-recompute path, which is the MOD-022 behaviour from 2020-10-01 or the computed start: @FullRebuild, @RebuildFrom, a changed reference input (RULE-147), and a snapshot not in step with the basis (after deployment, or after a run that did not finish). Both paths commit date-ordered batches, each with its adjustment rows, etl_daily_count_loaded marks and etl_daily_count_cell_contacts changes. Both end by bringing the basis and the snapshot into line in one final transaction. Every run that passes the guard logs the etl_progress_log sub-steps 'contacts_recomputed' and 'full_recompute_path' (RULE-153). Covered open etl_daily_count_pending_rebuild rows are marked applied as before. MOD-028 makes three further changes (REQ-026). (4) On every path each contact-day sits in the cell of its silv_member_year_attributes row for the day's Campaign Year, which adds payment_method_id, payer_type_id and concession_type_id to the cell, 0 where there is no row (daily count segment grain pattern). (5) A contact's inputs, fingerprint and snapshot also cover its attributes rows, held in etl_daily_count_applied_attribute, so an attribute change alone makes it a changed contact on the normal path; the three segment reference lists are not inputs (RULE-160, RULE-161). (6) While the 'detail_grain_restatement' marker is in etl_daily_count_input_basis, the run takes the full path from 2020-10-01, writes every loaded date at the new grain and records adjustments at the old grain; its final transaction removes the marker (restatement at the segment grain pattern, ADR-013). Its signature, parameters and step logging are unchanged. MOD-028's down script restores the MOD-026 definition.",
+      "description": "Existing Phase 1 daily count load, called by usp_load_silver in the silver step after the member profile, and since MOD-029 by usp_run_daily_load after usp_run_payment_segments (ADR-012). It is changed by MOD-022, MOD-026, MOD-028 and MOD-031. The Phase 1 rule for which contacts are counted, and what each contributes, is unchanged throughout. MOD-022: every run compares the inputs with etl_daily_count_input_basis, finds the earliest affected date (ADR-007) and recomputes every date from there to today, in date-ordered batches. It writes differences only, with one silv_daily_count_adjustment row per changed detail cell of a date already marked loaded. MOD-026 makes three changes. (1) Every path counts each of the seven measures as the sum of the contacts' contributions (daily count form pattern, RULE-144, RULE-146). (2) Before anything is written, every path checks that no contact holds two overlapping non-zero-length state ranges. If one does, the load fails with a clear error naming the contact and writes nothing (RULE-145). (3) A normal run takes the changed-contacts path (ADR-011). It applies only the contacts whose inputs changed since they were last applied. For each, it takes out the contribution worked out from its snapshot in the etl_daily_count_applied_* tables and adds the contribution from its current inputs, on the loaded dates either reaches. Dates not yet loaded are first-loaded from all contacts. These take the full-recompute path, which is the MOD-022 behaviour from 2020-10-01 or the computed start: @FullRebuild, @RebuildFrom, a changed reference input (RULE-147), and a snapshot not in step with the basis (after deployment, or after a run that did not finish). Both paths commit date-ordered batches, each with its adjustment rows, etl_daily_count_loaded marks and etl_daily_count_cell_contacts changes. Both end by bringing the basis and the snapshot into line in one final transaction. Every run that passes the guard logs the etl_progress_log sub-steps 'contacts_recomputed' and 'full_recompute_path' (RULE-153). Covered open etl_daily_count_pending_rebuild rows are marked applied as before. MOD-028 makes three further changes (REQ-026). (4) On every path each contact-day sits in the cell of its silv_member_year_attributes row for the day's Campaign Year, which adds payment_method_id, payer_type_id and concession_type_id to the cell, 0 where there is no row (daily count segment grain pattern). (5) A contact's inputs, fingerprint and snapshot also cover its attributes rows, held in etl_daily_count_applied_attribute, so an attribute change alone makes it a changed contact on the normal path; the three segment reference lists are not inputs (RULE-160, RULE-161). (6) While the 'detail_grain_restatement' marker is in etl_daily_count_input_basis, the run takes the full path from 2020-10-01, writes every loaded date at the new grain and records adjustments at the old grain; its final transaction removes the marker (restatement at the segment grain pattern, ADR-013). MOD-031 makes three more (REQ-027). (7) On every path each contact-day's cell also carries the contact's local_group_id and contact_country_id from silv_member_profile and contact_region from silv_member_state_ranges, beside country_id and region, which now carry the local-group values (member country and region by local group pattern). (8) A contact's inputs, fingerprint and snapshot cover those values, held in etl_daily_count_applied_contact and etl_daily_count_applied_state_range, so a change of local group, own country or a group's values alone makes the contact a changed contact on the normal path, with the same result as @FullRebuild (RULE-178); the local group and country lists are not reference inputs. (9) While the 'local_group_restatement' marker is present, the run takes the full path from 2020-10-01 and records adjustments at the own-country grain; its final transaction removes the marker (restatement by local group pattern). Its signature, parameters and step logging are unchanged. MOD-031's down script restores the MOD-028 definition.",
       "requirement_ids": [
         "REQ-018",
         "REQ-019",
         "REQ-017",
         "REQ-024",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ]
     },
     {
@@ -2296,10 +2417,11 @@
       "name": "Layercake.etl_daily_count_applied_contact",
       "kind": "table",
       "load_pattern": "scd1",
-      "description": "Snapshot header for the changed-contacts path (ADR-011). It holds one row per contact whose daily count inputs are held as last applied, with the silv_member_profile columns the derivation reads, as last applied. With the other four snapshot tables (etl_daily_count_applied_attribute from AMD-007), it holds exactly the rows and columns that the contact's etl_daily_count_input_basis fingerprint covers. A contact with a 'contact' basis row and no row here, or the reverse, means the stored figures may not match the snapshot, and the next run takes the full-recompute path from 2020-10-01. Only usp_load_silv_daily_count writes it. A run withdraws the rows (and the contacts' snapshot rows in the other four tables) of the contacts it is about to apply in its first batch transaction. It writes their rows as now applied in its final transaction, with the basis. Contacts whose inputs have gone are removed there. The table is empty after deployment, so the first run takes the full path and fills it (RULE-148). MOD-028's migration empties it and the other snapshot tables again, so the first run after AMD-007 is deployed also takes the full path (ADR-013). Internal; no grant.",
+      "description": "Snapshot header for the changed-contacts path (ADR-011). It holds one row per contact whose daily count inputs are held as last applied, with the silv_member_profile columns the derivation reads, as last applied. With the other four snapshot tables (etl_daily_count_applied_attribute from AMD-007), it holds exactly the rows and columns that the contact's etl_daily_count_input_basis fingerprint covers. A contact with a 'contact' basis row and no row here, or the reverse, means the stored figures may not match the snapshot, and the next run takes the full-recompute path from 2020-10-01. Only usp_load_silv_daily_count writes it. A run withdraws the rows (and the contacts' snapshot rows in the other four tables) of the contacts it is about to apply in its first batch transaction. It writes their rows as now applied in its final transaction, with the basis. Contacts whose inputs have gone are removed there. The table is empty after deployment, so the first run takes the full path and fills it (RULE-148). MOD-028's migration empties it and the other snapshot tables again, so the first run after AMD-007 is deployed also takes the full path (ADR-013). MOD-031 adds local_group_id and contact_country_id, as last applied from silv_member_profile, through a change script, and its migration empties all five snapshot tables so the first run after AMD-008 is deployed takes the full path (restatement by local group pattern). Internal; no grant.",
       "requirement_ids": [
         "REQ-024",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -2349,6 +2471,20 @@
           "data_type": "datetime2(3)",
           "nullable": false,
           "key": "none"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none",
+          "description": "silv_member_profile.local_group_id as last applied; null when profile_found is 0"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none",
+          "description": "silv_member_profile.contact_country_id as last applied; null when profile_found is 0"
         }
       ]
     },
@@ -2356,9 +2492,10 @@
       "name": "Layercake.etl_daily_count_applied_state_range",
       "kind": "table",
       "load_pattern": "scd1",
-      "description": "The contact's Layercake.silv_member_state_ranges rows as last applied, limited to the columns the daily derivation reads (Q-052 (c), as recorded in CN-MOD-022). Every source row is kept, including zero-length and identical rows, so the old contribution worked out from it is exactly what was applied. It is replaced per contact together with etl_daily_count_applied_contact. Clustered on contact_no.",
+      "description": "The contact's Layercake.silv_member_state_ranges rows as last applied, limited to the columns the daily derivation reads (Q-052 (c), as recorded in CN-MOD-022). Every source row is kept, including zero-length and identical rows, so the old contribution worked out from it is exactly what was applied. It is replaced per contact together with etl_daily_count_applied_contact. Clustered on contact_no. MOD-031 adds contact_region, as last applied, through a change script; its migration empties the table with the other snapshot tables.",
       "requirement_ids": [
-        "REQ-024"
+        "REQ-024",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -2399,6 +2536,13 @@
           "data_type": "varchar(12)",
           "nullable": false,
           "key": "none"
+        },
+        {
+          "name": "contact_region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none",
+          "description": "silv_member_state_ranges.contact_region as last applied"
         }
       ]
     },
@@ -2479,10 +2623,11 @@
       "name": "Layercake.etl_daily_count_cell_contacts",
       "kind": "table",
       "load_pattern": "incremental",
-      "description": "For each date marked loaded and each detail cell, the number of contacts sitting in the cell that day (ADR-011). This is an eighth additive figure, kept exactly as the seven measures are: every path that writes a date's detail rows writes its counts in the same batch transaction. It lets the changed-contacts path recognise a cell that empties. When a cell's count falls to 0, its row here is removed, and its silv_daily_count_detail row is removed too. A cell whose count rises from 0 is inserted, even when its seven measures are all 0, as the Phase 1 derivation would (Q-059). It holds rows only for counts above 0 (check constraint), on the same grain and types as silv_daily_count_detail, and is clustered on its key. From AMD-007 that grain includes payment_method_id, payer_type_id and concession_type_id (RULE-155). MOD-028 adds them through a change script with -2 on the rows stored before deployment and widens the key; the restatement run rewrites every loaded date's counts at the new grain (ADR-013). Internal; no grant.",
+      "description": "For each date marked loaded and each detail cell, the number of contacts sitting in the cell that day (ADR-011). This is an eighth additive figure, kept exactly as the seven measures are: every path that writes a date's detail rows writes its counts in the same batch transaction. It lets the changed-contacts path recognise a cell that empties. When a cell's count falls to 0, its row here is removed, and its silv_daily_count_detail row is removed too. A cell whose count rises from 0 is inserted, even when its seven measures are all 0, as the Phase 1 derivation would (Q-059). It holds rows only for counts above 0 (check constraint), on the same grain and types as silv_daily_count_detail, and is clustered on its key. From AMD-007 that grain includes payment_method_id, payer_type_id and concession_type_id (RULE-155). MOD-028 adds them through a change script with -2 on the rows stored before deployment and widens the key; the restatement run rewrites every loaded date's counts at the new grain (ADR-013). MOD-031 adds local_group_id, contact_country_id and contact_region through a change script, with 0, country_id and region on the rows stored before deployment, and widens the key to the twelve grain columns; the restatement run rewrites every loaded date's counts (restatement by local group pattern). Internal; no grant.",
       "requirement_ids": [
         "REQ-024",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -2559,6 +2704,25 @@
           "data_type": "datetime2(3)",
           "nullable": false,
           "key": "none"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk",
+          "description": "REQ-027; 0 on rows stored before deployment until the restatement run"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk"
+        },
+        {
+          "name": "contact_region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "pk"
         }
       ]
     },
@@ -2566,10 +2730,11 @@
       "name": "Layercake.fact_daily_member_count_detail",
       "kind": "table",
       "load_pattern": "incremental",
-      "description": "Existing Phase 1 gold daily fact: one row per (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id), derived from silv_daily_count_detail, with the seven Phase 1 measure columns ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents and LapseEvents (int, not null). Those measure columns keep their Phase 1 names and are unchanged, so they are not listed as columns here. MOD-027 widened id from int to bigint through a change script. id stays an identity, keeps its existing values and stays the nonclustered primary key (RULE-152, Q-056). MOD-028 adds payment_method_id, payer_type_id and concession_type_id (int not null) through a change script, set to -2 Not applicable on the rows stored before deployment until the first run's sync splits them (ADR-013), and rebuilds the unique clustered index on the eight grain columns (RULE-155, RULE-164). Their values are the dim_payment_method, dim_payer_type and dim_concession_type keys, which equal the silver ids. No foreign key is added for them, as on the segment columns of fact_membership_events. The other columns, their order and the other indexes are unchanged. Any report reading the fact must sum over the three new columns to get the old grain (RULE-167). No Layercake object other than usp_load_fact_daily_member_count_detail reads id (AC-025-04). The fact is synced cell by cell (gold daily fact cell sync pattern), so an unchanged cell keeps its id. MOD-027's down script narrows id back to int, keeping the values, and stops with a clear error, changing nothing, if any id is beyond the int range. MOD-028's down script sums the fact back to the old grain over the three columns, keeping the lowest id of each old cell, restores the five-column unique clustered index and drops the columns.",
+      "description": "Existing Phase 1 gold daily fact: one row per (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id), derived from silv_daily_count_detail, with the seven Phase 1 measure columns ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents and LapseEvents (int, not null). Those measure columns keep their Phase 1 names and are unchanged, so they are not listed as columns here. MOD-027 widened id from int to bigint through a change script. id stays an identity, keeps its existing values and stays the nonclustered primary key (RULE-152, Q-056). MOD-028 adds payment_method_id, payer_type_id and concession_type_id (int not null) through a change script, set to -2 Not applicable on the rows stored before deployment until the first run's sync splits them (ADR-013), and rebuilds the unique clustered index on the eight grain columns (RULE-155, RULE-164). Their values are the dim_payment_method, dim_payer_type and dim_concession_type keys, which equal the silver ids. No foreign key is added for them, as on the segment columns of fact_membership_events. The other columns, their order and the other indexes are unchanged. Any report reading the fact must sum over the three new columns to get the old grain (RULE-167). No Layercake object other than usp_load_fact_daily_member_count_detail reads id (AC-025-04). The fact is synced cell by cell (gold daily fact cell sync pattern), so an unchanged cell keeps its id. MOD-027's down script narrows id back to int, keeping the values, and stops with a clear error, changing nothing, if any id is beyond the int range. MOD-028's down script sums the fact back to the old grain over the three columns, keeping the lowest id of each old cell, restores the five-column unique clustered index and drops the columns. MOD-031 (REQ-027) adds local_group_id and contact_country_id (int not null; keys of dim_local_group and dim_country, with no foreign keys) through a change script and rebuilds the unique clustered index on the ten grain columns (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id). country_id keeps its name and type but now holds the dim_country id that gives the member's region by local group, and contact_country_id the own country's dim_country id (gold country by local group pattern, ADR-015). Rows stored before deployment take local_group_id 0 and contact_country_id equal to country_id until the first run's sync. Any report reading the fact must also sum over local_group_id and contact_country_id to get the old grain (RULE-182). MOD-031's down script sums the fact back to the AMD-007 grain with contact_country_id as country_id, keeping the lowest id of each old cell, restores the eight-column index and drops the two columns.",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "columns": [
         {
@@ -2634,6 +2799,20 @@
           "nullable": false,
           "key": "none",
           "description": "dim_concession_type key, copied from silver. Part of the grain and the unique clustered index; no foreign key"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "dim_local_group key, copied from silv_daily_count_detail (REQ-027). Part of the grain and the unique clustered index; no foreign key"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "dim_country key of the member's own country, copied from silver; reaches the own-country regions. Part of the grain and the unique clustered index; no foreign key"
         }
       ]
     },
@@ -2641,10 +2820,11 @@
       "name": "Layercake.usp_load_fact_daily_member_count_detail",
       "kind": "procedure",
       "load_pattern": "n/a",
-      "description": "Existing Phase 1 gold load, run in the gold step of usp_run_daily_load until MOD-029, and since then by usp_run_daily_load straight after the daily count (ADR-012); called through usp_load_gold with no switch, it runs as before. MOD-027 changed how it writes (RULE-150). The gold cells that the unchanged Phase 1 derivation gives from silv_daily_count_detail are compared with the fact across the whole span on every run. A cell whose seven measures differ is updated in place and keeps its id. A new cell is inserted. A fact row with no silver cell is deleted, including one added by hand (AC-025-03). Unchanged cells and dates are not touched. rows_inserted, rows_updated and rows_deleted in its etl_run_log row count exactly those cells (AC-025-01). The final row-count check against silver stays and fails the load as before (RULE-151). MOD-028 widens the cell to the AMD-007 grain (RULE-164): each gold cell also carries payment_method_id, payer_type_id and concession_type_id, copied from the silver cell, and the comparison is on (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id). Its signature and logging are otherwise unchanged. MOD-028's down script restores the MOD-027 definition.",
+      "description": "Existing Phase 1 gold load, run in the gold step of usp_run_daily_load until MOD-029, and since then by usp_run_daily_load straight after the daily count (ADR-012); called through usp_load_gold with no switch, it runs as before. MOD-027 changed how it writes (RULE-150). The gold cells that the unchanged Phase 1 derivation gives from silv_daily_count_detail are compared with the fact across the whole span on every run. A cell whose seven measures differ is updated in place and keeps its id. A new cell is inserted. A fact row with no silver cell is deleted, including one added by hand (AC-025-03). Unchanged cells and dates are not touched. rows_inserted, rows_updated and rows_deleted in its etl_run_log row count exactly those cells (AC-025-01). The final row-count check against silver stays and fails the load as before (RULE-151). MOD-028 widens the cell to the AMD-007 grain (RULE-164): each gold cell also carries payment_method_id, payer_type_id and concession_type_id, copied from the silver cell, and the comparison is on (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id). Its signature and logging are otherwise unchanged. MOD-028's down script restores the MOD-027 definition. MOD-031 widens the cell to the AMD-008 grain (RULE-176): each gold cell also carries local_group_id and contact_country_id copied from silver, its country_id is set as the gold country by local group pattern says, and the comparison is on the ten grain columns. One silver cell still gives one gold cell, so the final row-count check against silver stays. MOD-031's down script restores the MOD-028 definition.",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ]
     },
     {
@@ -2697,20 +2877,642 @@
       "name": "Layercake.usp_load_silver",
       "kind": "procedure",
       "load_pattern": "n/a",
-      "description": "Existing Phase 1 silver step, called by usp_run_daily_load and used by hand with @RebuildFrom and @FullRebuild. MOD-029 adds one optional switch, @SkipDailyCount bit = 0, which leaves out its call of usp_load_silv_daily_count (ADR-012). With the switch off it behaves exactly as today, including the manual rebuilds; every other step, its order, its other parameters and its logging are unchanged. usp_run_daily_load sets the switch and runs the daily count itself after the segment loads. The down script restores the Phase 1 definition.",
+      "description": "Existing Phase 1 silver step, called by usp_run_daily_load and used by hand with @RebuildFrom and @FullRebuild. MOD-029 adds one optional switch, @SkipDailyCount bit = 0, which leaves out its call of usp_load_silv_daily_count (ADR-012). With the switch off it behaves exactly as today, including the manual rebuilds; every other step, its order, its other parameters and its logging are unchanged. usp_run_daily_load sets the switch and runs the daily count itself after the segment loads. The down script restores the Phase 1 definition. MOD-030 adds a call of usp_load_silv_ref_local_group after the country list and before usp_load_silv_member_base (REQ-027); nothing else changes, and its down script restores the MOD-029 definition.",
       "requirement_ids": [
         "REQ-026",
-        "REQ-021"
+        "REQ-021",
+        "REQ-027"
       ]
     },
     {
       "name": "Layercake.usp_load_gold",
       "kind": "procedure",
       "load_pattern": "n/a",
-      "description": "Existing Phase 1 gold step, called by usp_run_daily_load. MOD-029 adds one optional switch, @SkipDailyFact bit = 0, which leaves out its call of usp_load_fact_daily_member_count_detail (ADR-012). With the switch off it behaves exactly as today; every other step, its order and its logging are unchanged. usp_run_daily_load sets the switch and runs the gold daily fact itself straight after the daily count. The down script restores the Phase 1 definition.",
+      "description": "Existing Phase 1 gold step, called by usp_run_daily_load. MOD-029 adds one optional switch, @SkipDailyFact bit = 0, which leaves out its call of usp_load_fact_daily_member_count_detail (ADR-012). With the switch off it behaves exactly as today; every other step, its order and its logging are unchanged. usp_run_daily_load sets the switch and runs the gold daily fact itself straight after the daily count. The down script restores the Phase 1 definition. MOD-030 adds a call of usp_load_dim_local_group beside the dim_country load, both before any fact load (REQ-027); nothing else changes, and its down script restores the MOD-029 definition.",
       "requirement_ids": [
         "REQ-026",
-        "REQ-021"
+        "REQ-021",
+        "REQ-027"
+      ]
+    },
+    {
+      "name": "Layercake.brnz_local_group_detail",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "1:1 landing of CE.vwLocalGroup at local group grain, one row per apuk_localgroupid, which is the primary key (RULE-169, ADR-014). It lands the columns REQ-027 maps, typed as the source: the group's name and code, its country GUID, its CRM world region (apuk_worldregionid_name), its Market_reporting_region (landed as market_reporting_region) and its statecode. Carries the four standard bronze audit columns with the existing bronze types and defaults (Q-037). The Phase 1 Layercake.brnz_local_group, which lands the same view at country grain and gives silv_ref_country its regions, is unchanged.",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "apuk_localgroupid",
+          "data_type": "uniqueidentifier",
+          "nullable": false,
+          "key": "pk",
+          "description": "Source key; a NULL or repeated key fails the load"
+        },
+        {
+          "name": "apuk_name",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "apuk_code",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "apuk_countryid",
+          "data_type": "uniqueidentifier",
+          "nullable": true,
+          "key": "none",
+          "description": "The group's country GUID"
+        },
+        {
+          "name": "apuk_worldregionid_name",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none",
+          "description": "CRM world region of the group"
+        },
+        {
+          "name": "market_reporting_region",
+          "data_type": "varchar(15)",
+          "nullable": true,
+          "key": "none",
+          "description": "Market_reporting_region, 1:1"
+        },
+        {
+          "name": "statecode",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none",
+          "description": "0 active"
+        },
+        {
+          "name": "_loaded_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column; defaults to SYSDATETIME() (Q-037)"
+        },
+        {
+          "name": "_updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column; defaults to SYSDATETIME() (Q-037)"
+        },
+        {
+          "name": "_is_deleted",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "Standard bronze audit column; 1 when gone from the source; defaults to 0 (Q-037)"
+        },
+        {
+          "name": "_deleted_at",
+          "data_type": "datetime2(3)",
+          "nullable": true,
+          "key": "none",
+          "description": "Standard bronze audit column; null while live (Q-037)"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_brnz_local_group_detail",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Lands CE.vwLocalGroup into brnz_local_group_detail with the standard bronze behaviour (bronze pattern): inserts new groups, updates changed rows and refreshes _updated_at, soft-deletes groups gone from the source, restores groups that reappear and leaves unchanged rows untouched, so a rerun on unchanged source logs 0 inserted, 0 updated and 0 deleted. Runs the RULE-005 row-count check. A source row with a NULL apuk_localgroupid, or two rows with the same apuk_localgroupid, fails the load: it logs Failed, re-raises and leaves the target unchanged, as brnz_concession does. Called by the Phase 1 bronze step, Layercake.usp_load_bronze. Logged.",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.brnz_contact",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "Existing Phase 1 landing of CE.vwContact. Gains rics_localgroupid through a change script, landed 1:1 like rics_countryid (RULE-169). Its key, existing columns and rows are unchanged. The column is nullable, so rows landed before the change hold null until the next bronze load fills them. The down script drops the column.",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "rics_localgroupid",
+          "data_type": "uniqueidentifier",
+          "nullable": true,
+          "key": "none",
+          "description": "CE.vwContact.rics_localgroupid, 1:1; null where the member has no local group"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_brnz_contact",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 load of brnz_contact (name confirmed under Q-069). Changed to land rics_localgroupid 1:1 with the other columns and to treat a difference in it as a change, as MOD-017 did for brnz_subs_status. Its key, insert, soft-delete and restore behaviour, row-count check and logging are unchanged. The first run after deployment updates every live row once to fill the column; a rerun on unchanged source then updates nothing. The down script restores the Phase 1 definition.",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_bronze",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 bronze step, called by usp_run_daily_load. Changed only to call usp_load_brnz_local_group_detail with the other bronze loads, under the same run_id. Its other steps, order, parameters and logging are unchanged. The down script restores the Phase 1 definition.",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "name": "Layercake.silv_ref_local_group",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "One row per local group in brnz_local_group_detail, plus two reserved rows seeded by the migration: 0 Unknown and -2 Not applicable (RULE-170). -2 is used only on daily count adjustment rows written before AMD-008 is deployed (RULE-179); no member is ever given it. Insert-and-update by local_group_bk, as silv_ref_country is: new groups are added, changed values are updated and ids never change. The load never changes the reserved rows. A group gone from bronze keeps its row and becomes not reportable. It holds the group's name, code, country (as a silv_ref_country id), both region values and statecode as the source gives them, with NULL or blank region values held as null. It also holds two derived values that keep the local group rule in one place: is_reportable, the usable test of RULE-171 (ADR-016 Option A, confirmed by AMD-009), and dim_country_id, the dim_country row that gives the group's country and regions (ADR-015). Gold Layercake.dim_local_group is copied from it.",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk",
+          "description": "0 Unknown and -2 Not applicable are reserved and seeded; identity from 1 for groups"
+        },
+        {
+          "name": "local_group_bk",
+          "data_type": "uniqueidentifier",
+          "nullable": true,
+          "key": "bk",
+          "description": "apuk_localgroupid; null for the two reserved rows; unique where present"
+        },
+        {
+          "name": "local_group_name",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none",
+          "description": "apuk_name, updated when the source changes; 'Unknown' for row 0 and 'Not applicable' for row -2"
+        },
+        {
+          "name": "local_group_code",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none",
+          "description": "apuk_code"
+        },
+        {
+          "name": "country_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "fk",
+          "description": "silv_ref_country.id of the row whose country_id equals apuk_countryid; null when the group has no country or it is not in silv_ref_country"
+        },
+        {
+          "name": "region_name",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none",
+          "description": "apuk_worldregionid_name; null when null or blank (empty or only spaces)"
+        },
+        {
+          "name": "market_reporting_region",
+          "data_type": "varchar(15)",
+          "nullable": true,
+          "key": "none",
+          "description": "Market_reporting_region; null when null or blank (empty or only spaces)"
+        },
+        {
+          "name": "statecode",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none",
+          "description": "Source statecode; 0 is active"
+        },
+        {
+          "name": "is_reportable",
+          "data_type": "bit",
+          "nullable": false,
+          "key": "none",
+          "description": "1 when the group is usable (RULE-171): live in bronze, statecode 0, country_id not null and both region values not null, a blank source value being held as null (ADR-016 Option A, AMD-009); 0 for the two reserved rows and otherwise"
+        },
+        {
+          "name": "dim_country_id",
+          "data_type": "int",
+          "nullable": true,
+          "key": "none",
+          "description": "For a reportable group, the dim_country id with the group's country and both its regions: the country's own id when both regions equal silv_ref_country's for that country, else the silv_ref_country_region id (ADR-015). Null when not reportable"
+        },
+        {
+          "name": "load_id",
+          "data_type": "bigint",
+          "nullable": true,
+          "key": "none",
+          "description": "Layercake.etl_run_log.log_id of the load that last wrote the row; null for the two reserved rows"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.silv_ref_country_region",
+      "kind": "table",
+      "load_pattern": "append",
+      "description": "Country and region combinations that a reportable local group gives and that differ from the country's own row in silv_ref_country (ADR-015). One row per (country_ref_id, region_name, market_reporting_region), unique. Ids start at 1000001, so they never meet a silv_ref_country id, and never change. Insert-only: a combination no group uses any longer keeps its row. The dim_country load copies these rows into dim_country with the country's GUID and name, so gold reaches a local group's region through country_id. silv_ref_country itself is not changed, because Phase 1 matches countries in it by GUID.",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk",
+          "description": "Identity from 1000001"
+        },
+        {
+          "name": "country_ref_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "silv_ref_country.id of the country"
+        },
+        {
+          "name": "region_name",
+          "data_type": "nvarchar(200)",
+          "nullable": false,
+          "key": "none",
+          "description": "The group's world region; same type as dim_country.region_name"
+        },
+        {
+          "name": "market_reporting_region",
+          "data_type": "varchar(15)",
+          "nullable": false,
+          "key": "none",
+          "description": "The group's market reporting region; same type as dim_country.market_reporting_region"
+        },
+        {
+          "name": "load_id",
+          "data_type": "bigint",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_ref_local_group",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Maintains silv_ref_local_group from brnz_local_group_detail and silv_ref_country. It inserts new groups, updates changed values (name, code, country, regions, statecode, is_reportable and dim_country_id) and leaves unchanged rows and every id untouched. The reserved rows 0 Unknown and -2 Not applicable are never changed. A group is reportable only when it passes every part of the usable test (RULE-171): live in bronze, statecode 0, a country found in silv_ref_country, and both region values neither null nor blank. A group gone from bronze is kept with is_reportable 0. Before setting dim_country_id it adds to silv_ref_country_region any combination a reportable group needs that is not there yet. It runs in the Phase 1 silver step after the country list and before usp_load_silv_member_base, so every member load in the same run sees current values. A rerun on unchanged data logs 0, 0, 0. Logged.",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-016"
+      ]
+    },
+    {
+      "name": "Layercake.vw_silv_contact_local_group",
+      "kind": "view",
+      "load_pattern": "n/a",
+      "description": "The one place that decides each member's local group, country and regions (member country and region by local group pattern; ADR-016 Option A, confirmed by AMD-009). One row per live brnz_contact row. contact_country_id is the member's own country, derived from rics_countryid exactly as Phase 1 derives country_id today, including the value Phase 1 gives when the country is missing or not found (RULE-175, Q-069). Where rics_localgroupid names a reportable silv_ref_local_group row, local_group_id is that row's id, and country_id, region_name and market_reporting_region are all the group's. The group's regions win even where its country's own region differs (AC-027-02). Every other member (no local group, a group CE does not hold, or a group that is inactive, has no country or lacks either region value) has local_group_id 0, and country_id and both regions are all the member's own country's, exactly as today (RULE-171 to RULE-173). Fields are never mixed: a member never has the group's region with its own country, or the group's country with its own region. It never gives -2. contact_region_name and contact_market_reporting_region are always the own country's regions from silv_ref_country. Read by usp_load_silv_member_base, usp_load_silv_member_state_ranges and the Join cohort of usp_load_silv_membership_events, so all of them use one definition.",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "contact_id",
+          "data_type": "uniqueidentifier",
+          "nullable": false,
+          "key": "bk",
+          "description": "brnz_contact.ContactId"
+        },
+        {
+          "name": "contact_no",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none",
+          "description": "brnz_contact.Rics_contactno"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "Own country, as Phase 1 derives country_id"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "silv_ref_local_group.id; 0 Unknown where the member has no reportable group"
+        },
+        {
+          "name": "country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "The group's country, or the own country where local_group_id is 0"
+        },
+        {
+          "name": "region_name",
+          "data_type": "nvarchar(200)",
+          "nullable": true,
+          "key": "none",
+          "description": "The group's world region, or the own country's; null only where the own country has no silv_ref_country row"
+        },
+        {
+          "name": "market_reporting_region",
+          "data_type": "varchar(15)",
+          "nullable": true,
+          "key": "none",
+          "description": "The group's market reporting region, or the own country's"
+        },
+        {
+          "name": "contact_region_name",
+          "data_type": "nvarchar(200)",
+          "nullable": true,
+          "key": "none",
+          "description": "Own country's silv_ref_country.region_name"
+        },
+        {
+          "name": "contact_market_reporting_region",
+          "data_type": "varchar(15)",
+          "nullable": true,
+          "key": "none",
+          "description": "Own country's silv_ref_country.market_reporting_region"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.dim_local_group",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Gold local group dimension, a copy of silv_ref_local_group with the same ids and names, including the reserved rows 0 Unknown and -2 Not applicable, so every local_group_id in gold resolves (RULE-170, AC-027-10).",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "pk"
+        },
+        {
+          "name": "local_group_name",
+          "data_type": "nvarchar(100)",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "load_id",
+          "data_type": "bigint",
+          "nullable": true,
+          "key": "none"
+        },
+        {
+          "name": "created_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "datetime2(3)",
+          "nullable": false,
+          "key": "none"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_dim_local_group",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Mirrors silv_ref_local_group into dim_local_group, both reserved rows included: inserts missing ids, updates changed names and leaves unchanged rows untouched. Called by the Phase 1 gold step, usp_load_gold, before any fact load. Logged.",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "name": "Layercake.dim_country",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Existing Phase 1 country dimension (id, country_id, country_name, region_name, market_reporting_region). Its columns, their names and types and its existing rows are unchanged (RULE-180, AC-027-12). From AMD-008 it also holds one row per silv_ref_country_region combination, with that id, the country's GUID and name and the combination's two regions, so a gold fact's country_id reaches a local group's region (ADR-015). If the Phase 1 table has a unique constraint on its country GUID, MOD-030 replaces it with one on (country_id, region_name, market_reporting_region) (Q-069); there is no other structural change.",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_dim_country",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 load of dim_country (name confirmed under Q-069). Changed to mirror silv_ref_country exactly as today and, in addition, every silv_ref_country_region row: missing ids inserted, changed values updated and unchanged rows untouched. Rows from silv_ref_country are written exactly as before, and the logging is unchanged. It runs in the gold step before any fact load. The down script restores the Phase 1 definition and removes the added rows.",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "name": "Layercake.silv_member_base",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Existing Phase 1 member base, fully re-derived by usp_load_silv_member_base. From AMD-008 country_id holds the member's country by local group, and local_group_id and contact_country_id (int not null) are added through a change script, all three taken from vw_silv_contact_local_group (RULE-172, RULE-175, RULE-176). Every other column, the row set and the derived retirement date (ADR-005) are unchanged. Rows stored before deployment take local_group_id 0 and contact_country_id equal to their country_id until the next run. The down script drops the two columns; the restored load then puts the own country back in country_id.",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "Existing column, new values: the local group's country, or the own country where local_group_id is 0"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "silv_ref_local_group.id; 0 Unknown where the member has no reportable group"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "silv_ref_country.id of the member's own country, derived as Phase 1 derives country_id"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.silv_member_profile",
+      "kind": "table",
+      "load_pattern": "scd1",
+      "description": "Existing Phase 1 diff-synced copy of the member base's country_id, gender_id and retirement_date, read by the daily count. country_id now carries the local-group country (RULE-172). Gains local_group_id and contact_country_id (int not null) through a change script, copied from silv_member_base like country_id. Rows stored before deployment take 0 and their country_id until the next run. The down script drops the two columns.",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "From silv_member_base"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "fk",
+          "description": "From silv_member_base"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_member_profile",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 load of silv_member_profile. Changed to copy local_group_id and contact_country_id with the other columns and to treat a difference in either as a change, so a change of local group or own country updates the row. Its pending-rebuild logging, a diagnostic only (RULE-110), and everything else are unchanged. The down script restores the Phase 1 definition.",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "name": "Layercake.silv_member_state_ranges",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Existing Phase 1 state ranges, from which the daily count takes each range's grade and region. From AMD-008 region carries the member's region by local group, in the flavour Phase 1 gives it today: the load takes the same flavour (world region or market reporting region, confirmed under Q-069) from vw_silv_contact_local_group (RULE-173, Q-061). contact_region is added through a change script and holds the own country's region in the same flavour (RULE-175). Rows stored before deployment take contact_region equal to their region until the next run. The down script drops the column.",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none",
+          "description": "Existing column, new values: the member's region by local group"
+        },
+        {
+          "name": "contact_region",
+          "data_type": "varchar(12)",
+          "nullable": false,
+          "key": "none",
+          "description": "Own country's region in the flavour of region"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_member_state_ranges",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 load of silv_member_state_ranges. Changed to take region from vw_silv_contact_local_group, in the flavour it uses today, and to write contact_region, the own-country region in the same flavour. Range boundaries, grades and every other rule are unchanged. A region value too long for varchar(12) fails the load with a clear error naming the value; it is never cut short. The down script restores the Phase 1 definition.",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_fact_membership_events",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 gold events load (diff-sync on event_id). Changed to copy local_group_id and contact_country_id from silver, to set country_id as the gold country by local group pattern says, and to treat a difference in any of them as a change. Its row set, event_id and the other columns are unchanged, and the segment columns are still written by usp_load_fact_membership_events_segments. The down script restores the Phase 1 definition.",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "name": "Layercake.silv_annual_rate_base",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Existing Phase 1 annual rate base, re-derived in full on every run, with one row per (campaign_year, grade_id, membership_status_id, country_id, gender_id) and six member counts. From AMD-008 country_id carries the member's country by local group, and local_group_id and contact_country_id (int not null, from silv_member_base) are added through a change script and join the grain, which becomes (campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id); any unique key on the grain is widened the same way (RULE-176, AC-027-11). Summed over country_id, local_group_id and contact_country_id every count is unchanged (RULE-177). Because it is re-derived in full, every Campaign Year, closed ones included, takes the local group values on the next run (RULE-174). The down script drops the two columns.",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk",
+          "description": "Existing column, new values: the member's country by local group"
+        },
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk",
+          "description": "From silv_member_base"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "bk",
+          "description": "From silv_member_base"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_silv_annual_rate_base",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 full re-derive of silv_annual_rate_base. Changed to carry local_group_id and contact_country_id from silv_member_base into the grain beside country_id, which already follows the member base. Every count rule, including the derived retirement date it reads (ADR-005), is unchanged. The down script restores the Phase 1 definition.",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "name": "Layercake.fact_annual_rate_base",
+      "kind": "table",
+      "load_pattern": "full",
+      "description": "Existing Phase 1 gold annual rate base (id, campaign_year, grade_id, membership_status_id, country_id, gender_id and the six member counts). Gains local_group_id and contact_country_id (int not null; keys of dim_local_group and dim_country, with no foreign keys) through a change script, and any unique key on its grain is widened by both. country_id keeps its name and type and holds the gold country by local group (ADR-015). Every existing column keeps its name and type (RULE-180). The down script drops the two columns.",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "columns": [
+        {
+          "name": "local_group_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "dim_local_group key, copied from silver"
+        },
+        {
+          "name": "contact_country_id",
+          "data_type": "int",
+          "nullable": false,
+          "key": "none",
+          "description": "dim_country key of the member's own country, copied from silver"
+        }
+      ]
+    },
+    {
+      "name": "Layercake.usp_load_fact_annual_rate_base",
+      "kind": "procedure",
+      "load_pattern": "n/a",
+      "description": "Existing Phase 1 gold load of fact_annual_rate_base. Changed to copy local_group_id and contact_country_id from silver and to set country_id as the gold country by local group pattern says; one silver row still gives one gold row. Its load behaviour and logging are otherwise unchanged. The down script restores the Phase 1 definition.",
+      "requirement_ids": [
+        "REQ-027"
       ]
     }
   ],
@@ -2743,10 +3545,13 @@
     "Daily count changed-contacts path (REQ-024, RULE-141, RULE-143, RULE-147 to RULE-149, RULE-153; ADR-011; Q-057, Q-058, Q-059; MOD-026): (1) Path. After the overlapping range guard, the run takes the full-recompute path (daily count correction pattern) when @FullRebuild or @RebuildFrom is given, when a reference input changed within its window (RULE-147), or when the snapshot is not in step with the basis. Not in step means some contact has a 'contact' basis row but no etl_daily_count_applied_contact row, or the reverse: after deployment the snapshot is empty, and after a run that did not finish its contacts' snapshot rows have been withdrawn. Otherwise it takes the normal path. (2) Changed contacts. These are the contacts whose fingerprint differs from the basis, or that appeared or disappeared, as ADR-007 finds them. The run's correction start is computed as before (the earliest affected date of the changed contacts, the first date not yet loaded, and today) and is used only to mark covered pending-rebuild rows applied. (3) Apply to loaded dates. For each changed contact, the unchanged derivation is applied twice, on the dates already marked loaded up to today. It is applied once to the contact's snapshot (its old contribution, with a contact that appeared having none) and once to its current inputs (its new contribution, with a contact that disappeared having none). Each contribution is a cell, its seven measure contributions and a contact count of 1, for each date the contact sits in a cell. The reference tables are the same on both sides, since a reference change would have taken the full path. New minus old is added to silv_daily_count_detail and etl_daily_count_cell_contacts, and the matching (date, region, grade) rows of silv_daily_count are brought to the sum of their detail rows. A cell whose contact count rises from 0 is inserted, and a cell whose count falls to 0 is deleted from both tables, so an emptied cell disappears exactly as the full recompute would leave it (Q-059). Other cells and dates are not touched. Each cell whose seven measures changed gets one silv_daily_count_adjustment row of new minus old, under the run's run_id (RULE-112 to RULE-116). Cells changed only in contact count write no adjustment row. The work is in date-ordered batches. Each batch commits in one transaction with its adjustment rows, and the first batch transaction also withdraws the changed contacts' snapshot rows. So each cell and date belongs to one batch, and the one-row-per-run-and-cell key holds. (4) First loads. Dates not yet marked loaded up to today, including today on its first run of the day, are derived from all contacts' current inputs in date-ordered batches. They are written with their marks and cell counts and write no adjustment rows (RULE-114). (5) Final transaction. After the last batch, one transaction writes the changed contacts' snapshot rows and basis rows as now applied, removes the rows of contacts whose inputs have gone, and marks covered open pending-rebuild rows applied. (6) Failure and resume. A failure in any batch rolls that batch back, keeps the batches already committed, logs 'Failed' and re-raises the error. If any batch has committed, the snapshot is no longer in step with the basis. The next run therefore takes the full-recompute path from 2020-10-01, which finds no differences where batches committed, finishes the rest and brings the basis and snapshot into line, with no cleanup. If no batch committed, nothing changed, and the next run simply repeats the normal path. Either way the adjustment history holds only committed changes, and stored before plus adjustments equals stored after (RULE-149, AC-024-12). (7) Logging (RULE-153). Every run that passes the guard writes two Layercake.etl_progress_log sub-steps under the step's log_id, once its path is decided, as ADR-010 does for the corporate subscription counts. 'contacts_recomputed' has rows_affected set to the number of changed contacts on the normal path (0 when none), or the number of contacts with daily count inputs, current or as last applied, on the full path. 'full_recompute_path' has rows_affected 1 when the run took the full path and 0 when it did not. (8) Results. After any completed run the tables, the gold fact (through its load) and the adjustment rows are identical to what the full recompute gives on the same data (RULE-143). The as-known-at functions and the review view are unchanged (AC-024-13). Work on a normal day is proportional to the changed contacts and the loaded dates their contributions reach, plus the fingerprint pass and the day's first load. The speed target (daily count under 5 minutes, whole run under 15 minutes on a normal day not overlapping Subs.usp_Subs_Refresh_Data) is checked by a human on production at handover from etl_run_log and the two sub-steps. Agents' tests set no time limit (RULE-142, Q-057).",
     "Gold daily fact cell sync (REQ-025, REQ-026, RULE-150 to RULE-152, RULE-164; Q-056; MOD-027, MOD-028): usp_load_fact_daily_member_count_detail derives the gold cells from silv_daily_count_detail exactly as the Phase 1 load does, and from AMD-007 each cell also carries payment_method_id, payer_type_id and concession_type_id copied from silver. It compares them with fact_daily_member_count_detail on (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id) across the whole span on every run. Changed cells are updated in place and keep their id. New cells are inserted. Fact rows with no silver cell are deleted, including rows added by hand. Unchanged cells and dates are not touched, so a rerun on unchanged silver logs 0 inserted, 0 updated and 0 deleted. The final row-count check against silver stays. id is widened from int to bigint and kept, because the repository cannot show that nothing outside the database reads it (Q-056). Inside Layercake only this load references it. No foreign key is added for the three segment columns. After any completed run the fact equals what the full recompute followed by the gold load gives, in every column except id (RULE-107, RULE-143).",
     "Daily count segment grain (REQ-026, RULE-155 to RULE-161; Q-007 and Q-060 answered; MOD-028): a contact-day sits in the cell given by its Phase 1 grain ([date], region, country_id, gender_id, grade, membership_status_id) and by its silv_member_year_attributes row for the day's Campaign Year (the campaign_year the spine gives the date). The cell takes that row's payment_method_id, payer_type_id and concession_type_id as held, whether carried or not, for every grade (enrolment, election and lapse) and for each of the seven measures counted for the contact that day. A contact-day with no attributes row takes 0 Unknown for all three. Before 2022 the attributes hold -2 Not applicable, and that is used. So a contact whose payment method changes between years moves cell on 1 October, and a Join is counted under the attributes of the Join day's Campaign Year, even where fact_membership_events gives the Join its first paid position's year (RULE-017, Q-060). The carried flags, corporate_account_ref and employer are not part of the grain. The attributes hold one row per contact and Campaign Year, so a contact still sits in one cell per day (RULE-144 holds), each measure is still the sum of 0-or-1 contributions, and every figure summed over the three columns, and silv_daily_count, are exactly what they are without them (RULE-157). A contact's daily count inputs now also include its attributes rows (campaign_year and the three ids), in the fingerprint and in etl_daily_count_applied_attribute. A change to any of the three ids in any Campaign Year makes the contact a changed contact: the changed-contacts path takes out its old contribution under the old ids and adds its new one. This moves that Campaign Year's loaded days from one cell to another and writes adjustment rows as a country or gender change does, with the same result as @FullRebuild (RULE-160). A contact whose attributes rows appear or go is handled the same way. silv_ref_payment_method, silv_ref_payer_type and silv_ref_concession_type are not reference inputs, so a change to them alone does not take the full path and changes no cell (RULE-161). The adjustment history, the cell counts, the detail as-known-at function, the review view and the gold fact carry the three columns in their grain. silv_daily_count and fn_silv_daily_count_as_known_at keep their grain and figures.",
-    "Restatement at the segment grain (RULE-162, RULE-163, RULE-165; ADR-013; Q-061; MOD-028): MOD-028's migration is numbered after MIG-0029, creates no schema and works only in Layercake. It adds payment_method_id, payer_type_id and concession_type_id to silv_daily_count_detail, etl_daily_count_cell_contacts, silv_daily_count_adjustment and fact_daily_member_count_detail with -2 Not applicable on every existing row, and widens each table's grain key to include them. Every stored figure therefore stays where it was, and every total at the old grain is unchanged straight after deployment. It creates etl_daily_count_applied_attribute, empties the four other snapshot tables and writes the 'detail_grain_restatement' marker in etl_daily_count_input_basis. It changes no figure and writes no adjustment row, so it is short and can run on production outside the 06:00 run. The first daily count run after deployment finds the marker and takes the full-recompute path from 2020-10-01. It writes every loaded date's cells at the new grain, removing the -2 placeholder cells and writing the split cells, and rewrites their cell counts. While the marker is present, adjustments are worked out at the old grain. For each ([date], region, country_id, gender_id, grade, membership_status_id), the new figures summed over the three columns are compared with the stored ones, and where some measure differs one row of new minus old is written with -2 in the three columns. A change of grain alone therefore writes no adjustment row, while a real change that run finds (the day's source changes) is still recorded (Q-061). Dates first loaded by that run write none, as always. The run's final transaction removes the marker, with the basis and snapshot. A run that fails part way keeps the marker and its committed batches; the next run takes the same path, finds no old-grain difference for the dates already split, and finishes the rest with no cleanup. That run takes about as long as @FullRebuild, and the gold sync then deletes the placeholder fact cells and inserts the split cells once. Adjustment rows written before deployment keep their figures, run_id and written_at, with -2 in the three columns, so 'as known at' a time before deployment is exact at the silv_daily_count grain and at the old detail grain (summed over the three columns), but is not split by segment (RULE-163). The down script sums each of the four tables back to the old grain over the three columns: adjustment rows by run and old cell, dropping any whose seven sums are all 0, and fact rows keeping the lowest id of each old cell. It restores the old keys and the fact's five-column unique clustered index, drops the three columns and the marker, renames etl_daily_count_applied_attribute to etl_daily_count_applied_attribute_rolledback_MIGnnnn when it holds rows (dropping it otherwise), empties the snapshot so the restored MOD-026 load takes its full path once, and restores the MOD-026 and MOD-027 procedures and the MOD-021 function and view."
+    "Restatement at the segment grain (RULE-162, RULE-163, RULE-165; ADR-013; Q-061; MOD-028): MOD-028's migration is numbered after MIG-0029, creates no schema and works only in Layercake. It adds payment_method_id, payer_type_id and concession_type_id to silv_daily_count_detail, etl_daily_count_cell_contacts, silv_daily_count_adjustment and fact_daily_member_count_detail with -2 Not applicable on every existing row, and widens each table's grain key to include them. Every stored figure therefore stays where it was, and every total at the old grain is unchanged straight after deployment. It creates etl_daily_count_applied_attribute, empties the four other snapshot tables and writes the 'detail_grain_restatement' marker in etl_daily_count_input_basis. It changes no figure and writes no adjustment row, so it is short and can run on production outside the 06:00 run. The first daily count run after deployment finds the marker and takes the full-recompute path from 2020-10-01. It writes every loaded date's cells at the new grain, removing the -2 placeholder cells and writing the split cells, and rewrites their cell counts. While the marker is present, adjustments are worked out at the old grain. For each ([date], region, country_id, gender_id, grade, membership_status_id), the new figures summed over the three columns are compared with the stored ones, and where some measure differs one row of new minus old is written with -2 in the three columns. A change of grain alone therefore writes no adjustment row, while a real change that run finds (the day's source changes) is still recorded (Q-061). Dates first loaded by that run write none, as always. The run's final transaction removes the marker, with the basis and snapshot. A run that fails part way keeps the marker and its committed batches; the next run takes the same path, finds no old-grain difference for the dates already split, and finishes the rest with no cleanup. That run takes about as long as @FullRebuild, and the gold sync then deletes the placeholder fact cells and inserts the split cells once. Adjustment rows written before deployment keep their figures, run_id and written_at, with -2 in the three columns, so 'as known at' a time before deployment is exact at the silv_daily_count grain and at the old detail grain (summed over the three columns), but is not split by segment (RULE-163). The down script sums each of the four tables back to the old grain over the three columns: adjustment rows by run and old cell, dropping any whose seven sums are all 0, and fact rows keeping the lowest id of each old cell. It restores the old keys and the fact's five-column unique clustered index, drops the three columns and the marker, renames etl_daily_count_applied_attribute to etl_daily_count_applied_attribute_rolledback_MIGnnnn when it holds rows (dropping it otherwise), empties the snapshot so the restored MOD-026 load takes its full path once, and restores the MOD-026 and MOD-027 procedures and the MOD-021 function and view.",
+    "Member country and region by local group (REQ-027, RULE-169 to RULE-178; ADR-014; ADR-016 Option A, confirmed by AMD-009; MOD-030 to MOD-032): CE.vwLocalGroup is landed at local group grain in brnz_local_group_detail, beside the unchanged country-grain brnz_local_group, and brnz_contact lands rics_localgroupid. usp_load_silv_ref_local_group keeps silv_ref_local_group in line (insert-and-update, ids never change, reserved rows 0 Unknown and -2 Not applicable never changed) and marks a group reportable only when it is usable (RULE-171): live, active (statecode 0), with a country in silv_ref_country and with both region values neither null nor blank. vw_silv_contact_local_group then gives every member, in one place, contact_country_id, the own country exactly as Phase 1 derives it. For a member in a reportable group it gives the group's id, country and both regions; for any other member, whichever condition fails, it gives local_group_id 0 and the own country and own-country regions in every field, exactly as today (whole-member fallback). Fields are never mixed between the group and the own country. No member is ever given -2. The group row's regions win even where its country's own region differs (AC-027-02). Each region field keeps the flavour it carries today (Q-061). The member's current local group applies to every date, closed Campaign Years included, because CE holds no history (Q-064). silv_member_base takes country_id, local_group_id and contact_country_id from the view; silv_member_profile copies them; silv_member_state_ranges takes region from the view in its current flavour and adds contact_region in the same flavour; the events load takes the three values from the member base and, for its Join cohort, from the view; the annual rate base adds local_group_id and contact_country_id to its grain; the daily count puts each contact-day in the cell of those values. So every path (the normal run, the changed-contacts path, @FullRebuild, @RebuildFrom and the full re-derivation of the annual rate base) uses the same values on every date (RULE-174). A change to a member's local group or own country, or to a group's country, region or status, including one that makes a group usable or not usable, changes the members' own silver inputs (profile and state ranges), so the next usp_run_daily_load recomputes exactly those members on the changed-contacts path and writes their moves between cells to the adjustment history; the local group and country lists are not reference inputs and never force the full path (RULE-178, AC-027-16). Totals not split by region, country or local group, the number of events and every event_nk and event_id are unchanged (RULE-177), which overrides BR-001's rule that counts by region must not change.",
+    "Gold country by local group (RULE-173, RULE-176, RULE-180; ADR-015; MOD-030 to MOD-032): gold reaches region only through a fact row's country_id and dim_country, whose columns and existing rows are unchanged. dim_country gains one row per silv_ref_country_region combination (a country paired with a reportable group's regions where they differ from the country's own), with the country's GUID and name. Each gold load sets country_id to the group's silv_ref_local_group.dim_country_id where local_group_id names a reportable group, and to the silver country_id otherwise, which is the country's own dim_country row. It copies local_group_id and contact_country_id from silver. So region_name and market_reporting_region reached through country_id are the member's regions by local group, and through contact_country_id the own country's. This applies to fact_daily_member_count_detail, fact_membership_events and fact_annual_rate_base. local_group_id resolves to dim_local_group and contact_country_id to dim_country (AC-027-10); no foreign keys are added. Any report reading the daily fact or the annual rate base must sum over local_group_id and contact_country_id to get the old grain (RULE-182). Phase 1 reconciliation check D2 rebuilds the expected star from silver, so its human edit adds both columns and maps country_id in the same way (RULE-181).",
+    "Restatement by local group (RULE-179; Q-067 answered, AMD-009; ADR-013 precedent; MOD-031): MOD-031's migration is numbered after MOD-030's, creates no schema, works only in Layercake and can run on production outside the 06:00 run. It adds the new columns with values that keep every stored figure where it is. On silv_daily_count_detail, etl_daily_count_cell_contacts and fact_daily_member_count_detail those are local_group_id 0, contact_country_id equal to country_id and contact_region equal to region; the member tables take the same until the next run. Pre-deployment adjustment rows take contact_country_id equal to country_id, contact_region equal to region and local_group_id -2 Not applicable, the reserved row MOD-030 seeds in silv_ref_local_group and dim_local_group, so every one resolves (AC-027-10, AC-027-13). -2 appears only in the adjustment history and in the as-known-at results drawn from it, never on a member table, daily count cell or fact row. It widens the grain keys, empties the five snapshot tables and writes the 'local_group_restatement' marker in etl_daily_count_input_basis. It changes no figure and writes no adjustment row. The first daily count run after deployment finds the marker and takes the full path from 2020-10-01, writing every loaded date's cells at the local group values and rewriting their cell counts. While the marker is present, adjustments are worked out at the own-country grain. For each ([date], contact_region, contact_country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id), the new figures summed over region, country_id and local_group_id are compared with the stored figures summed the same way. Where a measure differs, one row of new minus old is written with region equal to contact_region, country_id equal to contact_country_id and local_group_id -2. So the change of basis to local group regions writes no adjustment row, while a real change that run finds is still recorded. If MOD-028's 'detail_grain_restatement' marker is still present, the comparison is also summed over the three segment columns, which then take -2, so neither restatement writes a row of its own. Dates first loaded by that run write none. The final transaction removes the marker. A run that fails part way keeps the marker; the next run repeats the path and finishes with no cleanup. The run takes about as long as @FullRebuild, and the gold sync then replaces the placeholder fact cells once. 'As known at' a time before deployment is exact by own country and wherever region, country_id and local_group_id are summed over, but not split by the local group's region or country (RULE-179). The events and the annual rate base need no restatement: the first run after MOD-032 rewrites them, the events by difference and the annual rate base in full. MOD-031's down script sums each daily table back to the AMD-007 grain using the own-country values (region from contact_region, country_id from contact_country_id): adjustment rows by run and old cell, dropping any whose seven sums are all 0, and fact rows keeping the lowest id of each old cell. It restores the old keys and the eight-column fact index, drops the columns and the marker, empties the snapshot so the restored MOD-028 load takes its full path once, and restores the MOD-018, MOD-021, MOD-028 and Phase 1 definitions it replaced."
   ],
-  "security": "No new personal data: contact_no already exists in Phase 1, and no names, emails or bank details are landed. No masking is needed. Every count-only procedure returns aggregates only, with no contact-level columns (RULE-057, RULE-064, RULE-066). The as-known-at functions and the adjustments review view return figures by daily count cell only, with no contact column; from AMD-007 the cell also carries three segment ids, still with no contact column. etl_daily_count_input_basis, the five etl_daily_count_applied_* snapshot tables (etl_daily_count_applied_attribute added by AMD-007) and etl_daily_count_cell_contacts hold contact numbers and silver values already present in Phase 1 and are internal, so they get no grant. The overlapping range guard's error message names a contact number, which already appears in the internal run log. Grants are scripted by the Developer in src/sql/grants/<MOD>.sql for a human to run. The four new dimensions, the two as-known-at functions and vw_silv_daily_count_adjustment_review get SELECT for the existing reporting role that reads fact_membership_events. The usp_profile_* and usp_report_* procedures get EXECUTE for the analyst role that runs the profiling. fact_daily_member_count_detail keeps its existing grants, which cover its new columns; MOD-028 and MOD-029 add no grant. Agents hold no grant rights. External sources are read with the project's existing read access and never written.",
-  "performance": "No volumes are given in the spec for the segment loads. Working estimate: about 140,000 members, so about 140,000 subscription invoices a year from 2022, about one attributes row and one brnz_subs_status row per member per year, and one silv_event_amount row per Join, Renewal and Readmission. Invoice lines are at ledger-distribution grain. Profiling (Q-021) found 458,563 transactions split across 1,015,865 rows, so brnz_subs_invoice_line is expected to hold one to a few million rows. Indexes: brnz_subs_invoice on (account_num, campaign_year) and voucher; brnz_subs_invoice_line clustered on line_id, with a unique index on (recid, postingtype, accountdisplayvalue) (up to about 1 KB per entry, within the nonclustered key limit, ADR-006) and indexes on (accountnum, voucher) and lastsettlevoucher as before; brnz_corporate_subscription on (contact_no, sub_campaign_year); silv_event_amount on (contact_no, amount_campaign_year) and invoice_rec_id; silv_member_year_attributes is clustered on its key. brnz_subs_status is read by its key ([Contact No.], [Campaign Year]) for event amounts and the derived date. No index is added to it, to other Phase 1 tables or to external objects. All loads are set-based full comparisons that write only differences, so the daily cost of the segment loads (about 3.5 minutes in production, out of scope for AMD-006) is dominated by reading the bronze sources. The first invoice line load after MOD-019 soft-deletes the rows landed at the old grain and inserts the source rows once. Daily count (AMD-006, production 2026-11-19): 178,751 contacts and 2,241 spine dates. A normal day changes 67 to 394 contacts, while the ADR-007 path recomputed the whole spine on every run (32 to 50 minutes). The changed-contacts path (ADR-011) does three things: the existing fingerprint pass over the four silver inputs; the derivation, twice, for the changed contacts only, over the loaded dates their contributions reach (at most 2,241 days each, so under a million contact-days each side on a 394-contact day); and the first load of today for all contacts. Writes touch only the changed cells. Target: the daily count step under 5 minutes, and usp_run_daily_load under 15 minutes on a normal day not overlapping Subs.usp_Subs_Refresh_Data, checked by a human at handover (RULE-142). The faster count form also shortens the full path, which is still taken for @FullRebuild, @RebuildFrom, a changed reference input, the first run after deployment and the run after a failed one, and takes about as long as @FullRebuild. The snapshot tables hold about as many rows as the four inputs' read columns (around one profile row per contact, plus their state ranges, payments and events: low millions in all) and are clustered on contact_no. etl_daily_count_cell_contacts holds about one row per stored detail cell (about 1.8 million) and is clustered on its key. The gold load compares about 1.8 million cells once per run and writes only the changed ones, where it used to delete and re-insert 1.82 million rows (10 minutes). With bigint, id cannot run out. silv_daily_count_adjustment is clustered on adjustment_id, with the unique index on run and cell and an index on ([date], written_at) for the as-known-at functions. It grows with the changed cells per run and is kept indefinitely. etl_daily_count_input_basis is clustered on its key. Segment grain (AMD-007): the spec gives no volume, and Mike accepts the larger row count. Working estimate: each old detail cell splits by the payment methods, payer types and concessions of the contacts in it, so silv_daily_count_detail, etl_daily_count_cell_contacts and fact_daily_member_count_detail grow from about 1.8 million rows to an estimated 5 to 10 million, and their clustered keys widen by three int columns. The gold sync's whole-span comparison grows in proportion. A normal day's changed-contacts work still depends on the changed contacts; the fingerprint pass also reads the attributes rows (about one per contact per Campaign Year from the first event, low millions). etl_daily_count_applied_attribute holds about as many rows as silv_member_year_attributes and is clustered on (contact_no, campaign_year). No index is added to silv_member_year_attributes, which is already clustered on its key. The speed check at handover (RULE-142) is made on runs at the new grain. The restatement run after MOD-028 is deployed takes about as long as @FullRebuild, and its gold sync deletes and inserts the split cells once. Holding the daily count back until after the segment loads (ADR-012) changes the order of the run, not its total work. Subs.vwCorpSubscriptions repeats keys in every Campaign Year from 2022 (2027: 563 keys, up to 4 rows each), so choosing one copy per key is a small step inside the corporate subscription load and needs no new index.",
+  "security": "No new personal data: contact_no already exists in Phase 1, and no names, emails or bank details are landed. No masking is needed. Every count-only procedure returns aggregates only, with no contact-level columns (RULE-057, RULE-064, RULE-066). The as-known-at functions and the adjustments review view return figures by daily count cell only, with no contact column; from AMD-007 the cell also carries three segment ids, and from AMD-008 a local group and own country, still with no contact column. etl_daily_count_input_basis, the five etl_daily_count_applied_* snapshot tables (etl_daily_count_applied_attribute added by AMD-007) and etl_daily_count_cell_contacts hold contact numbers and silver values already present in Phase 1 and are internal, so they get no grant. The overlapping range guard's error message names a contact number, which already appears in the internal run log. AMD-008 adds no personal data: a local group is an organisational unit, members' address data is out of scope, and contact_no is not added anywhere new. Grants are scripted by the Developer in src/sql/grants/<MOD>.sql for a human to run. The four new segment dimensions, dim_local_group (MOD-030), the two as-known-at functions and vw_silv_daily_count_adjustment_review get SELECT for the existing reporting role that reads fact_membership_events. The usp_profile_* and usp_report_* procedures get EXECUTE for the analyst role that runs the profiling. fact_daily_member_count_detail, fact_membership_events, fact_annual_rate_base and dim_country keep their existing grants, which cover their new columns and rows; MOD-028, MOD-029, MOD-031 and MOD-032 add no grant. vw_silv_contact_local_group, silv_ref_local_group and silv_ref_country_region are internal silver objects with no grant. Agents hold no grant rights. External sources are read with the project's existing read access and never written.",
+  "performance": "No volumes are given in the spec for the segment loads. Working estimate: about 140,000 members, so about 140,000 subscription invoices a year from 2022, about one attributes row and one brnz_subs_status row per member per year, and one silv_event_amount row per Join, Renewal and Readmission. Invoice lines are at ledger-distribution grain. Profiling (Q-021) found 458,563 transactions split across 1,015,865 rows, so brnz_subs_invoice_line is expected to hold one to a few million rows. Indexes: brnz_subs_invoice on (account_num, campaign_year) and voucher; brnz_subs_invoice_line clustered on line_id, with a unique index on (recid, postingtype, accountdisplayvalue) (up to about 1 KB per entry, within the nonclustered key limit, ADR-006) and indexes on (accountnum, voucher) and lastsettlevoucher as before; brnz_corporate_subscription on (contact_no, sub_campaign_year); silv_event_amount on (contact_no, amount_campaign_year) and invoice_rec_id; silv_member_year_attributes is clustered on its key. brnz_subs_status is read by its key ([Contact No.], [Campaign Year]) for event amounts and the derived date. No index is added to it, to other Phase 1 tables or to external objects. All loads are set-based full comparisons that write only differences, so the daily cost of the segment loads (about 3.5 minutes in production, out of scope for AMD-006) is dominated by reading the bronze sources. The first invoice line load after MOD-019 soft-deletes the rows landed at the old grain and inserts the source rows once. Daily count (AMD-006, production 2026-11-19): 178,751 contacts and 2,241 spine dates. A normal day changes 67 to 394 contacts, while the ADR-007 path recomputed the whole spine on every run (32 to 50 minutes). The changed-contacts path (ADR-011) does three things: the existing fingerprint pass over the four silver inputs; the derivation, twice, for the changed contacts only, over the loaded dates their contributions reach (at most 2,241 days each, so under a million contact-days each side on a 394-contact day); and the first load of today for all contacts. Writes touch only the changed cells. Target: the daily count step under 5 minutes, and usp_run_daily_load under 15 minutes on a normal day not overlapping Subs.usp_Subs_Refresh_Data, checked by a human at handover (RULE-142). The faster count form also shortens the full path, which is still taken for @FullRebuild, @RebuildFrom, a changed reference input, the first run after deployment and the run after a failed one, and takes about as long as @FullRebuild. The snapshot tables hold about as many rows as the four inputs' read columns (around one profile row per contact, plus their state ranges, payments and events: low millions in all) and are clustered on contact_no. etl_daily_count_cell_contacts holds about one row per stored detail cell (about 1.8 million) and is clustered on its key. The gold load compares about 1.8 million cells once per run and writes only the changed ones, where it used to delete and re-insert 1.82 million rows (10 minutes). With bigint, id cannot run out. silv_daily_count_adjustment is clustered on adjustment_id, with the unique index on run and cell and an index on ([date], written_at) for the as-known-at functions. It grows with the changed cells per run and is kept indefinitely. etl_daily_count_input_basis is clustered on its key. Segment grain (AMD-007): the spec gives no volume, and Mike accepts the larger row count. Working estimate: each old detail cell splits by the payment methods, payer types and concessions of the contacts in it, so silv_daily_count_detail, etl_daily_count_cell_contacts and fact_daily_member_count_detail grow from about 1.8 million rows to an estimated 5 to 10 million, and their clustered keys widen by three int columns. The gold sync's whole-span comparison grows in proportion. A normal day's changed-contacts work still depends on the changed contacts; the fingerprint pass also reads the attributes rows (about one per contact per Campaign Year from the first event, low millions). etl_daily_count_applied_attribute holds about as many rows as silv_member_year_attributes and is clustered on (contact_no, campaign_year). No index is added to silv_member_year_attributes, which is already clustered on its key. The speed check at handover (RULE-142) is made on runs at the new grain. The restatement run after MOD-028 is deployed takes about as long as @FullRebuild, and its gold sync deletes and inserts the split cells once. Holding the daily count back until after the segment loads (ADR-012) changes the order of the run, not its total work. Subs.vwCorpSubscriptions repeats keys in every Campaign Year from 2022 (2027: 563 keys, up to 4 rows each), so choosing one copy per key is a small step inside the corporate subscription load and needs no new index. Local groups (AMD-008): CE.vwLocalGroup holds a few hundred rows, so the new landing, list and dimension are small, and dim_country gains only a handful of rows (ADR-015). The spec gives no volume for the finer grain, and Mike accepts more rows and a finer grain. Working estimate: each AMD-007 cell splits by the local groups and own countries of the members in it, so silv_daily_count_detail, etl_daily_count_cell_contacts and fact_daily_member_count_detail may grow several times over (to tens of millions of rows), with clustered keys widened by two or three columns; the annual rate base grows the same way from a small base. A normal day's work still depends on the changed contacts, but a change to one large local group's region or country recomputes all its members. The restatement run after MOD-031 is deployed takes about as long as @FullRebuild, and the speed check at handover (RULE-142) is made on runs at the AMD-008 grain. No index is added to external objects.",
   "requirement_coverage": [
     {
       "requirement_id": "REQ-001",
@@ -2755,7 +3560,8 @@
         "Phase 1 procedures unchanged except usp_load_brnz_subs_status, usp_load_silv_member_base (retirement date only, ADR-005), usp_load_silv_data_anomaly (own types only), the silv_payment_events load, usp_load_silv_daily_count (which dates and contacts are recomputed, how they are written, and the segment grain, ADR-007, ADR-011, REQ-026), usp_load_fact_daily_member_count_detail (cell-level sync, REQ-025), usp_load_silver and usp_load_gold (a switch that holds back the daily count and the gold daily fact, ADR-012) and usp_run_daily_load (segment step and order)",
         "Enrichment procedures update only the new columns",
         "Derived retirement date pattern: only membership_status_id and results split by it change (RULE-102, Q-046)",
-        "Daily count totals at the old grain unchanged by the segment columns (RULE-157)"
+        "Daily count totals at the old grain unchanged by the segment columns (RULE-157)",
+        "AMD-008: totals not split by region, country or local group unchanged, and event rows and identifiers unchanged; results split by region or country follow the local group, history included, overriding BR-001's region rule (RULE-177, member country and region by local group pattern)"
       ]
     },
     {
@@ -2899,7 +3705,8 @@
       "requirement_id": "REQ-015",
       "design_elements": [
         "Entity descriptions, patterns and known gaps in this design (including Q-038 and Q-040) as source content for the handover pack and the Platform Schema document",
-        "Derived retirement date; runbook with no one-off daily rebuild (REQ-018) and with usp_run_daily_load as the only scheduled procedure (REQ-021)"
+        "Derived retirement date; runbook with no one-off daily rebuild (REQ-018) and with usp_run_daily_load as the only scheduled procedure (REQ-021)",
+        "Local group dimension, local-group-based country and region, contact_country_id and contact_region, and the need to sum the daily fact and annual rate base over local_group_id and contact_country_id, described in the handover by MOD-032's documentation update (RULE-182)"
       ]
     },
     {
@@ -3031,6 +3838,25 @@
         "Check D2 of reference/phase1/Scripts/Reconciliation/pipeline-reconciliation-report.sql rebuilds the star with the three columns; the two difference scripts re-checked unchanged (RULE-166)",
         "Handover architecture, data lineage, runbook, known limitations and glossary updated by MOD-029's documentation update (RULE-167)"
       ]
+    },
+    {
+      "requirement_id": "REQ-027",
+      "design_elements": [
+        "Layercake.brnz_local_group_detail and Layercake.usp_load_brnz_local_group_detail (ADR-014); Layercake.brnz_contact.rics_localgroupid and Layercake.usp_load_brnz_contact; Layercake.usp_load_bronze",
+        "Layercake.silv_ref_local_group (reserved rows 0 Unknown and -2 Not applicable), Layercake.silv_ref_country_region and Layercake.usp_load_silv_ref_local_group (usable test of RULE-171 and dim_country id)",
+        "Layercake.vw_silv_contact_local_group: each member's local group, country and regions in one place, with the whole-member fallback and no field mixing (ADR-016 Option A, AMD-009)",
+        "Layercake.dim_local_group and Layercake.usp_load_dim_local_group; Layercake.dim_country and Layercake.usp_load_dim_country (combination rows, ADR-015); Layercake.usp_load_silver and Layercake.usp_load_gold (new steps)",
+        "Layercake.silv_member_base, Layercake.usp_load_silv_member_base, Layercake.silv_member_profile, Layercake.usp_load_silv_member_profile, Layercake.silv_member_state_ranges and Layercake.usp_load_silv_member_state_ranges (local-group country and region; contact_country_id; contact_region)",
+        "Layercake.silv_daily_count_detail, Layercake.silv_daily_count, Layercake.etl_daily_count_cell_contacts, Layercake.silv_daily_count_adjustment, Layercake.fn_silv_daily_count_detail_as_known_at, Layercake.vw_silv_daily_count_adjustment_review, Layercake.etl_daily_count_applied_contact, Layercake.etl_daily_count_applied_state_range, Layercake.etl_daily_count_input_basis and Layercake.usp_load_silv_daily_count (local_group_id, contact_country_id and contact_region in the grain; changed-contacts inputs; restatement marker)",
+        "Layercake.fact_daily_member_count_detail and Layercake.usp_load_fact_daily_member_count_detail (ten-column grain; gold country by local group)",
+        "Layercake.silv_membership_events, Layercake.fact_membership_events, Layercake.usp_load_silv_membership_events and Layercake.usp_load_fact_membership_events",
+        "Layercake.silv_annual_rate_base, Layercake.fact_annual_rate_base, Layercake.usp_load_silv_annual_rate_base and Layercake.usp_load_fact_annual_rate_base",
+        "Member country and region by local group pattern",
+        "Gold country by local group pattern",
+        "Restatement by local group pattern (no adjustment rows for the move; pre-deployment rows keep their figures)",
+        "Phase 1 check D2 extended and the difference scripts re-baselined where region is involved, as a human handover step (RULE-181)",
+        "Handover data lineage, glossary, runbook and known limitations updated by MOD-032's documentation update (RULE-182)"
+      ]
     }
   ],
   "adr_ids": [
@@ -3046,7 +3872,10 @@
     "ADR-010",
     "ADR-011",
     "ADR-012",
-    "ADR-013"
+    "ADR-013",
+    "ADR-014",
+    "ADR-015",
+    "ADR-016"
   ],
   "open_questions": [
     {
@@ -3183,6 +4012,28 @@
         "MOD-028"
       ],
       "answer": "Yes. Real changes found on the restating run are recorded at the old grain with -2 in payment_method_id, payer_type_id and concession_type_id."
+    },
+    {
+      "id": "Q-068",
+      "question": "SPEC-001 records answers to Q-066 and Q-067 that contradict its own REQ-027 rules and ACs. The Q-066 answer says a member whose local group is missing, unknown, inactive, has no country or gives no region keeps their own country and own-country region in every field, with local_group_id 0 and no field-by-field mixing. RULE-170 to RULE-173 and AC-027-04 instead use an inactive group like any other and mix fields: N3 gets United Kingdom with MEA, N4 United Arab Emirates with UK&I, and N5 keeps 'Closed Gulf'. The Q-067 answer gives pre-deployment adjustment rows local_group_id -2, where RULE-179 and AC-027-13 say 0. Which applies? Working assumption: the Q-066 and Q-067 answers (ADR-016 Option A, provisional), with the Analyst amending RULE-170 to RULE-173, RULE-179, AC-027-04 and AC-027-13 to match before MOD-030 and MOD-031 are tested. The rule sits only in usp_load_silv_ref_local_group (is_reportable, dim_country_id) and vw_silv_contact_local_group, and the -2 only in MOD-031's migration.",
+      "raised_by": "technical_architect",
+      "status": "answered",
+      "blocks": [
+        "MOD-030",
+        "MOD-031"
+      ],
+      "answer": "The Q-066 and Q-067 answers apply (ADR-016 Option A). Confirmed by Mike in AMD-009 (2026-11-26): SPEC-001 RULE-170 to RULE-173, RULE-179, AC-027-04, AC-027-10 and AC-027-13 are amended to match, AC-027-16 is added (a group that becomes inactive moves its members back to their own country and region), and silv_ref_local_group and dim_local_group hold a reserved -2 Not applicable row beside 0 Unknown, used only on pre-deployment adjustment rows."
+    },
+    {
+      "id": "Q-069",
+      "question": "MOD-030 to MOD-032 change Phase 1 objects whose code the design has not seen. The Developer confirms from the Phase 1 code at the start of MOD-030 and records in the change note: (a) the procedures that load brnz_contact and dim_country (assumed Layercake.usp_load_brnz_contact and Layercake.usp_load_dim_country), whether the dim_country load removes rows not in silv_ref_country, and whether dim_country has a unique constraint on its country GUID; (b) every Phase 1 object that derives or reads a member's country_id or region (assumed: usp_load_silv_member_base from brnz_contact.rics_countryid, the Join cohort of usp_load_silv_membership_events, usp_load_silv_member_state_ranges for region, usp_load_silv_member_profile, usp_load_silv_annual_rate_base from silv_member_base, and the three gold fact loads), and which silv_ref_country column, region_name or market_reporting_region, gives silv_member_state_ranges.region; (c) the value Phase 1 gives country_id when rics_countryid is null or not found, which contact_country_id keeps; (d) whether silv_annual_rate_base and fact_annual_rate_base have a unique key on their grain. If a name differs, the module's objects are corrected; if another object derives a member's country or region, it joins MOD-031 or MOD-032.",
+      "raised_by": "technical_architect",
+      "status": "open",
+      "blocks": [
+        "MOD-030",
+        "MOD-031",
+        "MOD-032"
+      ]
     }
   ]
 }

@@ -7,6 +7,11 @@
     4. Layercake.dim_country
     ------------------------------------------------------------------
     Carries both region flavours; region reporting rolls up from here.
+    MOD-030 (ADR-015): also mirrors every silv_ref_country_region
+    combination under its own id (from 1000001), with its country's GUID
+    and name and the combination's two regions, so a fact's country_id can
+    reach a local group's region. The silv_ref_country rows are written
+    exactly as before. Nothing is deleted.
 ====================================================================*/
 create or alter procedure Layercake.usp_load_dim_country
     @run_id uniqueidentifier = null
@@ -21,6 +26,15 @@ begin
 
     begin try
         exec Layercake.usp_etl_log_start @run_id, 'gold', 'dim_country', @log_id output;
+
+        select s.id, s.country_id, s.country_name, s.region_name, s.market_reporting_region
+        into #src_country
+        from Layercake.silv_ref_country s
+        union all
+        select r.id, c.country_id, c.country_name, r.region_name, r.market_reporting_region
+        from Layercake.silv_ref_country_region r
+        join Layercake.silv_ref_country c on c.id = r.country_ref_id;
+
         begin tran;
 
         update d
@@ -29,7 +43,7 @@ begin
             region_name             = s.region_name,
             market_reporting_region = s.market_reporting_region
         from Layercake.dim_country d
-        join Layercake.silv_ref_country s on s.id = d.id
+        join #src_country s on s.id = d.id
         where exists (select s.country_id, s.country_name, s.region_name, s.market_reporting_region
                       except
                       select d.country_id, d.country_name, d.region_name, d.market_reporting_region);
@@ -37,7 +51,7 @@ begin
 
         insert into Layercake.dim_country (id, country_id, country_name, region_name, market_reporting_region)
         select s.id, s.country_id, s.country_name, s.region_name, s.market_reporting_region
-        from Layercake.silv_ref_country s
+        from #src_country s
         where not exists (select 1 from Layercake.dim_country d where d.id = s.id);
         set @ins = @@rowcount;
 
