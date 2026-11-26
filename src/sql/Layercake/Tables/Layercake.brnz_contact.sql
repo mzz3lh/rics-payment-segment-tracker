@@ -40,5 +40,8 @@ create table Layercake.brnz_contact
     _updated_at             datetime2(3) not null constraint df_brnz_contact_updated default sysdatetime(),
     _is_deleted             bit not null constraint df_brnz_contact_isdel default 0,
     _deleted_at             datetime2(3) null,
+    -- MOD-030 (RULE-169): the member's local group, 1:1 like rics_countryid;
+    -- null where the member has none. Added by change script, so it sits last.
+    rics_localgroupid       uniqueidentifier null,
     constraint pk_brnz_contact primary key clustered (ContactId)
 );

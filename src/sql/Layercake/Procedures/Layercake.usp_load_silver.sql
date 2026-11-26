@@ -54,6 +54,11 @@ begin
     exec Layercake.usp_load_silv_ref_country          @run_id = @run_id;
     exec Layercake.usp_load_silv_ref_lapse_reason     @run_id = @run_id;
 
+    -- MOD-030 (REQ-027): the local group list resolves each group's country
+    -- through silv_ref_country, so it follows the country list; every member
+    -- load below then sees the same run's local group values
+    exec Layercake.usp_load_silv_ref_local_group      @run_id = @run_id;
+
     -- calendar: the config derives its campaign years from the spine
     exec Layercake.usp_load_ref_date_spine            @run_id = @run_id;
     exec Layercake.usp_load_ref_campaign_year_config  @run_id = @run_id;

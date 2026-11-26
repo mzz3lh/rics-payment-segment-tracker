@@ -34,6 +34,8 @@ begin
     exec Layercake.usp_load_dim_assessment_route  @run_id = @run_id;
     exec Layercake.usp_load_dim_rpq_variant       @run_id = @run_id;
     exec Layercake.usp_load_dim_country           @run_id = @run_id;
+    -- MOD-030 (REQ-027): local group keys resolve before any fact load
+    exec Layercake.usp_load_dim_local_group       @run_id = @run_id;
     exec Layercake.usp_load_dim_gender            @run_id = @run_id;
     exec Layercake.usp_load_dim_membership_status @run_id = @run_id;
     exec Layercake.usp_load_dim_lapse_reason      @run_id = @run_id;

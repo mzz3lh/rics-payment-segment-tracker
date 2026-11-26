@@ -79,9 +79,12 @@ begin
         -- CreatedOn / StateCode added 20260928_01 for the enrolment-exception
         -- capture in silver (usp_load_ref_enrolment_exception) - see that
         -- module and the column comments in 02_Tables/Bronze.
+        -- rics_localgroupid added by MOD-030 (RULE-169). It takes part in the
+        -- change test, so the first run after deployment fills it on every
+        -- live row once and a rerun then updates nothing.
         select ContactId, Rics_contactno, Rics_ElectionDate, Rics_LapsedDate,
                MemberGrade_Description, GenderCode, rics_countryid,
-               CreatedOn, StateCode
+               CreatedOn, StateCode, rics_localgroupid
         into #src_contact
         from CE.vwContact;
         create unique clustered index cx_src_contact on #src_contact (ContactId);
@@ -96,6 +99,7 @@ begin
             rics_countryid          = s.rics_countryid,
             CreatedOn               = s.CreatedOn,
             StateCode               = s.StateCode,
+            rics_localgroupid       = s.rics_localgroupid,
             _is_deleted             = 0,
             _deleted_at             = null,
             _updated_at             = sysdatetime()
@@ -104,20 +108,21 @@ begin
         where tgt._is_deleted = 1
            or exists (select s.Rics_contactno, s.Rics_ElectionDate, s.Rics_LapsedDate,
                              s.MemberGrade_Description, s.GenderCode, s.rics_countryid,
-                             s.CreatedOn, s.StateCode
+                             s.CreatedOn, s.StateCode, s.rics_localgroupid
                       except
                       select tgt.Rics_contactno, tgt.Rics_ElectionDate, tgt.Rics_LapsedDate,
                              tgt.MemberGrade_Description, tgt.GenderCode, tgt.rics_countryid,
-                             tgt.CreatedOn, tgt.StateCode);
+                             tgt.CreatedOn, tgt.StateCode, tgt.rics_localgroupid);
         set @upd = @@rowcount;
 
         -- new rows (also backfills anything missing, not just the last day)
         insert into Layercake.brnz_contact
         (ContactId, Rics_contactno, Rics_ElectionDate, Rics_LapsedDate,
-         MemberGrade_Description, GenderCode, rics_countryid, CreatedOn, StateCode)
+         MemberGrade_Description, GenderCode, rics_countryid, CreatedOn, StateCode,
+         rics_localgroupid)
         select s.ContactId, s.Rics_contactno, s.Rics_ElectionDate, s.Rics_LapsedDate,
                s.MemberGrade_Description, s.GenderCode, s.rics_countryid,
-               s.CreatedOn, s.StateCode
+               s.CreatedOn, s.StateCode, s.rics_localgroupid
         from #src_contact s
         where not exists (select 1 from Layercake.brnz_contact t where t.ContactId = s.ContactId);
         set @ins = @@rowcount;

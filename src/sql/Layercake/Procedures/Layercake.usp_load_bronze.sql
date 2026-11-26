@@ -107,9 +107,11 @@
 /*====================================================================
     BRONZE
     ------------------------------------------------------------------
-    The nine bronze tables are mutually independent (each syncs one
-    source object into one landing table), so this order is the
-    monolith's order and nothing more. Any of them can be run alone.
+    The bronze tables are mutually independent (each syncs one source
+    object into one landing table), so this order is the monolith's
+    order and nothing more. Any of them can be run alone. MOD-030 adds
+    the local group landing at local group grain (ADR-014) beside the
+    country-grain local group load.
 ====================================================================*/
 create or alter procedure Layercake.usp_load_bronze
     @run_id uniqueidentifier = null    -- supplied by the orchestrator; generated if run standalone
@@ -124,6 +126,7 @@ begin
     exec Layercake.usp_load_brnz_enrolment           @run_id = @run_id;
     exec Layercake.usp_load_brnz_rics_record         @run_id = @run_id;
     exec Layercake.usp_load_brnz_local_group         @run_id = @run_id;
+    exec Layercake.usp_load_brnz_local_group_detail  @run_id = @run_id;
     exec Layercake.usp_load_brnz_cust_trans          @run_id = @run_id;
     exec Layercake.usp_load_brnz_subs_status         @run_id = @run_id;
     exec Layercake.usp_load_brnz_option_set          @run_id = @run_id;
