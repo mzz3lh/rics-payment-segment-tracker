@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "SPEC-001",
-    "version": 9,
+    "version": 10,
     "produced_by": "analyst",
-    "produced_at": "2026-11-26T15:31:40Z",
+    "produced_at": "2026-11-26T16:49:45Z",
     "status": "approved",
     "source_artefacts": [
       "docs/requirements/BR-001-payment-segments-tracker.md",
@@ -26,11 +26,12 @@
       "docs/amendments/AMD-005.json",
       "docs/amendments/AMD-006.json",
       "docs/amendments/AMD-007.json",
-      "docs/amendments/AMD-008.json"
+      "docs/amendments/AMD-008.json",
+      "docs/amendments/AMD-009.json"
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-26T15:36:36Z",
+      "approved_at": "2026-11-26T17:05:00Z",
       "gate": "spec_signoff"
     }
   },
@@ -53,7 +54,7 @@
     "As known at": "The figure for a date as it stood at a time T: today's stored figure minus the adjustments written after T (REQ-020).",
     "Repeated corporate subscription key": "A (Contact No, Scheme No, Sub Campaign Year) that appears on more than one row of Subs.vwCorpSubscriptions, because the view is at subscription-user grain. Bronze keeps one copy (RULE-128).",
     "Corporate subscription row with no Campaign Year": "A row of Subs.vwCorpSubscriptions whose 'Sub Campaign Year' is NULL, because the subscription's licence key in CRM (CE.vwRicsv2Subscription.apuk_licensekey) is not yet set. It is skipped and counted, not landed (RULE-134, RULE-135).",
-    "Local group": "The RICS local group a member belongs to: CE.vwContact.rics_localgroupid, described by CE.vwLocalGroup. From AMD-008 it sets the country and region the member is reported under (REQ-027).",
+    "Local group": "The RICS local group a member belongs to: CE.vwContact.rics_localgroupid, described by CE.vwLocalGroup. From AMD-008 it sets the country and region the member is reported under, but only when it is usable: CE.vwLocalGroup holds it, it is active (statecode 0), it has a country, and it gives a region in both apuk_worldregionid_name and Market_reporting_region. Any other member keeps their own country and its region in every field, with local_group_id 0 Unknown (REQ-027, RULE-171, AMD-009).",
     "Own country": "The member's own country (CE.vwContact.rics_countryid), which set country_id and region before AMD-008. It is kept as contact_country_id, together with the region that country gives (REQ-027)."
   },
   "requirements": [
@@ -2878,7 +2879,7 @@
       "source_br_ids": [
         "BR-001"
       ],
-      "description": "Mike, 2026-11-26 (AMD-008): 'the decision is to add a new dimension but feed the values into the existing fields - so that PBI does not need to change ... The old values can be kept but added as a new column where necessary.' Then: 'BR-001 can be overridden ... Region can change. Greater rows and grain is fine.' The business's paid membership by region on 30 Sep 2026 (the Subs paid and Member Demographics figures) does not match Layercake by region, although both sides count the same 141,224 paid contacts. Layercake gives a member a region from the member's own country (CE.vwContact.rics_countryid). The business figures give a member a region from the member's local group (CE.vwContact.rics_localgroupid, through CE.vwLocalGroup). About 2,000 paid members have a local group in a different region from their country, for example members whose country is the United Kingdom, India or Sri Lanka in Gulf local groups. A production check reproduced the business figures from the local group to within one or two members per region. From this change a member's local group is a reported attribute, a new dimension. The existing country and region fields that reports read today carry the values that follow from the member's local group, so Power BI reports need no change and their regional figures agree with the business's. The values those fields carry today, from the member's own country, are kept and stay reportable in new columns. The scope is everywhere a member's country or region is reported today: the daily member counts, the membership events and the annual rate base, in silver and gold, for every date including closed Campaign Years and anything rebuilt or restated. Region and country figures change, history included. This overrides BR-001's rule that Phase 1 counts by region must not change (REQ-001), and the Phase 1 difference scripts are re-baselined where region is involved. Totals not split by region or country do not change. More rows and a finer grain are accepted. Column names marked as proposed are the design's to confirm.",
+      "description": "Mike, 2026-11-26 (AMD-008): 'the decision is to add a new dimension but feed the values into the existing fields - so that PBI does not need to change ... The old values can be kept but added as a new column where necessary.' Then: 'BR-001 can be overridden ... Region can change. Greater rows and grain is fine.' The business's paid membership by region on 30 Sep 2026 (the Subs paid and Member Demographics figures) does not match Layercake by region, although both sides count the same 141,224 paid contacts. Layercake gives a member a region from the member's own country (CE.vwContact.rics_countryid). The business figures give a member a region from the member's local group (CE.vwContact.rics_localgroupid, through CE.vwLocalGroup). About 2,000 paid members have a local group in a different region from their country, for example members whose country is the United Kingdom, India or Sri Lanka in Gulf local groups. A production check reproduced the business figures from the local group to within one or two members per region. From this change a member's local group is a reported attribute, a new dimension. The existing country and region fields that reports read today carry the values that follow from the member's local group, so Power BI reports need no change and their regional figures agree with the business's. The values those fields carry today, from the member's own country, are kept and stay reportable in new columns. The scope is everywhere a member's country or region is reported today: the daily member counts, the membership events and the annual rate base, in silver and gold, for every date including closed Campaign Years and anything rebuilt or restated. Region and country figures change, history included. This overrides BR-001's rule that Phase 1 counts by region must not change (REQ-001), and the Phase 1 difference scripts are re-baselined where region is involved. Totals not split by region or country do not change. More rows and a finer grain are accepted. AMD-009 (Mike, 2026-11-26) sets the fallback: a member's local group gives their country and region only when it is usable (RULE-171). Any other member keeps their own country and their own country's region in every field, exactly as today, with local_group_id 0 Unknown, and fields are never mixed. Adjustment rows written before deployment take local_group_id -2 Not applicable, a reserved row of the local group list. Column names marked as proposed are the design's to confirm.",
       "business_rules": [
         {
           "id": "RULE-169",
@@ -2886,19 +2887,19 @@
         },
         {
           "id": "RULE-170",
-          "rule": "Layercake.silv_ref_local_group (name proposed) holds one row per local group in CE.vwLocalGroup, plus a reserved row 0 Unknown. It is insert-and-update by apuk_localgroupid, as silv_ref_country is: new groups are added, changed values are updated, and existing ids never change. Each row holds the group's name, its code, the silv_ref_country id of its country (apuk_countryid), and its region values apuk_worldregionid_name and Market_reporting_region. An inactive local group (statecode not 0) is kept and used like any other (Q-063). Gold Layercake.dim_local_group (name proposed) is copied from it."
+          "rule": "Layercake.silv_ref_local_group (name proposed) holds one row per local group in CE.vwLocalGroup, plus two reserved rows: 0 Unknown and -2 Not applicable. It is insert-and-update by apuk_localgroupid, as silv_ref_country is: new groups are added, changed values are updated, and existing ids never change. Each row holds the group's name, its code, the silv_ref_country id of its country (apuk_countryid), and its region values apuk_worldregionid_name and Market_reporting_region. An inactive local group (statecode not 0), or one with no country or no region, stays in the list, but it is not usable and gives no member their country or region (RULE-171; Q-063, Q-066). -2 Not applicable is used only on adjustment rows written before deployment (RULE-179); no member is ever given -2. Gold Layercake.dim_local_group (name proposed) is copied from it, including both reserved rows."
         },
         {
           "id": "RULE-171",
-          "rule": "A member's local group is the silv_ref_local_group row for the member's CE.vwContact.rics_localgroupid. A member whose rics_localgroupid is NULL, or names a group that CE.vwLocalGroup does not hold, has local_group_id 0 Unknown (Q-062). The member's current local group applies to every date of the member's history (Q-064)."
+          "rule": "A member's local group is usable only when all of these hold: the member has a local group (CE.vwContact.rics_localgroupid is not NULL); CE.vwLocalGroup holds that group; the group is active (statecode 0); it has a country (apuk_countryid is not NULL); and its row gives a region in both region fields (apuk_worldregionid_name and Market_reporting_region are each neither NULL nor blank, blank meaning empty or only spaces). A member whose local group is usable has local_group_id that group's silv_ref_local_group id. Every other member, whichever condition fails, has local_group_id 0 Unknown (Q-062, Q-063, Q-066; Mike, AMD-009). The member's current local group applies to every date of the member's history, including closed Campaign Years (Q-064)."
         },
         {
           "id": "RULE-172",
-          "rule": "Wherever country_id is held for a member today, it holds the silv_ref_country id of the member's local group's country (CE.vwLocalGroup.apuk_countryid). That covers silv_member_base, silv_member_profile, silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail, fact_daily_member_count_detail, etl_daily_count_cell_contacts and the daily count adjustment history. It keeps the member's own country when the member has no local group (Q-062), or when the local group has no country (Q-063)."
+          "rule": "Wherever country_id is held for a member today, it holds the silv_ref_country id of the country of the member's usable local group (CE.vwLocalGroup.apuk_countryid; RULE-171). That covers silv_member_base, silv_member_profile, silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail, fact_daily_member_count_detail, etl_daily_count_cell_contacts and the daily count adjustment history. A member with no usable local group (local_group_id 0) keeps their own country in country_id, exactly as today (Q-066; Mike, AMD-009)."
         },
         {
           "id": "RULE-173",
-          "rule": "Every region field that reports read today for a member carries the region of the member's local group, as CE.vwLocalGroup gives it for that local group row. These fields are silv_daily_count_detail.region, silv_daily_count.region, and in gold the region_name and market_reporting_region reached from a fact row's country_id through dim_country. Each field keeps the flavour it carries today: the world region field takes apuk_worldregionid_name, and market_reporting_region takes Market_reporting_region, both from the local group row (Q-061). The local group row's value wins even where the local group's country gives a different region. A field takes the member's own country's value only when the member has no local group (Q-062), or when the local group row's value for that field is NULL or blank (Q-063). How gold reaches these values is the design's decision, provided reports read them through the same tables and columns as today (RULE-180)."
+          "rule": "Every region field that reports read today for a member carries the region of the member's usable local group (RULE-171), as CE.vwLocalGroup gives it for that local group row. These fields are silv_daily_count_detail.region, silv_daily_count.region, and in gold the region_name and market_reporting_region reached from a fact row's country_id through dim_country. Each field keeps the flavour it carries today: the world region field takes apuk_worldregionid_name, and market_reporting_region takes Market_reporting_region, both from the local group row (Q-061). For a usable local group, the row's value wins even where the local group's country gives a different region. A member with no usable local group (local_group_id 0) keeps their own country's value in every region field, exactly as today. There is no field-by-field mixing: a member never takes the local group's region with their own country, or the local group's country with their own region. Either every country and region field follows the usable local group, or every one follows the member's own country (Q-066; Mike, AMD-009). How gold reaches these values is the design's decision, provided reports read them through the same tables and columns as today (RULE-180)."
         },
         {
           "id": "RULE-174",
@@ -2918,11 +2919,11 @@
         },
         {
           "id": "RULE-178",
-          "rule": "A change to a member's local group or own country, or to a local group's country or region in CE.vwLocalGroup, reaches every date of the affected members' history on the next usp_run_daily_load, with no manual step. The results stay identical to usp_load_silver @FullRebuild = 1 on the same data (RULE-143). A member whose local group or own country changes is a changed contact on the changed-contacts path (RULE-141), and the moves between cells are written to the adjustment history as RULE-115 requires (Q-064). Whether a change to a local group's own values takes the full-recompute path is the design's decision."
+          "rule": "A change to a member's local group or own country, or to a local group's country, region or status (statecode) in CE.vwLocalGroup, including a change that makes a group usable or not usable (RULE-171), reaches every date of the affected members' history on the next usp_run_daily_load, with no manual step. The results stay identical to usp_load_silver @FullRebuild = 1 on the same data (RULE-143). A member whose local group or own country changes is a changed contact on the changed-contacts path (RULE-141), and the moves between cells are written to the adjustment history as RULE-115 requires (Q-064). Whether a change to a local group's own values takes the full-recompute path is the design's decision."
         },
         {
           "id": "RULE-179",
-          "rule": "Deployment (assumes Q-067). The first run after deployment restates every stored date at the local group values and the new grain, from 2020-10-01. The migration and the restatement write no adjustment rows of their own. Adjustment rows written before deployment keep their run_id, written_at, date, existing grain columns and seven changes. Their contact_country_id is set to their country_id, their own-country region to their region, and their local_group_id to 0 Unknown. 'As known at' a time before deployment is then exact by the member's own country and wherever region, country_id and local_group_id are summed over, but it is not split by the local group's region or country."
+          "rule": "Deployment (Q-067; Mike, AMD-009). The first run after deployment restates every stored date at the local group values and the new grain, from 2020-10-01. The restatement is a change of basis, as AMD-007's change of grain was (RULE-162), so the migration and the restatement write no adjustment rows of their own. Adjustment rows written before deployment keep their run_id, written_at, date, existing grain columns and seven changes. Their contact_country_id is set to their stored country_id, their own-country region to their stored region, and their local_group_id to -2 Not applicable, because the local group was not recorded then (RULE-170). 'As known at' a time before deployment is then exact by the member's own country and wherever region, country_id and local_group_id are summed over, but it is not split by the local group's region or country."
         },
         {
           "id": "RULE-180",
@@ -2988,57 +2989,57 @@
         {
           "source": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_localgroupid",
           "target": "Layercake.silv_ref_local_group.local_group_bk (name proposed)",
-          "transformation": "Business key for insert-and-update; identity id that never changes. Reserved row 0 Unknown with a null key (RULE-170)."
+          "transformation": "Business key for insert-and-update; identity id that never changes. Reserved rows 0 Unknown and -2 Not applicable, each with a null key (RULE-170)."
         },
         {
           "source": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_name",
           "target": "Layercake.silv_ref_local_group.local_group_name (name proposed)",
-          "transformation": "Updated when the source name changes. 'Unknown' for the reserved row."
+          "transformation": "Updated when the source name changes. 'Unknown' and 'Not applicable' for the two reserved rows."
         },
         {
           "source": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_countryid",
           "target": "Layercake.silv_ref_local_group.country_id",
-          "transformation": "The Layercake.silv_ref_country.id of the row whose country_id equals apuk_countryid. Null when the group has no country (Q-063).",
+          "transformation": "The Layercake.silv_ref_country.id of the row whose country_id equals apuk_countryid. Null when the group has no country, which makes the group not usable (RULE-171).",
           "nullable": true
         },
         {
           "source": "Bronze landing of CE.vwLocalGroup at local group grain.apuk_worldregionid_name",
           "target": "Layercake.silv_ref_local_group.region_name",
-          "transformation": "Copy. Null when the source is null or blank (Q-063).",
+          "transformation": "Copy. Null when the source is null or blank, which makes the group not usable (RULE-171).",
           "nullable": true
         },
         {
           "source": "Bronze landing of CE.vwLocalGroup at local group grain.market_reporting_region",
           "target": "Layercake.silv_ref_local_group.market_reporting_region",
-          "transformation": "Copy. Null when the source is null or blank (Q-063).",
+          "transformation": "Copy. Null when the source is null or blank, which makes the group not usable (RULE-171).",
           "nullable": true
         },
         {
           "source": "Layercake.silv_ref_local_group.id, local_group_name",
           "target": "Layercake.dim_local_group (id, local_group_name) (name proposed)",
-          "transformation": "Copy"
+          "transformation": "Copy, including the reserved rows 0 Unknown and -2 Not applicable (RULE-170)."
         },
         {
           "source": "Layercake.brnz_contact.rics_localgroupid",
           "target": "local_group_id on every table in RULE-172 (silv_member_base, silv_member_profile, silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail, fact_daily_member_count_detail, etl_daily_count_cell_contacts, daily count adjustment history)",
-          "transformation": "silv_ref_local_group.id matched on local_group_bk. 0 Unknown where rics_localgroupid is NULL or not found (RULE-171, Q-062). Copied downstream as country_id is today. Never null.",
+          "transformation": "silv_ref_local_group.id matched on local_group_bk when the member's local group is usable (RULE-171): CE.vwLocalGroup holds it, its statecode is 0, it has a country, and both its region values are neither null nor blank. 0 Unknown for every other member, including where rics_localgroupid is NULL or not found (Q-062, Q-063, Q-066). Copied downstream as country_id is today. Never null, and never -2 for a member. On daily count adjustment history rows written before deployment, -2 Not applicable (RULE-179).",
           "nullable": false
         },
         {
           "source": "Layercake.silv_ref_local_group.country_id",
           "target": "country_id on every table in RULE-172 (existing column, new values)",
-          "transformation": "The member's local group's country. The member's own country (as contact_country_id) where local_group_id is 0 or the group's country_id is null (RULE-172, Q-062, Q-063).",
+          "transformation": "The country of the member's usable local group. The member's own country (as contact_country_id) where local_group_id is 0, that is where the member has no usable local group (RULE-171, RULE-172).",
           "nullable": false
         },
         {
           "source": "Layercake.silv_ref_local_group.region_name, market_reporting_region",
           "target": "Layercake.silv_daily_count_detail.region and Layercake.silv_daily_count.region (existing columns, new values)",
-          "transformation": "The member's local group's value in the flavour the column carries today (RULE-173, Q-061). The member's own country's value (Layercake.silv_ref_country.region_name or market_reporting_region) where local_group_id is 0 or the group's value is null (Q-062, Q-063)."
+          "transformation": "The member's usable local group's value, in the flavour the column carries today (RULE-173, Q-061). Where local_group_id is 0, the member's own country's value (Layercake.silv_ref_country.region_name or market_reporting_region), together with the member's own country in country_id; never a mix of the two (Q-066)."
         },
         {
           "source": "Layercake.silv_ref_local_group.region_name, market_reporting_region",
           "target": "Region reached in gold through a fact row's country_id: dim_country.region_name and dim_country.market_reporting_region, for fact_daily_member_count_detail, fact_membership_events and fact_annual_rate_base",
-          "transformation": "Equals the member's local group's region_name and market_reporting_region, with the same fallbacks as the silver region (RULE-173). How the fact's country_id and dim_country carry it is the design's decision, within RULE-180."
+          "transformation": "Equals the member's usable local group's region_name and market_reporting_region, or the member's own country's values in both where local_group_id is 0, with no mixing, as for the silver region (RULE-173). How the fact's country_id and dim_country carry it is the design's decision, within RULE-180."
         },
         {
           "source": "Layercake.brnz_contact.rics_countryid",
@@ -3060,15 +3061,15 @@
         },
         {
           "id": "AC-027-02",
-          "criterion": "CE.vwLocalGroup also holds 'Gulf India' (apuk_countryid India, apuk_worldregionid_name 'MEA', Market_reporting_region 'MEA'). Contact G2 has rics_countryid India and rics_localgroupid 'Gulf India', and is active in grade 'election' on 2025-01-10. G2 has country_id India, local_group_id 'Gulf India' and contact_country_id India. On 2025-01-10, G2 is counted under region 'MEA' in silv_daily_count_detail and silv_daily_count, with own-country region 'APAC'. G2's fact_daily_member_count_detail row reaches region_name 'MEA' and market_reporting_region 'MEA' through country_id and dim_country, and 'APAC' through contact_country_id. The local group row's region wins over the region of the local group's country (Q-061)."
+          "criterion": "CE.vwLocalGroup also holds 'Gulf India' (apuk_countryid India, apuk_worldregionid_name 'MEA', Market_reporting_region 'MEA', statecode 0). Contact G2 has rics_countryid India and rics_localgroupid 'Gulf India', and is active in grade 'election' on 2025-01-10. G2 has country_id India, local_group_id 'Gulf India' and contact_country_id India. On 2025-01-10, G2 is counted under region 'MEA' in silv_daily_count_detail and silv_daily_count, with own-country region 'APAC'. G2's fact_daily_member_count_detail row reaches region_name 'MEA' and market_reporting_region 'MEA' through country_id and dim_country, and 'APAC' through contact_country_id. The local group row's region wins over the region of the local group's country (Q-061)."
         },
         {
           "id": "AC-027-03",
-          "criterion": "Contacts N1 and N2 both have rics_countryid India and are active in grade 'election' on 2025-01-10. N1 has rics_localgroupid NULL, and N2 has a rics_localgroupid that CE.vwLocalGroup does not hold. Both have local_group_id 0, country_id India and contact_country_id India. On 2025-01-10 both are counted under region 'APAC' in silv_daily_count_detail and silv_daily_count, and their fact_daily_member_count_detail rows reach region_name 'APAC' through country_id and dim_country (assumes Q-066 for Q-062)."
+          "criterion": "Contacts N1 and N2 both have rics_countryid India and are active in grade 'election' on 2025-01-10. N1 has rics_localgroupid NULL, and N2 has a rics_localgroupid that CE.vwLocalGroup does not hold. Both have local_group_id 0, country_id India and contact_country_id India. On 2025-01-10 both are counted under region 'APAC' in silv_daily_count_detail and silv_daily_count, with own-country region 'APAC', and their fact_daily_member_count_detail rows reach region_name 'APAC' and market_reporting_region 'APAC' through country_id and dim_country (Q-062, Q-066)."
         },
         {
           "id": "AC-027-04",
-          "criterion": "CE.vwLocalGroup also holds three more groups. 'No Country' has apuk_countryid NULL, with 'MEA' and 'MEA'. 'No Region' has United Arab Emirates, with apuk_worldregionid_name and Market_reporting_region both NULL. 'Closed Gulf' has United Arab Emirates, 'MEA' and 'MEA', and statecode 1. Contacts N3, N4 and N5 all have rics_countryid United Kingdom and are active in grade 'election' on 2025-01-10, in 'No Country', 'No Region' and 'Closed Gulf' respectively. On 2025-01-10: N3 has country_id United Kingdom and region 'MEA'. N4 has country_id United Arab Emirates and region 'UK&I', and its fact row reaches region_name 'UK&I' and market_reporting_region 'UK&I' through country_id and dim_country. N5 has country_id United Arab Emirates and region 'MEA'. Each has the local_group_id of its own group and contact_country_id United Kingdom (assumes Q-066 for Q-063)."
+          "criterion": "CE.vwLocalGroup also holds four groups that are not usable. 'No Country': apuk_countryid NULL, apuk_worldregionid_name 'MEA', Market_reporting_region 'MEA', statecode 0. 'No Region': United Arab Emirates, both region values NULL, statecode 0. 'Closed Gulf': United Arab Emirates, 'MEA', 'MEA', statecode 1. 'Half Region': United Arab Emirates, apuk_worldregionid_name 'MEA', Market_reporting_region ' ' (blank), statecode 0. Contacts N3, N4, N5 and N6 all have rics_countryid United Kingdom and are active in grade 'election' on 2025-01-10, in 'No Country', 'No Region', 'Closed Gulf' and 'Half Region' respectively. After one usp_run_daily_load, each of N3 to N6 has local_group_id 0, country_id United Kingdom and contact_country_id United Kingdom in silv_member_base, silv_member_profile and silv_daily_count_detail. On 2025-01-10 each is counted in silv_daily_count_detail and silv_daily_count under region 'UK&I', with own-country region 'UK&I', and each one's fact_daily_member_count_detail row reaches region_name 'UK&I' and market_reporting_region 'UK&I' through country_id and dim_country. None of N3 to N6 is in any cell with region 'MEA', country_id United Arab Emirates or the local_group_id of its group (Q-063, Q-066)."
         },
         {
           "id": "AC-027-05",
@@ -3084,7 +3085,7 @@
         },
         {
           "id": "AC-027-08",
-          "criterion": "From the fully loaded AC-027-01 state, G1's rics_localgroupid changes from 'Gulf' to 'London' and nothing else in the source changes. The next usp_run_daily_load runs with no @RebuildFrom, @FullRebuild or manual step. On every loaded date from 2020-10-01, G1 is counted in silv_daily_count_detail under region 'UK&I', country_id United Kingdom and local_group_id 'London', with contact_country_id United Kingdom, and not in a 'Gulf' cell. Both Renewals and the silv_annual_rate_base rows for 2021 and 2025 carry country_id United Kingdom and local_group_id 'London'. usp_load_silv_daily_count logs 1 contact recomputed and the normal path (assumes Q-066 for Q-064). silv_daily_count_detail, silv_daily_count and fact_daily_member_count_detail (except id) equal the result of usp_load_silver @FullRebuild = 1 and the gold load on the same data: 0 rows differ, 0 missing, 0 extra. For every cell and measure, the run's adjustment rows equal the stored figure after the run minus before it: 0 mismatches. Summed over region, country_id and local_group_id, the run's changes are 0 for every measure."
+          "criterion": "From the fully loaded AC-027-01 state, G1's rics_localgroupid changes from 'Gulf' to 'London' and nothing else in the source changes. The next usp_run_daily_load runs with no @RebuildFrom, @FullRebuild or manual step. On every loaded date from 2020-10-01, G1 is counted in silv_daily_count_detail under region 'UK&I', country_id United Kingdom and local_group_id 'London', with contact_country_id United Kingdom, and not in a 'Gulf' cell. Both Renewals and the silv_annual_rate_base rows for 2021 and 2025 carry country_id United Kingdom and local_group_id 'London'. usp_load_silv_daily_count logs 1 contact recomputed and the normal path (Q-064). silv_daily_count_detail, silv_daily_count and fact_daily_member_count_detail (except id) equal the result of usp_load_silver @FullRebuild = 1 and the gold load on the same data: 0 rows differ, 0 missing, 0 extra. For every cell and measure, the run's adjustment rows equal the stored figure after the run minus before it: 0 mismatches. Summed over region, country_id and local_group_id, the run's changes are 0 for every measure."
         },
         {
           "id": "AC-027-09",
@@ -3092,7 +3093,7 @@
         },
         {
           "id": "AC-027-10",
-          "criterion": "With the 6 synthetic local groups of AC-027-01 to AC-027-04, silv_ref_local_group holds exactly 7 rows: 0 Unknown and the 6 groups, including the inactive 'Closed Gulf'. dim_local_group has the same row count and (id, local_group_name) pairs. A reload on unchanged data keeps every id. Renaming 'Gulf' in the source and reloading updates its name and keeps its id. No row of silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail or fact_daily_member_count_detail has a null local_group_id or contact_country_id. Every local_group_id in gold resolves to dim_local_group and every contact_country_id to dim_country: 0 orphans."
+          "criterion": "With the 7 synthetic local groups of AC-027-01 to AC-027-04, silv_ref_local_group holds exactly 9 rows: -2 Not applicable, 0 Unknown and the 7 groups, including the groups that are not usable ('No Country', 'No Region', 'Closed Gulf' and 'Half Region'). dim_local_group has the same row count and (id, local_group_name) pairs. A reload on unchanged data keeps every id. Renaming 'Gulf' in the source and reloading updates its name and keeps its id. No row of silv_member_base, silv_member_profile, silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail, fact_daily_member_count_detail or etl_daily_count_cell_contacts has a null local_group_id or contact_country_id, or a local_group_id of -2. Every local_group_id in silv_member_base, silv_member_profile, silv_membership_events, silv_annual_rate_base, silv_daily_count_detail, etl_daily_count_cell_contacts and the daily count adjustment history resolves to silv_ref_local_group, and every local_group_id in fact_membership_events, fact_annual_rate_base and fact_daily_member_count_detail resolves to dim_local_group: 0 orphans. Every contact_country_id in gold resolves to dim_country: 0 orphans."
         },
         {
           "id": "AC-027-11",
@@ -3104,7 +3105,7 @@
         },
         {
           "id": "AC-027-13",
-          "criterion": "The synthetic set, including G1 and N1, is loaded by the procedures as they are before this change, over at least two runs that write adjustment rows. The migration is applied, and then the first usp_run_daily_load runs with no source change since the last load. It logs 'Success'. Together, the migration and that run write 0 adjustment rows (assumes Q-067). Every adjustment row written before deployment is still present with the same run_id, written_at, date, existing grain columns and seven changes. Its contact_country_id equals its country_id, its own-country region equals its region, and its local_group_id is 0 (assumes Q-067). silv_daily_count_detail, silv_daily_count, silv_annual_rate_base, and fact_daily_member_count_detail and fact_annual_rate_base (except id) equal the result of usp_load_silver @FullRebuild = 1 and the gold loads on the same data: 0 differences. G1 is counted under region 'MEA' on 2020-10-01."
+          "criterion": "The synthetic set, including G1 and N1, is loaded by the procedures as they are before this change, over at least two runs that write adjustment rows. The migration is applied, and then the first usp_run_daily_load runs with no source change since the last load. It logs 'Success'. Together, the migration and that run write 0 adjustment rows (Q-067). Every adjustment row written before deployment is still present with the same run_id, written_at, date, existing grain columns and seven changes. Its contact_country_id equals its country_id, its own-country region equals its region, and its local_group_id is -2 Not applicable, which resolves to silv_ref_local_group (Q-067; RULE-170). silv_daily_count_detail, silv_daily_count, silv_annual_rate_base, and fact_daily_member_count_detail and fact_annual_rate_base (except id) equal the result of usp_load_silver @FullRebuild = 1 and the gold loads on the same data: 0 differences. G1 is counted under region 'MEA' on 2020-10-01."
         },
         {
           "id": "AC-027-14",
@@ -3113,6 +3114,10 @@
         {
           "id": "AC-027-15",
           "criterion": "The handover pack's data lineage and glossary describe silv_ref_local_group, dim_local_group, local_group_id, contact_country_id and the own-country region, and say that country_id and region now follow the member's local group. Its runbook or data lineage says that reports reading fact_daily_member_count_detail or fact_annual_rate_base must sum over local_group_id and contact_country_id. docs/handover/06-known-limitations.md states that a member's whole history uses their current local group (Q-064), and that 'as known at' a time before deployment is not split by the local group's region or country (Q-067)."
+        },
+        {
+          "id": "AC-027-16",
+          "criterion": "From the fully loaded AC-027-01 state, the 'Gulf' row of CE.vwLocalGroup changes statecode from 0 to 1, and nothing else in the source changes. The next usp_run_daily_load runs with no @RebuildFrom, @FullRebuild or manual step. On every loaded date from 2020-10-01, G1 is counted in silv_daily_count_detail under region 'UK&I', country_id United Kingdom, local_group_id 0 and contact_country_id United Kingdom, with own-country region 'UK&I', and not in any cell with region 'MEA', country_id United Arab Emirates or local_group_id 'Gulf'. silv_daily_count has G1 under region 'UK&I'. Both Renewals in silv_membership_events and G1's silv_annual_rate_base rows for 2021 and 2025 carry country_id United Kingdom and local_group_id 0. G1's rows in fact_membership_events, fact_annual_rate_base and fact_daily_member_count_detail carry local_group_id 0 and reach region_name 'UK&I' and market_reporting_region 'UK&I' through country_id and dim_country. silv_daily_count_detail, silv_daily_count and fact_daily_member_count_detail (except id) equal the result of usp_load_silver @FullRebuild = 1 and the gold load on the same data: 0 rows differ, 0 missing, 0 extra. For every cell and measure, the run's adjustment rows equal the stored figure after the run minus before it: 0 mismatches."
         }
       ]
     }
@@ -3147,11 +3152,11 @@
     "The AMD-006 speed target (daily count under 5 minutes, whole daily run under 15 minutes on a normal day) is the one real-data check in this release. A human checks it on production from Layercake.etl_run_log as a listed handover step. The agents' tests check on synthetic data that a normal run recomputes only the changed contacts and gives the same results as a full recompute, with no time limit. Q-026 still holds for data results (Q-057, answered by Product Owner assumption ASM-013).",
     "Only a change to reference data covering dates from 2020-10-01 to the run date makes the daily count recompute the whole spine. The routine extension of ref_date_spine with dates after the run date, and the addition of a Campaign Year to ref_campaign_year_config that starts after the run date, do not (Q-058).",
     "Every measure counted for a contact on a day, including the Join, Renewal, Readmission and Lapse counts, sits in the cell of the contact's attributes for that day's Campaign Year, so a contact stays in one cell per day. A Join whose first paid position is in a later Campaign Year is therefore counted in the daily fact under the attributes of the Join day's Campaign Year, while fact_membership_events carries the later year's (RULE-017). Daily Join counts by segment therefore need not match the event fact (Q-060).",
-    "A member with no local group (CE.vwContact.rics_localgroupid NULL, or a group CE.vwLocalGroup does not hold) gets local_group_id 0 Unknown and keeps the country and region values of their own country (Q-062, accepted by Mike on 2026-11-26; this wording is restated pending Q-066).",
-    "A member whose local group has no country keeps their own country in country_id. Where the local group row's apuk_worldregionid_name or Market_reporting_region is NULL or blank, the member keeps their own country's value in that region field only. An inactive local group is still used (Q-063, accepted by Mike on 2026-11-26; this wording is restated pending Q-066).",
-    "CE holds only a member's current local group, with no history. The current local group applies to every date of the member's history, including closed Campaign Years, and a change of local group moves the whole history on the next run, as a change of country does (Q-064, accepted by Mike on 2026-11-26; this wording is restated pending Q-066).",
-    "contact_country_id and the region from the member's own country are kept on every table that keeps country_id for a member. They join the grain, with local_group_id, wherever country_id is in the grain (Q-065, accepted by Mike on 2026-11-26; this wording is restated pending Q-066).",
-    "The deployment restatement to local-group regions writes no adjustment rows of its own, as AMD-007's change of grain did (RULE-162). Adjustment rows written before deployment keep their figures and existing columns. They take contact_country_id equal to their country_id, an own-country region equal to their region, and local_group_id 0 Unknown. 'As known at' a time before deployment is therefore exact by own country and wherever region, country and local group are summed over, but is not split by the local group's region or country (Q-067)."
+    "A member with no local group (CE.vwContact.rics_localgroupid NULL, or a group CE.vwLocalGroup does not hold) gets local_group_id 0 Unknown and keeps their own country and their own country's region in every field, exactly as today (Q-062, answered by Q-066; Mike, AMD-009).",
+    "A member whose local group is inactive (statecode not 0), has no country, or whose row gives no region in either region field (apuk_worldregionid_name or Market_reporting_region NULL or blank) is treated as having no usable local group: local_group_id 0 Unknown, and their own country and their own country's region in every field. Fields are never mixed between the local group and the own country (Q-063, answered by Q-066; Mike, AMD-009).",
+    "CE holds only a member's current local group, with no history. The current local group applies to every date of the member's history, including closed Campaign Years, and a change of local group moves the whole history on the next run, as a change of country does (Q-064, accepted by Mike on 2026-11-26 and confirmed in AMD-009).",
+    "contact_country_id and the region from the member's own country are kept on every table that keeps country_id for a member. They join the grain, with local_group_id, wherever country_id is in the grain (Q-065, accepted by Mike on 2026-11-26 and confirmed in AMD-009).",
+    "The deployment restatement to local-group regions is a change of basis and writes no adjustment rows of its own, as AMD-007's change of grain did (RULE-162). Adjustment rows written before deployment keep their figures and existing columns. They take contact_country_id equal to their stored country_id, an own-country region equal to their stored region, and local_group_id -2 Not applicable, a reserved row of silv_ref_local_group and dim_local_group. 'As known at' a time before deployment is therefore exact by own country and wherever region, country and local group are summed over, but is not split by the local group's region or country (Q-067; Mike, AMD-009)."
   ],
   "out_of_scope": [
     "Power BI work: semantic model, DAX and report pages. AMD-008 is built so that Power BI needs no change.",
@@ -3668,7 +3673,7 @@
       "question": "What does a member with no local group get: one with no rics_localgroupid on CE.vwContact, or one whose group CE.vwLocalGroup does not hold? (AMD-008)",
       "raised_by": "analyst",
       "status": "answered",
-      "answer": "Mike accepted the Analyst's working default as written (2026-11-26). The draft that held it is not available, so this version restates it, pending Q-066: local_group_id 0 Unknown, and country_id and every region field keep the values of the member's own country.",
+      "answer": "Answered by Q-066 (Mike, 2026-11-26; AMD-009). local_group_id 0 Unknown, and the member keeps their own country and their own country's region in every field, exactly as today.",
       "blocks": [
         "REQ-027"
       ]
@@ -3678,7 +3683,7 @@
       "question": "What does a member get whose local group has no country, or no region, in CE.vwLocalGroup? Is an inactive local group still used? (AMD-008)",
       "raised_by": "analyst",
       "status": "answered",
-      "answer": "Mike accepted the Analyst's working default as written (2026-11-26). This version restates it, pending Q-066. A local group with no country leaves the member's own country in country_id. A local group row whose apuk_worldregionid_name or Market_reporting_region is NULL or blank leaves the member's own country's value in that region field only. An inactive local group is still used.",
+      "answer": "Answered by Q-066 (Mike, 2026-11-26; AMD-009). A local group is usable only when CE.vwLocalGroup holds it, it is active (statecode 0), it has a country, and its row gives a region in both apuk_worldregionid_name and Market_reporting_region (not null or blank). An inactive group, a group with no country, or a group missing either region value is not usable. Its members keep their own country and their own country's region in every field, with local_group_id 0 Unknown, and fields are never mixed.",
       "blocks": [
         "REQ-027"
       ]
@@ -3688,7 +3693,7 @@
       "question": "Which local group applies to past dates and closed Campaign Years, given that CE holds only a member's current local group? (AMD-008)",
       "raised_by": "analyst",
       "status": "answered",
-      "answer": "Mike accepted the Analyst's working default as written (2026-11-26). This version restates it, pending Q-066. The current local group applies to every date of the member's history, including closed Campaign Years. When a member's local group changes, their whole history moves on the next run, as a change of country does today.",
+      "answer": "Mike accepted the working default (2026-11-26), confirmed in AMD-009. The current local group applies to every date of the member's history, including closed Campaign Years. When a member's local group changes, their whole history moves on the next run, as a change of country does today.",
       "blocks": [
         "REQ-027"
       ]
@@ -3698,7 +3703,7 @@
       "question": "Where are the member's own country (contact_country_id) and the region from it kept, and do they join the grain? (AMD-008)",
       "raised_by": "analyst",
       "status": "answered",
-      "answer": "Mike accepted the Analyst's working default as written (2026-11-26). This version restates it, pending Q-066. They are kept as new columns on every table that keeps country_id for a member (silv_member_base, silv_member_profile, silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail, fact_daily_member_count_detail, etl_daily_count_cell_contacts and the daily count adjustment history). With local_group_id, they join the grain wherever country_id is in the grain.",
+      "answer": "Mike accepted the working default (2026-11-26), confirmed in AMD-009. They are kept as new columns on every table that keeps country_id for a member (silv_member_base, silv_member_profile, silv_membership_events, fact_membership_events, silv_annual_rate_base, fact_annual_rate_base, silv_daily_count_detail, fact_daily_member_count_detail, etl_daily_count_cell_contacts and the daily count adjustment history). With local_group_id, they join the grain wherever country_id is in the grain.",
       "blocks": [
         "REQ-027"
       ]
@@ -3711,7 +3716,7 @@
       "blocks": [
         "REQ-027"
       ],
-      "answer": "No. The restated defaults differ from what Mike accepted. Q-062 and Q-063 apply the original rule: a member whose local group is missing, unknown, inactive, has no country, or whose country or local group row gives no region keeps their own country and their own country's region in every field, with local_group_id 0 Unknown. No field-by-field mixing. Q-064 (current local group for all dates) and Q-065 (wider table list) are accepted as now written."
+      "answer": "No. The restated defaults differ from what Mike accepted (Mike, 2026-11-26, agreed in AMD-009). A member's local group gives their country and region only when it is usable: the member has a local group, CE.vwLocalGroup holds it, it is active, it has a country, and its row gives a region in both region fields. A member whose local group is missing, unknown, inactive, has no country or gives no region keeps their own country and their own country's region in every field, with local_group_id 0 Unknown. No field-by-field mixing. Q-064 (current local group for all dates) and Q-065 (wider table list) are accepted as written. RULE-170 to RULE-173 and AC-027-04 are amended to match."
     },
     {
       "id": "Q-067",
@@ -3721,7 +3726,7 @@
       "blocks": [
         "REQ-027"
       ],
-      "answer": "No adjustment rows for the deployment restatement (a change of basis, like AMD-007 RULE-162). Adjustment rows written before deployment keep their figures, take contact_country_id = their country_id and own-country region = their region, and local_group_id -2 Not applicable."
+      "answer": "No adjustment rows for the deployment restatement (a change of basis, like AMD-007 RULE-162). Adjustment rows written before deployment keep their figures, take contact_country_id = their stored country_id and own-country region = their stored region, and local_group_id -2 Not applicable, because the local group was not recorded then (Mike, 2026-11-26, agreed in AMD-009). silv_ref_local_group and dim_local_group hold -2 Not applicable as a reserved row beside 0 Unknown, and no member is ever given -2. RULE-179 and AC-027-13 are amended to -2."
     }
   ]
 }
