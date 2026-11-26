@@ -1,0 +1,394 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-030",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-26T17:17:38Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-11-26T17:41:05Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-030",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-030-001",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Every column fact_daily_member_count_detail, fact_membership_events, fact_annual_rate_base and dim_country had before the change is still there with the same name (compared byte for byte, so a change of case counts as a rename) and the same data type, length, precision and scale.",
+      "preconditions": "Reads the real tables through sys.columns, with no fakes. The columns before the change come from the database before MOD-030: fact_daily_member_count_detail 16 columns (id bigint, the 15 others int), fact_membership_events 25, fact_annual_rate_base 12 (all int), dim_country 5. Added columns are allowed (MOD-031 and MOD-032 add some), so the test checks only that the earlier columns are present.",
+      "expected": "All 58 earlier columns are found with their types: for example dim_country.country_id uniqueidentifier, country_name and region_name nvarchar(200), market_reporting_region varchar(15); fact_membership_events.campaign_quarter char(2), subs_amount_gbp and invoiced_subtotal_gbp decimal(19,4), amount_status varchar(30). 0 removed, 0 renamed, 0 retyped.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-001 gold facts and dim_country keep every earlier column with its name and type]"
+    },
+    {
+      "id": "TC-030-002",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "negative",
+      "description": "dim_country gains rows, not columns (RULE-180, ADR-015). Its only possible structural change is the Q-069 unique constraint.",
+      "preconditions": "Reads the real dim_country through sys.columns, with no fakes.",
+      "expected": "dim_country has exactly 5 columns.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-002 dim_country has exactly its five Phase 1 columns]"
+    },
+    {
+      "id": "TC-030-003",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "The changed dim_country load writes the silv_ref_country rows exactly as before (existing rows unchanged, RULE-180) and adds each silv_ref_country_region combination under that combination's id, with the country's GUID and name and the combination's two regions.",
+      "preconditions": "Faked: etl_run_log and etl_progress_log (identity, defaults), silv_ref_country, silv_ref_country_region and dim_country. silv_ref_country: 1 United Kingdom (UK&I, UK&I), 2 United Arab Emirates (MEA, MEA), 3 India (APAC, APAC). silv_ref_country_region: 1000001 (country_ref_id 3, MEA, MEA). dim_country already holds the three country rows, unchanged.",
+      "expected": "dim_country holds exactly (1, UK GUID, 'United Kingdom', 'UK&I', 'UK&I'), (2, UAE GUID, 'United Arab Emirates', 'MEA', 'MEA'), (3, India GUID, 'India', 'APAC', 'APAC') and (1000001, India GUID, 'India', 'MEA', 'MEA'). The load logs 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-003 dim_country load keeps the country rows and adds the combination row]"
+    },
+    {
+      "id": "TC-030-004",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "idempotency",
+      "description": "A second dim_country load on unchanged silver leaves unchanged rows untouched.",
+      "preconditions": "Data as in TC-030-003. Load, snapshot every column of dim_country, load again.",
+      "expected": "dim_country equals its snapshot. The second load logs 'Success', 0 inserted, 0 updated, 0 deleted, as the Phase 1 load logs a rerun.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-004 dim_country rerun on unchanged silver changes nothing and logs 0 0 0]"
+    },
+    {
+      "id": "TC-030-005",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Combination rows are updated when their values change (DES-001 usp_load_dim_country): when the country's name changes in silv_ref_country, the next load renames both the country's own row and its combination row.",
+      "preconditions": "Data as in TC-030-003. Load; India (id 3) is renamed 'Republic of India' in silv_ref_country; load again.",
+      "expected": "dim_country holds exactly (1, 'United Kingdom', 'UK&I', 'UK&I'), (2, 'United Arab Emirates', 'MEA', 'MEA'), (3, 'Republic of India', 'APAC', 'APAC') and (1000001, 'Republic of India', 'MEA', 'MEA').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-005 a country renamed in silver is renamed on its own row and its combination row]"
+    },
+    {
+      "id": "TC-030-006",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030, supporting AC-027-10 (carried by MOD-032): usp_load_brnz_local_group_detail lands the seven AC-027 local groups of CE.vwLocalGroup 1:1 at local group grain (RULE-169). Values are not transformed: the blank Market_reporting_region of 'Half Region' lands as one space.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion; the behaviour comes from the module plan and DES-001. Faked: CE.vwLocalGroup, brnz_local_group_detail (defaults), etl_run_log and etl_progress_log. Source (id, name, code, country, world region, market region, statecode): A..01 Gulf GULF UAE MEA MEA 0; A..02 London LON UK UK&I UK&I 0; A..03 Gulf India GIND India MEA MEA 0; A..04 No Country NOC NULL MEA MEA 0; A..05 No Region NOR UAE NULL NULL 0; A..06 Closed Gulf CGULF UAE MEA MEA 1; A..07 Half Region HALF UAE MEA ' ' 0. Bronze empty.",
+      "expected": "Bronze holds exactly those 7 rows with the same values, _is_deleted 0 and _deleted_at NULL. DATALENGTH of Half Region's market_reporting_region is 1. The load logs 'Success', 7 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-006 the seven source local groups land 1:1 in brnz_local_group_detail]"
+    },
+    {
+      "id": "TC-030-007",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "idempotency",
+      "description": "Design behaviour of MOD-030 (bronze pattern): a rerun of the bronze local group load on unchanged source changes nothing.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Data as in TC-030-006. Load, snapshot every column of bronze, load again.",
+      "expected": "Bronze equals its snapshot, audit columns included. The second load logs 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-007 a bronze local group rerun on unchanged source logs 0 0 0 and changes nothing]"
+    },
+    {
+      "id": "TC-030-008",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030 (bronze pattern): a changed group is updated and its _updated_at refreshed, a group gone from the source is soft-deleted, a group that reappears is restored, and unchanged rows are left untouched.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Data as in TC-030-006. Load 1; every bronze _updated_at set to 2026-01-01. Gulf India removed from the source; load 2. Gulf India put back, Gulf renamed 'Gulf Region', London removed; load 3.",
+      "expected": "After load 3: Gulf Region live, _updated_at refreshed; London _is_deleted 1 with _deleted_at set; Gulf India live with _deleted_at NULL and _updated_at refreshed; No Country, No Region, Closed Gulf and Half Region live with _updated_at still 2026-01-01. Load 3 logs 'Success', 0 inserted, 1 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-008 bronze local groups are updated soft deleted and restored and unchanged rows are untouched]"
+    },
+    {
+      "id": "TC-030-009",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "nulls",
+      "description": "Design behaviour of MOD-030: a source row with a NULL apuk_localgroupid fails the bronze load (DES-001, as brnz_concession). The error reaches the caller, the load logs 'Failed' and the target is unchanged. No row is skipped.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Runs without tSQLt's transaction. Faked as in TC-030-006, with NOT NULL and a primary key put back on the faked bronze apuk_localgroupid, as the design has them. Bronze holds Gulf (old) (an update is pending) and A..08 Gone Group (a soft delete is pending); the source holds the seven groups plus (NULL, 'Orphan Group'). The error number is not asserted: the design fixes the outcome, not the number.",
+      "expected": "The call raises an error. Bronze equals its snapshot from before the call. etl_run_log holds one row, status 'Failed', with an error message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-009 a source local group with a null key fails the bronze load and changes nothing]"
+    },
+    {
+      "id": "TC-030-010",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "duplicates",
+      "description": "Design behaviour of MOD-030: two source rows with the same apuk_localgroupid fail the bronze load. The error reaches the caller, the load logs 'Failed' and the target is unchanged.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Runs without tSQLt's transaction. As TC-030-009, but the extra source row is a second A..01 ('Gulf Copy'). The error number is not asserted.",
+      "expected": "The call raises an error. Bronze equals its snapshot from before the call. etl_run_log holds one row, status 'Failed', with an error message.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-010 two source rows with the same local group key fail the bronze load and change nothing]"
+    },
+    {
+      "id": "TC-030-011",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030, supporting AC-027-01 (carried by MOD-032): usp_load_brnz_contact lands CE.vwContact.rics_localgroupid 1:1 (RULE-169), and a difference in rics_localgroupid alone counts as a change. That is how the first run after deployment fills the column on rows landed before it.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Faked: CE.vwContact, brnz_contact (defaults), etl_run_log, etl_progress_log. Source: X1 (UK, Gulf) new; X2 (UK, London), whose bronze row is identical except rics_localgroupid NULL; X3 (India, no local group), identical in bronze. Both bronze rows have _updated_at 2026-01-01. Statements that name the new column run as dynamic SQL so the suite compiles before the build.",
+      "expected": "Bronze holds X1 (UK, Gulf, live, new), X2 (UK, London, live, _updated_at refreshed) and X3 (India, NULL, live, _updated_at still 2026-01-01). The load logs 'Success', 1 inserted, 1 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-011 brnz_contact lands rics_localgroupid and a change in it alone updates the row]"
+    },
+    {
+      "id": "TC-030-012",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "idempotency",
+      "description": "Design behaviour of MOD-030: once the column is filled, a rerun of the contact load on unchanged source updates nothing, including rows whose rics_localgroupid is NULL.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Faked as in TC-030-011. Source: X1 (UK, Gulf) and X3 (India, NULL). Load, snapshot every column, load again.",
+      "expected": "Bronze equals its snapshot. The second load logs 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-012 a brnz_contact rerun with rics_localgroupid on unchanged source logs 0 0 0]"
+    },
+    {
+      "id": "TC-030-013",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030, supporting AC-027-10 (carried by MOD-032): from the seven bronze groups, usp_load_silv_ref_local_group gives nine list rows, the two reserved rows and the seven groups, the unusable ones included. Blank regions are held as NULL. is_reportable is the RULE-171 usable test: live, statecode 0, a country found in silv_ref_country and both regions not null or blank. The reserved rows are never changed.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Faked: etl_run_log, etl_progress_log, silv_ref_country (1 UK, 2 UAE, 3 India), brnz_local_group_detail (the seven groups of TC-030-006, live), silv_ref_local_group (identity, defaults) and silv_ref_country_region (identity, defaults). The list's reserved rows are inserted as the migration seeds them: -2 'Not applicable' and 0 'Unknown', bk NULL, is_reportable 0, created_at and updated_at 2026-01-01.",
+      "expected": "Exactly 9 rows (bk, name, code, country_id, region_name, market_reporting_region, statecode, is_reportable): two reserved rows (NULL bk, 'Not applicable' / 'Unknown', 0); Gulf (GULF, 2, MEA, MEA, 0, 1); London (LON, 1, UK&I, UK&I, 0, 1); Gulf India (GIND, 3, MEA, MEA, 0, 1); No Country (NOC, NULL, MEA, MEA, 0, 0); No Region (NOR, 2, NULL, NULL, 0, 0); Closed Gulf (CGULF, 2, MEA, MEA, 1, 0); Half Region (HALF, 2, MEA, NULL, 0, 0). Reserved rows unchanged: ids -2 and 0, load_id NULL, created_at and updated_at 2026-01-01. Every group id is 1 or more. Logged 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-013 the seven groups give nine list rows with the usable test and untouched reserved rows]"
+    },
+    {
+      "id": "TC-030-014",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030, supporting AC-027-02 (carried by MOD-031): dim_country_id (ADR-015). A reportable group whose regions equal its country's own regions points at the country's own row; one whose regions differ points at a silv_ref_country_region combination, which the load adds. A group that is not reportable has none.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Data as in TC-030-013. The test resolves dim_country_id against silv_ref_country and silv_ref_country_region and does not assert any generated id.",
+      "expected": "Gulf resolves to silv_ref_country id 2 (UAE); London to id 1 (UK); Gulf India to the combination (country_ref_id 3, 'MEA', 'MEA'). The reserved rows, No Country, No Region, Closed Gulf and Half Region have dim_country_id NULL. silv_ref_country_region holds exactly one row, (3, 'MEA', 'MEA').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-014 Gulf takes the UAE row London the UK row and Gulf India a combination row]"
+    },
+    {
+      "id": "TC-030-015",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "negative",
+      "description": "Design behaviour of MOD-030 (RULE-169, ADR-014): the own-country regions Phase 1 derives must stay as they are, so the local group load never writes to silv_ref_country.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Data as in TC-030-013. silv_ref_country is snapshotted before the load.",
+      "expected": "silv_ref_country equals its snapshot: the same 3 rows and values.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-015 the local group load leaves silv_ref_country unchanged]"
+    },
+    {
+      "id": "TC-030-016",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "idempotency",
+      "description": "Design behaviour of MOD-030, supporting AC-027-10: a reload on unchanged data keeps every id and row and adds no combination.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Data as in TC-030-013. Load, snapshot every column of silv_ref_local_group and silv_ref_country_region, load again.",
+      "expected": "Both tables equal their snapshots (ids, load_id and timestamps included). The second load logs 'Success', 0 inserted, 0 updated, 0 deleted.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-016 a local group list rerun on unchanged data keeps every row and id and logs 0 0 0]"
+    },
+    {
+      "id": "TC-030-017",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030, supporting AC-027-10: renaming 'Gulf' in the source and reloading updates its name and keeps its id, and every other id stays the same.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Data as in TC-030-013. Load; (id, bk) snapshot; bronze Gulf renamed 'Gulf Region'; load again.",
+      "expected": "The (id, bk) pairs equal the snapshot (9 rows). The row with Gulf's bk has local_group_name 'Gulf Region'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-017 renaming Gulf in the source updates its name and keeps every id]"
+    },
+    {
+      "id": "TC-030-018",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "boundary",
+      "description": "Design behaviour of MOD-030, supporting AC-027-04: edges of the usable test (RULE-171). A country GUID not in silv_ref_country, a NULL statecode (only 0 is active), and a world region that is empty or only spaces each make a group not reportable. Empty and spaces-only regions are held as NULL.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Data as in TC-030-013 plus four live bronze groups: A..11 'Unknown Country' (country GUID C..99 not in silv_ref_country, MEA, MEA, 0); A..12 'Null State' (UAE, MEA, MEA, statecode NULL); A..13 'Empty Region' (UAE, '', MEA, 0); A..14 'Spaced Region' (UAE, '   ', MEA, 0).",
+      "expected": "(name, country_id, region_name is NULL, market_reporting_region, is_reportable, dim_country_id is NULL): Unknown Country (NULL, no, MEA, 0, yes); Null State (2, no, MEA, 0, yes); Empty Region (2, yes, MEA, 0, yes); Spaced Region (2, yes, MEA, 0, yes).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-018 a country not in silv_ref_country a null statecode and an empty or spaces region make a group not usable]"
+    },
+    {
+      "id": "TC-030-019",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "negative",
+      "description": "Design behaviour of MOD-030, supporting AC-027-16 (carried by MOD-032): a group that becomes inactive, or is soft-deleted in bronze, keeps its list row and id but stops being reportable, so it no longer gives any member a country or region.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Data as in TC-030-013. Load; (id, bk) snapshot; bronze Gulf statecode set to 1 and London soft-deleted (_is_deleted 1); load again.",
+      "expected": "The (id, bk) pairs equal the snapshot (9 rows). Gulf: statecode 1, is_reportable 0, dim_country_id NULL. London: statecode 0, is_reportable 0, dim_country_id NULL. Gulf India still reportable with a dim_country_id.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-019 a group made inactive or gone from bronze stays in the list with its id but is not reportable]"
+    },
+    {
+      "id": "TC-030-020",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030, supporting AC-027-09 (carried by MOD-031): a change to a group's own regions is applied in place. Gulf going from MEA to GCC needs a new combination (UAE, GCC, GCC), and the load adds it. silv_ref_country_region is insert-only, so the MEA combination keeps its row and id.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Data as in TC-030-013. Load; the id of the (3, MEA, MEA) combination is noted; bronze Gulf world region and market region set to 'GCC'; load again.",
+      "expected": "silv_ref_country_region holds exactly (3, 'MEA', 'MEA'), with the same id as before, and (2, 'GCC', 'GCC'). Gulf has region_name 'GCC', market_reporting_region 'GCC', is_reportable 1, and its dim_country_id resolves to (2, 'GCC', 'GCC').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-020 a change of the Gulf regions to GCC adds a combination row and keeps the old one]"
+    },
+    {
+      "id": "TC-030-021",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030, supporting AC-027-01 to AC-027-04 (carried by MOD-031 and MOD-032): vw_silv_contact_local_group gives every contact either all of its usable group's values or local_group_id 0 with all of its own country's values. It never mixes the two and never gives -2. The group's region wins over its country's (Gulf India). It has one row per live brnz_contact row.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Fakes and list data as in TC-030-013, plus brnz_contact (defaults). Contacts (own country, rics_localgroupid): G1 (UK, Gulf); G2 (India, Gulf India); N1 (India, NULL); N2 (India, A..99, which CE does not hold); N3 to N6 (UK; No Country, No Region, Closed Gulf, Half Region); L1 (UK, London); D1 (UK, Gulf, soft-deleted). usp_load_silv_ref_local_group runs first. The view's local_group_id is shown by name, or as '0' / '-2', so no generated id is asserted. Not covered: a contact whose own country is missing or not in silv_ref_country, because Q-069 (c), the value Phase 1 gives then, is open with the Developer.",
+      "expected": "Exactly 9 rows (contact, contact_country_id, local group, country_id, region_name, market_reporting_region, contact regions): G1 (1, Gulf, 2, MEA, MEA, UK&I, UK&I); G2 (3, Gulf India, 3, MEA, MEA, APAC, APAC); N1 and N2 (3, 0, 3, APAC, APAC, APAC, APAC); N3, N4, N5 and N6 (1, 0, 1, UK&I, UK&I, UK&I, UK&I); L1 (1, London, 1, UK&I, UK&I, UK&I, UK&I). No row for D1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-021 every member gets all of a usable group values or local group 0 with all of its own country values]"
+    },
+    {
+      "id": "TC-030-022",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030, supporting AC-027-16: once 'Gulf' becomes inactive and the list is reloaded, the view moves G1 wholly back to its own country and region.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Data as in TC-030-021. Load; bronze Gulf statecode set to 1; load again.",
+      "expected": "The view's G1 row is (contact_country_id 1, local_group_id 0, country_id 1, 'UK&I', 'UK&I', 'UK&I', 'UK&I').",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-022 once Gulf is made inactive G1 takes local group 0 and all of its own country values]"
+    },
+    {
+      "id": "TC-030-023",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030, supporting AC-027-10: usp_load_dim_local_group copies silv_ref_local_group into dim_local_group with the same ids and names, both reserved rows included, so every local_group_id in gold resolves.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Faked: etl_run_log, etl_progress_log, silv_ref_local_group and dim_local_group (defaults). Silver list rows with these ids as input: -2 Not applicable, 0 Unknown, 1 Gulf, 2 London, 3 Gulf India, 4 No Country, 5 No Region, 6 Closed Gulf, 7 Half Region. dim_local_group starts empty.",
+      "expected": "dim_local_group holds exactly the same 9 (id, local_group_name) pairs. Logged 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-023 dim_local_group mirrors the nine list rows including both reserved rows]"
+    },
+    {
+      "id": "TC-030-024",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "idempotency",
+      "description": "Design behaviour of MOD-030, supporting AC-027-10: dim_local_group updates a changed name in place and leaves unchanged rows untouched, and a rerun changes nothing.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. As TC-030-023, but silver id 1 is renamed 'Gulf Region', and dim_local_group already holds all 9 rows (id 1 still 'Gulf'), with load_id 11 and created_at and updated_at 2026-01-01. Load; then load again.",
+      "expected": "After the first load, the 8 rows other than id 1 equal their snapshot in every column, and id 1 is 'Gulf Region'. After the second load, the whole table equals its snapshot from before that load.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-024 dim_local_group updates a renamed group in place and leaves unchanged rows untouched]"
+    },
+    {
+      "id": "TC-030-025",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030: the Phase 1 bronze step calls usp_load_brnz_local_group_detail with the other bronze loads, under the run_id it was given, and still calls every other bronze load.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. All ten bronze loads are spied (tSQLt.SpyProcedure), and each records its name and @run_id. No table is touched. The order inside the bronze group is not part of the contract.",
+      "expected": "usp_load_bronze @run_id = E..30 records exactly the ten bronze loads (contact, enrolment, rics_record, local_group, local_group_detail, cust_trans, subs_status, option_set, route, contact_test_record), each once and each with run_id E..30.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-025 the bronze step runs the local group landing once with the other bronze loads under its run_id]"
+    },
+    {
+      "id": "TC-030-026",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030: the Phase 1 silver step runs usp_load_silv_ref_local_group after the country list and before usp_load_silv_member_base, so every member load in the same run sees current values. Every other silver step still runs.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. All 16 silver loads are spied, and each records its name, @run_id and call order. No table is touched.",
+      "expected": "usp_load_silver @run_id = E..31 calls usp_load_silv_ref_local_group exactly once, with run_id E..31, after usp_load_silv_ref_country and before usp_load_silv_member_base. All 16 steps are called.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-026 the silver step runs the local group list after the country list and before the member base]"
+    },
+    {
+      "id": "TC-030-027",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030: the Phase 1 gold step runs usp_load_dim_local_group, with the dim_country load, before any fact load. Every other gold step still runs.",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. All 13 gold loads (10 dimensions and 3 facts) are spied, and each records its name, @run_id and call order. No table is touched.",
+      "expected": "usp_load_gold @run_id = E..32 calls usp_load_dim_local_group exactly once, with run_id E..32. It and usp_load_dim_country (called once) both come before the first of usp_load_fact_membership_events, usp_load_fact_daily_member_count_detail and usp_load_fact_annual_rate_base. All 13 steps are called.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-027 the gold step runs dim_local_group and dim_country before every fact load]"
+    },
+    {
+      "id": "TC-030-028",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-12",
+      "category": "happy_path",
+      "description": "Design behaviour of MOD-030, supporting AC-027-10: the migration seeds silv_ref_local_group with the reserved rows 0 Unknown and -2 Not applicable (RULE-170, AMD-009).",
+      "preconditions": "Hung on AC-027-12, MOD-030's only acceptance criterion. Reads the real silv_ref_local_group after the migration, with no fake, and only the rows with ids 0 and -2.",
+      "expected": "Exactly (-2, bk NULL, 'Not applicable', is_reportable 0, dim_country_id NULL) and (0, bk NULL, 'Unknown', 0, NULL).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD030].[test TC-030-028 silv_ref_local_group holds the seeded reserved rows 0 Unknown and -2 Not applicable]"
+    }
+  ]
+}
