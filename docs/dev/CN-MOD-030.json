@@ -1,0 +1,206 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-030",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-26T17:52:50Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-030.json",
+      "tests/tsqlt/test_MOD030.sql"
+    ]
+  },
+  "module_id": "MOD-030",
+  "branch": "agent/developer/MOD-030-local-group-landing-reference-and-dimens",
+  "commit": "dac7df34edb29d66b8295bb39a46aa4b1b1a56b7",
+  "requirement_ids": [
+    "REQ-027"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.brnz_local_group_detail.sql",
+      "object": "Layercake.brnz_local_group_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_brnz_local_group_detail.sql",
+      "object": "Layercake.usp_load_brnz_local_group_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.brnz_contact.sql",
+      "object": "Layercake.brnz_contact",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_brnz_contact.sql",
+      "object": "Layercake.usp_load_brnz_contact",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_bronze.sql",
+      "object": "Layercake.usp_load_bronze",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_ref_local_group.sql",
+      "object": "Layercake.silv_ref_local_group",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_ref_country_region.sql",
+      "object": "Layercake.silv_ref_country_region",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_ref_local_group.sql",
+      "object": "Layercake.usp_load_silv_ref_local_group",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Views/Layercake.vw_silv_contact_local_group.sql",
+      "object": "Layercake.vw_silv_contact_local_group",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.dim_local_group.sql",
+      "object": "Layercake.dim_local_group",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_dim_local_group.sql",
+      "object": "Layercake.usp_load_dim_local_group",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.dim_country.sql",
+      "object": "Layercake.dim_country",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_dim_country.sql",
+      "object": "Layercake.usp_load_dim_country",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silver.sql",
+      "object": "Layercake.usp_load_silver",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_gold.sql",
+      "object": "Layercake.usp_load_gold",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD030_dev].[test brnz contact a contact that reappears is restored with its rics_localgroupid as one update]",
+    "[test_MOD030_dev].[test bronze local group a case-only and a trailing-space change are each landed as one update]",
+    "[test_MOD030_dev].[test bronze step with no run_id gives the local group landing the same generated run_id as every other load]",
+    "[test_MOD030_dev].[test dim country load logs the combination row as one insert]",
+    "[test_MOD030_dev].[test dim local group a case-only rename is one update and a rerun logs 0 0 0]",
+    "[test_MOD030_dev].[test gold step with the daily fact held back runs dim_local_group straight after dim_country]",
+    "[test_MOD030_dev].[test silver local group a repeated business key in bronze fails the load and leaves the list unchanged]",
+    "[test_MOD030_dev].[test silver local group logs its inserts and a group gone from bronze is kept not reportable as one update]",
+    "[test_MOD030_dev].[test silver local group regions differing from the country only in case use the country own row]",
+    "[test_MOD030_dev].[test silver local group two groups with the same country and regions share one combination row]",
+    "[test_MOD030_dev].[test silver step with the daily count held back still runs the local group list before the member base]",
+    "[test_MOD030_dev].[test view a contact whose own country is not in silv_ref_country takes country 0 and its N/A regions]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0032",
+      "up_script": "src/sql/deploy/MIG-0032_MOD-030_local-group-landing-reference-and-dimens.up.sql",
+      "down_script": "src/sql/deploy/MIG-0032_MOD-030_local-group-landing-reference-and-dimens.down.sql",
+      "rollback_test": {
+        "commit": "dac7df34edb29d66b8295bb39a46aa4b1b1a56b7",
+        "run_at": "2026-11-26T17:52:42.061273+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "deviations": [
+    "Question deferred (asked 2026-11-26): MP-001/DES-001 say MOD-030's down script removes the dim_country rows the changed usp_load_dim_country adds (ids from 1000001). Those rows are written by the load, not the migration, and the migration builder can only put a DELETE in a down script through a seed (needs an up INSERT) or a table change (would need a dummy up statement). Assumption built on: the rollback leaves those rows in dim_country. They are harmless: the restored Phase 1 dim_country load only touches silv_ref_country ids, and no fact references a combination id while only MIG-0032 is applied (the gold loads that point country_id at them come in MOD-031/MOD-032). To remove them after a rollback: DELETE FROM Layercake.dim_country WHERE id >= 1000001.",
+    "dim_local_group is not seeded by the migration. Its two reserved rows (-2 Not applicable, 0 Unknown) are copied from the seeded silv_ref_local_group by usp_load_dim_local_group on the first gold run, as the other gold dimensions over seeded lists are (answers.md, MOD-003 dim_payment_method population). After MIG-0032 alone, dim_local_group is empty until usp_load_gold or usp_load_dim_local_group runs.",
+    "Grant script src/sql/grants/MOD-030.sql uses the placeholder role [<reporting_role>], as MOD-021 did: DES-001 names 'the existing reporting role that reads fact_membership_events' but not its name. A human replaces it and runs the script."
+  ],
+  "notes": "Starting point: 3 passed, 25 failed (the objects did not exist yet). Now: test_MOD030 28/28 and test_MOD030_dev 12/12 pass. The round-trip passes and the checks pass; the sqlfluff findings are advisory and mostly the lower-case style of the Phase 1 files, which I kept.\n\nQ-069, confirmed from the Phase 1 code:\n(a) brnz_contact is loaded by Layercake.usp_load_brnz_contact and dim_country by Layercake.usp_load_dim_country. The dim_country load never deletes. dim_country has only its PK on id, with no unique constraint on the country GUID, so it needs no structural change and its table file is unchanged. silv_ref_country does have a unique constraint on its GUID (uq_silv_ref_country), and it stays as it is.\n(b) The member's country_id is derived in usp_load_silv_member_base and in the Join cohort of usp_load_silv_membership_events. Both use a LEFT JOIN of silv_ref_country on rics_countryid, then isnull(ctry.id, 0). usp_load_silv_member_state_ranges gives region as iif(e.country_id = 0, 'N/K', ctry.region_name), which is the world region flavour (region_name). The daily count reads silv_member_profile.country_id.\n(c) country_id is 0 when rics_countryid is null or is not in silv_ref_country. The view keeps that value as contact_country_id. Its own-country regions come from the silv_ref_country row with that id, so a member with country 0 gets the seeded 'N/A' row. MOD-031 must keep the state ranges' 'N/K' rule for country 0.\n(d) silv_annual_rate_base has a PK on (campaign_year, grade_id, membership_status_id, country_id, gender_id). fact_annual_rate_base has the unique index ux_fact_annual_rate_base_segment on the same five columns.\n\nChoices the tests pin down (test_MOD030_dev):\n- A group's regions are compared with its country's own regions using the database collation. A group whose regions differ from its country's only in case or trailing spaces points at the country's own row and gets no combination row. The list itself still stores the source value byte for byte.\n- Two reportable groups that give the same country and regions share one silv_ref_country_region row.\n- A group that disappears from bronze altogether keeps its row and id, becomes not reportable with dim_country_id NULL, and is logged as one update.\n- The number of combination rows added is logged as an etl_progress_log sub-step, 'silv_ref_country_region combinations added'. The run row's counts cover silv_ref_local_group only.\n- A repeated key in bronze fails the list load with error 2627: it logs 'Failed' and changes nothing.\n- The bronze local group load and the dim_local_group load compare strings as bytes, so a change in case alone, or in trailing spaces alone, is landed.\n- brnz_contact: a contact that reappears is restored together with its rics_localgroupid.\n- On the first run after deployment, usp_load_brnz_contact updates every live row once to fill rics_localgroupid. A rerun on unchanged source then logs 0 0 0.\n\nbrnz_contact.rics_localgroupid is added by ALTER, so the table file lists it last.\n\nTest-first: the first run had 3 of 28 of the Tester's tests passing; the final run passed 28 of 28 and 12 unit test(s), in 4 run(s)."
+}
