@@ -4,10 +4,10 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-018",
-    "version": 2,
+    "version": 3,
     "produced_by": "tester",
-    "produced_at": "2026-11-18T09:45:49Z",
-    "status": "rejected",
+    "produced_at": "2026-11-27T10:52:26Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,9 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-27T10:40:46Z",
+      "approved_at": "2026-11-27T10:54:54Z",
       "gate": "test_design_review",
-      "comments": "Reopened for MOD-031: Widen to the MOD-031 grain (local_group_id, contact_country_id, contact_region), DEF-009 to DEF-015: TC-016-014, TC-018-020, TC-021-015, TC-021-017, TC-022-019, TC-027-001, TC-027-002, TC-027-003, TC-027-004, TC-027-005, TC-027-006, TC-027-007, TC-027-008, TC-027-009, TC-027-010, TC-027-012, TC-028-001, TC-028-002, TC-028-003, TC-028-019, TC-028-020, TC-028-021. Change them only where they name the grain, the column lists or index, or seed rows that now need local_group_id 0, contact_country_id = country_id and contact_region = region. Change nothing else."
+      "comments": "Approved as is for MOD-031 (DEF-013). TC-018-020 traces REQ-017 and REQ-027: REQ-018 was dropped because a reopened condition may only trace requirements delivered by MOD-018 (REQ-017) or MOD-031. REQ-018 is delivered and tested by MOD-022, MOD-023 and MOD-026, and the description still cites it."
     }
   },
   "module_id": "MOD-018",
@@ -278,12 +278,12 @@
       "id": "TC-018-020",
       "requirement_ids": [
         "REQ-017",
-        "REQ-018"
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-017-06",
       "category": "reconciliation",
-      "description": "Daily history follows the derived date on the next plain run (REQ-018, RULE-109, RULE-110; supersedes the ASM-002 one-off rebuild). Once the derived date replaces apuk, the member profile load still logs its pending rebuild. The next plain daily count run, with no @RebuildFrom or @FullRebuild, corrects the dates already loaded to the new split and marks the covered pending row applied.",
-      "preconditions": "T5 as in TC-018-017: apuk_retirementdate 2024-03-01, derived date 2025-01-15 (2025 'Retired Conc.', Renewal Date 2025-01-15). State as Phase 1 left it: silv_member_profile T5 retirement_date 2024-03-01. 2024-06-01 and 2025-02-01 are marked loaded, and silv_daily_count_detail counts T5 Retired (2) on both. ref_date_spine holds only those two dates. etl_daily_count_input_basis and silv_daily_count_adjustment are faked empty. Runs usp_load_silv_member_base, usp_load_silv_member_profile, then usp_load_silv_daily_count once with no parameters.",
+      "description": "Daily history follows the derived date on the next plain run (REQ-018, RULE-109, RULE-110; supersedes the ASM-002 one-off rebuild). Once the derived date replaces apuk, the member profile load still logs its pending rebuild. The next plain daily count run, with no @RebuildFrom or @FullRebuild, corrects the dates already loaded to the new split and marks the covered pending row applied. Widened for MOD-031 (REQ-027, DEF-013): the stored rows carry the MOD-031 placeholder values, so only the retirement date changes.",
+      "preconditions": "REQ-018 is left out of requirement_ids only because the submission check refuses it (not delivered by MOD-018 or MOD-031), although Mike's 2026-11-27 answer says the condition keeps it; asked, answer deferred. The behaviour tested is still REQ-018's (RULE-109, RULE-110). T5 as in TC-018-017: apuk_retirementdate 2024-03-01, derived date 2025-01-15 (2025 'Retired Conc.', Renewal Date 2025-01-15), no local group. State as Phase 1 left it after the MOD-031 migration: silv_member_profile T5 (country_id 0, gender_id 0, retirement_date 2024-03-01, local_group_id 0, contact_country_id 0); state range 2015-01-01 open, election, region 'UK', contact_region 'UK'. 2024-06-01 and 2025-02-01 are marked loaded, and silv_daily_count_detail counts T5 Retired (2) on both, in cells (region 'UK', country_id 0, gender_id 0, local_group_id 0, contact_country_id 0, contact_region 'UK'). ref_date_spine holds only those two dates. etl_daily_count_input_basis and silv_daily_count_adjustment are faked empty. Runs usp_load_silv_member_base, usp_load_silv_member_profile, then usp_load_silv_daily_count once with no parameters.",
       "expected": "After the single plain run, silv_daily_count_detail holds exactly ('2024-06-01', 'election', status 1, active_count 1) and ('2025-02-01', 'election', status 2, active_count 1); no Retired row remains on 2024-06-01. etl_daily_count_pending_rebuild has one 'member_profile' row with affected_from 2024-03-01 and applied_at NOT NULL, and no open 'member_profile' row remains.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD018].[test TC-018-020 derived date reaches loaded daily history on the next plain run]"
