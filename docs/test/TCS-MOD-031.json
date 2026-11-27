@@ -7,7 +7,7 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-11-26T18:26:07Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,9 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-27T08:27:10Z",
+      "approved_at": "2026-11-27T10:12:28Z",
       "gate": "test_design_review",
-      "comments": "Country 0: no usable group = N/K for region and contact_region; usable group = the group's region, contact_region N/K (recorded in docs/answers.md). TC-031-016 accepted as designed."
+      "comments": "Reopened: TC-031-001 and TC-031-002: the schema filter on tSQLt.Private_RenamedObjectLog uses PARSENAME(r.OriginalName, 2) = 'Layercake', which is NULL in this tSQLt version (OriginalName is the bare name), so both tests can never pass. Filter by schema as the MOD-028 tests do, for example OBJECT_SCHEMA_NAME(r.ObjectId) = N'Layercake'. Change nothing else."
     }
   },
   "module_id": "MOD-031",
