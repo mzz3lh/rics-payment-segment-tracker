@@ -1653,7 +1653,7 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE test_MOD007.[test TC-007-051 silv_membership_events keeps Phase 1 columns and the nine columns left after MOD-012]
+CREATE PROCEDURE test_MOD007.[test TC-007-051 silv_membership_events keeps Phase 1 columns the nine columns left after MOD-012 and the two MOD-032 columns]
 AS
 BEGIN
     SELECT c.name COLLATE DATABASE_DEFAULT AS column_name,
@@ -1680,13 +1680,15 @@ BEGIN
                  ('concession_type_id', 'int', 0), ('concession_type_carried', 'bit', 0),
                  ('subs_amount_gbp', 'decimal(19,4)', 1),
                  ('invoiced_subtotal_gbp', 'decimal(19,4)', 1),
-                 ('amount_status', 'varchar(30)', 1)) AS v(column_name, data_type, is_nullable);
+                 ('amount_status', 'varchar(30)', 1),
+                 ('local_group_id', 'int', 0),
+                 ('contact_country_id', 'int', 0)) AS v(column_name, data_type, is_nullable);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 END;
 GO
 
-CREATE PROCEDURE test_MOD007.[test TC-007-052 fact_membership_events keeps Phase 1 columns and the nine columns left after MOD-012]
+CREATE PROCEDURE test_MOD007.[test TC-007-052 fact_membership_events keeps Phase 1 columns the nine columns left after MOD-012 and the two MOD-032 columns]
 AS
 BEGIN
     SELECT c.name COLLATE DATABASE_DEFAULT AS column_name,
@@ -1713,7 +1715,9 @@ BEGIN
                  ('concession_type_id', 'int', 0), ('concession_type_carried', 'bit', 0),
                  ('subs_amount_gbp', 'decimal(19,4)', 1),
                  ('invoiced_subtotal_gbp', 'decimal(19,4)', 1),
-                 ('amount_status', 'varchar(30)', 1)) AS v(column_name, data_type, is_nullable);
+                 ('amount_status', 'varchar(30)', 1),
+                 ('local_group_id', 'int', 0),
+                 ('contact_country_id', 'int', 0)) AS v(column_name, data_type, is_nullable);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 END;

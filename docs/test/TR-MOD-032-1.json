@@ -1,0 +1,139 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-27T14:55:01Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-032-1",
+    "source_artefacts": [
+      "CN-MOD-032",
+      "TCS-MOD-032",
+      "tests/tsqlt/test_MOD032.sql"
+    ]
+  },
+  "module_id": "MOD-032",
+  "loop_number": 1,
+  "run": {
+    "environment": "test",
+    "commit": "8a4e6fb0fa6c71ababc2bb889c2d9c9ab96ce117",
+    "started_at": "2026-11-27T14:43:50Z",
+    "finished_at": "2026-11-27T14:54:18Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-032-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-013",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-014",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-015",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-016",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-017",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-018",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-032-019",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-001",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-015",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-027",
+      "status": "met"
+    }
+  ],
+  "regression": {
+    "ran": 849,
+    "failed": [
+      {
+        "test": "[test_MOD007].[test TC-007-051 silv_membership_events keeps Phase 1 columns and the nine columns left after MOD-012]",
+        "outcome": "fail",
+        "message": "Unexpected/missing resultset rows!  |_m_|column_name            |data_type       |is_nullable|  +---+-----------------------+----------------+-----------+  |=  |contact_no             |nvarchar(200)   |0          |  |=  |country_id             |int        "
+      },
+      {
+        "test": "[test_MOD007].[test TC-007-052 fact_membership_events keeps Phase 1 columns and the nine columns left after MOD-012]",
+        "outcome": "fail",
+        "message": "Unexpected/missing resultset rows!  |_m_|column_name            |data_type    |is_nullable|  +---+-----------------------+-------------+-----------+  |=  |contact_no             |nvarchar(200)|0          |  |=  |country_id             |int          |0     "
+      },
+      {
+        "test": "[test_MOD016].[test TC-016-014 the daily and annual Phase 1 tables keep their column lists]",
+        "outcome": "fail",
+        "message": "Unexpected/missing resultset rows!  |_m_|table_name                    |ordinal|column_name            |  +---+------------------------------+-------+-----------------------+  |=  |fact_daily_member_count_detail|1      |id                     |  |=  |fact_"
+      }
+    ]
+  },
+  "verdict": "fail",
+  "defect_report_ref": "DR-MOD-032-1"
+}

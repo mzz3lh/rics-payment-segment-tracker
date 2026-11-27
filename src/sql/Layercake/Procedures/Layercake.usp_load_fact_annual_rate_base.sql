@@ -6,7 +6,7 @@
 /*====================================================================
     12. Layercake.fact_annual_rate_base
     ------------------------------------------------------------------
-    Straight copy of silver, diff-synced on the 5-column segment key.
+    Copy of silver, diff-synced on the 7-column segment key.
     The fact's clustered PK is the identity id (the baseline DDL owns
     it); the segment key is enforced by the unique nonclustered index
     ux_fact_annual_rate_base_segment, which is exactly what the three
@@ -14,6 +14,16 @@
     the insert lists its columns so id self-assigns, and updates are in
     place - so ids stay stable between runs. Power BI connects here for
     the rate DAX measures, never to the silver table.
+
+    GOLD COUNTRY BY LOCAL GROUP (MOD-032, REQ-027, ADR-015, RULE-176):
+    country_id is the silv_ref_local_group.dim_country_id of a reportable
+    local group, so region rolls up from dim_country to the group's
+    region; otherwise it is the silver country_id (the own country's
+    dim_country row). local_group_id and contact_country_id are copied
+    from silver. The mapped country is part of the key, so a group whose
+    dim_country row changes moves its rows on the next run (the old cell
+    deleted, the new one inserted). The mapping is a function of the
+    silver key, so one silver row still gives exactly one gold row.
 ====================================================================*/
 create or alter procedure Layercake.usp_load_fact_annual_rate_base
     @run_id uniqueidentifier = null
@@ -36,6 +46,21 @@ begin
         exec Layercake.usp_etl_log_start @run_id, 'gold', 'fact_annual_rate_base', @log_id output;
         begin tran;
 
+        -- silver at the gold key: country mapped by local group (see the header)
+        select s.campaign_year, s.grade_id, s.membership_status_id,
+               isnull(lg.dim_country_id, s.country_id) as country_id,
+               s.gender_id, s.local_group_id, s.contact_country_id,
+               s.members_start, s.members_end, s.members_joined,
+               s.members_readmitted, s.members_lapsed, s.members_renewed
+        into #gold_stage
+        from Layercake.silv_annual_rate_base s
+        left join Layercake.silv_ref_local_group lg
+            on  lg.id            = s.local_group_id
+            and lg.is_reportable = 1;
+
+        create unique clustered index cx_gold_stage on #gold_stage
+            (campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id);
+
         update tgt
         set members_start      = s.members_start,
             members_end        = s.members_end,
@@ -44,12 +69,14 @@ begin
             members_lapsed     = s.members_lapsed,
             members_renewed    = s.members_renewed
         from Layercake.fact_annual_rate_base tgt
-        join Layercake.silv_annual_rate_base s
+        join #gold_stage s
           on  s.campaign_year = tgt.campaign_year
           and s.grade_id = tgt.grade_id
           and s.membership_status_id = tgt.membership_status_id
           and s.country_id = tgt.country_id
           and s.gender_id = tgt.gender_id
+          and s.local_group_id = tgt.local_group_id
+          and s.contact_country_id = tgt.contact_country_id
         where exists (select s.members_start, s.members_end, s.members_joined,
                              s.members_readmitted, s.members_lapsed, s.members_renewed
                       except
@@ -57,29 +84,35 @@ begin
                              tgt.members_readmitted, tgt.members_lapsed, tgt.members_renewed);
         set @upd = @@rowcount;
 
+        -- delete before insert: a moved cell's old row leaves before its new one arrives
+        delete tgt
+        from Layercake.fact_annual_rate_base tgt
+        where not exists (select 1 from #gold_stage s
+                          where s.campaign_year = tgt.campaign_year
+                            and s.grade_id = tgt.grade_id
+                            and s.membership_status_id = tgt.membership_status_id
+                            and s.country_id = tgt.country_id
+                            and s.gender_id = tgt.gender_id
+                            and s.local_group_id = tgt.local_group_id
+                            and s.contact_country_id = tgt.contact_country_id);
+        set @del = @@rowcount;
+
         insert into Layercake.fact_annual_rate_base
-        (campaign_year, grade_id, membership_status_id, country_id, gender_id,
+        (campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id,
          members_start, members_end, members_joined, members_readmitted, members_lapsed, members_renewed)
         select s.campaign_year, s.grade_id, s.membership_status_id, s.country_id, s.gender_id,
+               s.local_group_id, s.contact_country_id,
                s.members_start, s.members_end, s.members_joined, s.members_readmitted, s.members_lapsed, s.members_renewed
-        from Layercake.silv_annual_rate_base s
+        from #gold_stage s
         where not exists (select 1 from Layercake.fact_annual_rate_base t
                           where t.campaign_year = s.campaign_year
                             and t.grade_id = s.grade_id
                             and t.membership_status_id = s.membership_status_id
                             and t.country_id = s.country_id
-                            and t.gender_id = s.gender_id);
+                            and t.gender_id = s.gender_id
+                            and t.local_group_id = s.local_group_id
+                            and t.contact_country_id = s.contact_country_id);
         set @ins = @@rowcount;
-
-        delete tgt
-        from Layercake.fact_annual_rate_base tgt
-        where not exists (select 1 from Layercake.silv_annual_rate_base s
-                          where s.campaign_year = tgt.campaign_year
-                            and s.grade_id = tgt.grade_id
-                            and s.membership_status_id = tgt.membership_status_id
-                            and s.country_id = tgt.country_id
-                            and s.gender_id = tgt.gender_id);
-        set @del = @@rowcount;
 
         -- gold must reconcile exactly back to silver
         select @src_count = count(*) from Layercake.silv_annual_rate_base;

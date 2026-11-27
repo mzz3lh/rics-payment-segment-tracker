@@ -16,6 +16,10 @@
 --  values are written by usp_load_silv_membership_events_segments.
 --  RPST (MOD-012): the eight amount columns Subs.vwSubsMemberStatuses
 --  cannot supply dropped by change script (Q-038).
+--  RPST (MOD-032, REQ-027, RULE-172, RULE-175): local_group_id and
+--  contact_country_id added by change script. country_id now holds the
+--  member's country BY LOCAL GROUP and contact_country_id the own
+--  country, both written by usp_load_silv_membership_events.
 ----------------------------------------------------
 create table Layercake.silv_membership_events
 (
@@ -30,7 +34,7 @@ create table Layercake.silv_membership_events
     assessment_route_id  int not null,
     rpq_variant_id       int not null,
     hpb_id               int not null,
-    country_id           int not null,
+    country_id           int not null,                  -- -> silv_ref_country: country BY LOCAL GROUP (MOD-032)
     gender_id            int not null,
     membership_status_id int not null,
     campaign_year        int not null,
@@ -43,7 +47,9 @@ create table Layercake.silv_membership_events
     concession_type_carried bit not null constraint DF_Layercake_silv_membership_events_concession_type_carried default 0,
     subs_amount_gbp         decimal(19, 4) null,        -- amounts: Join / Renewal / Readmission only
     invoiced_subtotal_gbp   decimal(19, 4) null,
-    amount_status           varchar(30) null
+    amount_status           varchar(30) null,
+    local_group_id          int not null,               -- -> silv_ref_local_group (0 = Unknown: no usable local group) (MOD-032)
+    contact_country_id      int not null                -- -> silv_ref_country: the member's OWN country (MOD-032)
 );
 
 -- primary incremental diff key
