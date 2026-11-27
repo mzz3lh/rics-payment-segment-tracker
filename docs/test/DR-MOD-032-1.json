@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "artefact_type": "defect_report",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-27T14:55:01Z",
+    "status": "for_review",
+    "artefact_id": "DR-MOD-032-1",
+    "source_artefacts": [
+      "TR-MOD-032-1"
+    ]
+  },
+  "module_id": "MOD-032",
+  "loop_number": 1,
+  "defects": [
+    {
+      "id": "DEF-017",
+      "test_condition_ids": [
+        "TC-007-051",
+        "TC-007-052"
+      ],
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "severity": "minor",
+      "summary": "MOD-007's column-list tests for silv_membership_events and fact_membership_events still expect the shape after MOD-012, but the approved MOD-032 design (REQ-027, RULE-176, DES-001 silv_membership_events and fact_membership_events) adds local_group_id and contact_country_id (int NOT NULL) to both event tables, so the tests need widening where they name the column list.",
+      "steps_to_reproduce": "Run run_suite: test_MOD007 TC-007-051 and TC-007-052 fail. Then run SELECT column_id, name, TYPE_NAME(user_type_id), is_nullable FROM sys.columns WHERE object_id IN (OBJECT_ID('Layercake.silv_membership_events'), OBJECT_ID('Layercake.fact_membership_events')): the only additions are local_group_id and contact_country_id.",
+      "expected": "DES-001 / MP-001 MOD-032: both event tables gain local_group_id and contact_country_id, int NOT NULL, through change scripts, appended after the existing columns. TC-032-001 (passes) checks this. TC-007-051 and TC-007-052 should keep their Phase 1 and nine segment columns as they are and also allow these two new columns. MP-001 MOD-032 does not list the MOD-007 conditions among those to amend, so they have to be reopened for MOD-032 in the same way the MOD-031 tests were (answers.md, 2026-11-27).",
+      "actual": "The build matches the design. silv_membership_events has its earlier columns, then local_group_id (column 34) and contact_country_id (35), both int NOT NULL. fact_membership_events has its earlier columns, then local_group_id (33) and contact_country_id (34), both int NOT NULL. TC-007-051 and TC-007-052 fail with 'Unexpected/missing resultset rows' on the column list, because these two columns are not in their expected lists. Nothing else about the Phase 1 or segment columns differs.",
+      "suspected_cause": "design",
+      "status": "open"
+    },
+    {
+      "id": "DEF-018",
+      "test_condition_ids": [
+        "TC-016-014"
+      ],
+      "requirement_ids": [
+        "REQ-001",
+        "REQ-026",
+        "REQ-027"
+      ],
+      "severity": "minor",
+      "summary": "MOD-016's TC-016-014 still expects silv_annual_rate_base and fact_annual_rate_base to keep exactly their Phase 1 column lists ('MOD-032 adds local_group_id and contact_country_id to them'), but the approved MOD-032 design (REQ-027, RULE-176) adds both columns to the two annual tables and to their grain, so the condition needs widening for MOD-032.",
+      "steps_to_reproduce": "Run run_suite: test_MOD016 TC-016-014 fails. Then run SELECT column_id, name FROM sys.columns WHERE object_id IN (OBJECT_ID('Layercake.silv_annual_rate_base'), OBJECT_ID('Layercake.fact_annual_rate_base')) ORDER BY object_id, column_id.",
+      "expected": "DES-001 / MP-001 MOD-032: silv_annual_rate_base has 13 columns (the 11 Phase 1 columns, then local_group_id and contact_country_id). fact_annual_rate_base has 14 (id, the same 11, then the two new columns). Both new columns are int NOT NULL. TC-032-001 (passes) checks this. The daily-detail part of TC-016-014 is unaffected. MP-001 MOD-032 does not list MOD-016 among the conditions to amend.",
+      "actual": "The build matches the design. silv_annual_rate_base has columns 1-11 as in Phase 1, then local_group_id (12) and contact_country_id (13). fact_annual_rate_base has columns 1-12 as in Phase 1, then local_group_id (13) and contact_country_id (14). TC-016-014 fails with 'Unexpected/missing resultset rows' only on the two annual table lists.",
+      "suspected_cause": "design",
+      "status": "open"
+    }
+  ]
+}
