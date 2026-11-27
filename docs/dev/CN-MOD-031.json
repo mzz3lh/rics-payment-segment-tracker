@@ -4,9 +4,9 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "CN-MOD-031",
-    "version": 1,
+    "version": 2,
     "produced_by": "developer",
-    "produced_at": "2026-11-27T10:22:11Z",
+    "produced_at": "2026-11-27T12:36:34Z",
     "status": "for_review",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
@@ -18,7 +18,7 @@
   },
   "module_id": "MOD-031",
   "branch": "agent/developer/MOD-031-member-base-profile-and-daily-counts-by",
-  "commit": "c5b77025e8271a97b00eeee95e49459334ff622d",
+  "commit": "a8f002b944a271c94270a4afe9e5c85e01e265ed",
   "requirement_ids": [
     "REQ-027",
     "REQ-019",
@@ -195,8 +195,8 @@
       "up_script": "src/sql/deploy/MIG-0033_MOD-031_member-base-profile-and-daily-counts-by.up.sql",
       "down_script": "src/sql/deploy/MIG-0033_MOD-031_member-base-profile-and-daily-counts-by.down.sql",
       "rollback_test": {
-        "commit": "c5b77025e8271a97b00eeee95e49459334ff622d",
-        "run_at": "2026-11-27T10:22:02.122592+00:00",
+        "commit": "a8f002b944a271c94270a4afe9e5c85e01e265ed",
+        "run_at": "2026-11-27T12:36:25.788901+00:00",
         "result": "pass",
         "steps": [
           {
@@ -228,10 +228,5 @@
       }
     }
   ],
-  "deviations": [
-    "Case the design does not cover: a contact with silver events but no live brnz_contact row has no vw_silv_contact_local_group row. usp_load_silv_member_state_ranges then keeps the Phase 1 rule for it: region from the event's country_id, or 'N/K' for country 0, and the same value in contact_region. It is not dropped and does not fail the load. Pinned by test_MOD031_dev 'a contact with no live brnz_contact row keeps the Phase 1 region from its event'.",
-    "Case the design does not cover: if the view holds a contact number twice (two live brnz_contact rows), usp_load_silv_member_state_ranges takes the row with the lowest ContactId so its stage stays deterministic. The member base and profile loads still fail on the duplicate contact number, as they do in Phase 1.",
-    "Country 0 (Mike, 2026-11-27): with no usable local group both region and contact_region are 'N/K'. In a usable group, region is the group's region and contact_region is 'N/K'. The view's silv_ref_country row 0 ('N/A') regions are not used for either column."
-  ],
-  "notes": "At the start of this session the module was already built on the branch. Its first run_tests passed all 29 tests (test_MOD031 21/21, test_MOD031_dev 8/8). The roundtrip of MIG-0033 passes, and check passes; the sqlfluff findings are advisory, mostly the lower-case style of the Phase 1 files, which was kept.\n\nWhat was built:\n- Through change scripts, local_group_id, contact_country_id and contact_region are added to the tables in the plan, and the grain keys are widened (the fact's unique clustered index now has ten columns).\n- Existing rows get placeholder values: local_group_id 0, contact_country_id = country_id, contact_region = region. Adjustment rows written before deployment get local_group_id -2.\n- The migration empties the five snapshot tables and writes the 'local_group_restatement' marker. While the marker is there, the daily count takes the full path. It records only real changes, at the own-country grain with local_group_id -2. Where MOD-028's marker is also present, it uses -2 in the segment columns too, and one run removes both markers.\n- Gold country_id is the list's dim_country_id for a reportable local group, and otherwise the silver country.\n- A region longer than varchar(12) fails usp_load_silv_member_state_ranges with error 50031, naming the whole value. It is never cut short, and nothing is written.\n\nThe dev tests cover:\n- country 0 with and without a usable group;\n- a contact with no live contact row;\n- a profile update when only the local group changed;\n- gold for a group that is no longer reportable;\n- the log counts for a group move on the normal path;\n- a change to the own-country region alone, which stays on the normal path;\n- the detail as-known-at function on the new columns;\n- the error path for a region that is too long.\n\nNo grants (DES-001: MOD-031 adds none).\n\nTest-first: the first run had 21 of 21 of the Tester's tests passing; the final run passed 21 of 21 and 8 unit test(s), in 1 run(s)."
+  "notes": "Rework for DEF-016 (DR-MOD-031-2). Cause: the seven MOD-027/MOD-028 Developer unit tests named in the defect still seeded Layercake.silv_daily_count_detail and Layercake.fact_daily_member_count_detail at the pre-MOD-031 grain, so the gold load's #det_stage rejected the NULL local_group_id. Fix (test-only, as docs/answers.md 'MOD-031 regression: older tests at the old grain' allows): in tests/tsqlt/test_MOD027_dev.sql (3 tests) and tests/tsqlt/test_MOD028_dev.sql (4 tests) the seeded silver rows now also carry local_group_id 0, contact_country_id = country_id and contact_region = region, and the seeded fact rows carry local_group_id 0 and contact_country_id = country_id. Test names, data, expectations and the other tests in both files are unchanged. No SetUp change was needed: the gold load's left join to Layercake.silv_ref_local_group finds the seeded row 0 not reportable (is_reportable 0), so country_id stays the silver one. No MOD-031 object changed. run_tests: 40 passed, 0 failed. Round-trip of MIG-0033 passes and check passes.\n\nRework after DR-MOD-031-2 (DEF-016). Test-first: the first run had 21 of 21 of the Tester's tests passing; the final run passed 21 of 21 and 8 unit test(s), in 2 run(s)."
 }
