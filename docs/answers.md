@@ -273,3 +273,9 @@ the agent's working assumption. Example:
 - Found at AMD-009 spec review: RULE-179 gives adjustment rows written before the deployment local_group_id -2 Not applicable, but RULE-170 reserves only 0 Unknown in silv_ref_local_group and AC-027-10 expects exactly 8 rows (0 plus the 7 synthetic groups). So -2 would be an id that silv_ref_local_group and dim_local_group do not hold.
 - Answer: silv_ref_local_group and dim_local_group also hold a reserved row -2 Not applicable, alongside 0 Unknown, in the same way the segment dimensions hold -2 Not applicable (AMD-007). -2 is used only for adjustment rows written before the deployment (RULE-179); no member is ever given -2. AC-027-10 expects 9 rows (-2, 0 and the 7 synthetic groups), and the orphan check covers every table that stores local_group_id, including the adjustment history, not only the gold facts.
 - Nothing else in RULE-170 to RULE-179 or the acceptance criteria changes.
+
+## MOD-031 test design: members with no own country (given by Mike in the project thread, 2026-11-27)
+- Mike, 2026-11-27: "Q country 0: no usable group = N/K for region and contact region; usable group = group's region, contact region N/K. Accept TC-031-016 as designed."
+- Question (Tester, MOD-031): a member whose own country is missing or not in silv_ref_country has contact_country_id 0. Phase 1 gives such a member region 'N/K' (silv_member_state_ranges), but the view gives the silv_ref_country row 0 ('N/A') regions.
+- Answer: a member with country 0 and no usable local group has 'N/K' in both region and contact_region, exactly as Phase 1 does today. A member with country 0 in a usable local group (for example Gulf) has the group's region in region (for example 'MEA') and 'N/K' in contact_region.
+- TC-031-016 is accepted as designed: a real change found by the deployment's restating run is recorded at the own-country grain with local_group_id -2.
