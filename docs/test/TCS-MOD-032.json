@@ -1,0 +1,282 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-032",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-27T13:44:41Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-11-27T14:17:31Z",
+      "gate": "test_design_review",
+      "comments": "Approved with the Tester's working plan: the events tests use the member-base cohort only. The Join/Subscription cohort's use of vw_silv_contact_local_group is covered by a Developer unit test in test_MOD032_dev (docs/answers.md, 2026-11-27)."
+    }
+  },
+  "module_id": "MOD-032",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-032-001",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-10",
+      "category": "nulls",
+      "description": "Structure (RULE-176): silv_membership_events, fact_membership_events, silv_annual_rate_base and fact_annual_rate_base each gain local_group_id and contact_country_id, int NOT NULL, through MOD-032's change scripts, and nothing else.",
+      "preconditions": "Common SetUp (every test): fakes of etl_run_log and etl_progress_log (identity, defaults); brnz_contact, brnz_cust_trans, brnz_rics_record and brnz_contact_test_record left empty, so the events load makes no Join/Subscription and no Readmission event; silv_ref_lapse_reason, silv_ref_gender, silv_ref_rpq_variant, silv_ref_assessment_route; silv_ref_membership_grade and dim_membership_grade (0 N/A, 1 Candidate, 2 Qualified); silv_ref_membership_status (0 N/A, 1 Practising, 2 Retired); silv_ref_country (1 United Kingdom UK&I/UK&I, 2 United Arab Emirates MEA/MEA, 3 India APAC/APAC); silv_ref_country_region 1000001 (India, MEA, MEA); dim_country (the three countries plus 1000001 India MEA/MEA); silv_ref_local_group and dim_local_group with the nine rows MOD-030 gives (-2 Not applicable, 0 Unknown, 1 Gulf (UAE, MEA, reportable, dim_country_id 2), 2 London (UK, reportable, 1), 3 Gulf India (India, MEA, reportable, 1000001), 4 No Country, 5 No Region, 6 Closed Gulf, 7 Half Region, not reportable); ref_campaign_year_config CY2021 to CY2027; the MOD-032 targets (silver events with identity and defaults, the gold fact with identity); dim_date; and the daily count tables. Members in silv_member_base as MOD-031's load leaves them, each elected 2015-01-01 with no enrolment date, gender 1: G1 (country 2, local group 1 Gulf, own country 1), G2 (3, 3 Gulf India, 3), N1 (3, 0, 3). Payments: G1 CY2021 (2020-10-20) and CY2025 (2024-10-15), G2 CY2025 (2024-10-20), N1 CY2025 (2024-11-05). This test reads the real tables through tSQLt.Private_RenamedObjectLog and sys.columns.",
+      "expected": "The eight new columns are all int and NOT NULL. Column counts: silv_membership_events 27, fact_membership_events 26, silv_annual_rate_base 13, fact_annual_rate_base 14.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-001 events and annual rate base tables gain local_group_id and contact_country_id int not null]"
+    },
+    {
+      "id": "TC-032-002",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-11",
+      "category": "duplicates",
+      "description": "Structure: the unique key on fact_annual_rate_base's grain is widened by local_group_id and contact_country_id (DES-001 fact_annual_rate_base: any unique key on the grain widened by both).",
+      "preconditions": "Common SetUp. The real fact is read through the renamed-object log. Only unique indexes whose key includes campaign_year are compared; the index name is not asserted. The daily count parts of AC-027-11 are MOD-031's (TC-031-002).",
+      "expected": "Exactly one such unique index, with key columns exactly campaign_year, contact_country_id, country_id, gender_id, grade_id, local_group_id and membership_status_id.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-002 the fact annual rate base unique key covers the seven grain columns]"
+    },
+    {
+      "id": "TC-032-003",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-01",
+      "category": "happy_path",
+      "description": "usp_load_silv_membership_events gives every event the member base's country_id, local_group_id and contact_country_id (RULE-172, RULE-175). G1's Join and both Renewals have United Arab Emirates, Gulf and the United Kingdom.",
+      "preconditions": "Common SetUp. One run of the four MOD-032 loads in the run's order: events, annual rate base, gold events, gold annual rate base. AC-027-01 names usp_run_daily_load; these are the loads it calls, run directly, with the member base as MOD-031 leaves it (its own parts are covered by TC-031-003). Not covered: the Join/Subscription cohort, which DES-001 says takes its values from vw_silv_contact_local_group. Which rows make such an event was asked and the answer was deferred, so bronze stays empty and only the member-base cohort (Join 'JR:<contact>' and one Renewal per payment) is made.",
+      "expected": "Exactly 7 events (event_nk, type, country_id, local_group_id, contact_country_id): JR:G1 Join (2, 1, 1); RN:G1:2021 and RN:G1:2025 Renewal (2, 1, 1); JR:G2 Join and RN:G2:2025 Renewal (3, 3, 3); JR:N1 Join and RN:N1:2025 Renewal (3, 0, 3). Every etl_run_log row is 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-003 every event carries the member base country local group and own country]"
+    },
+    {
+      "id": "TC-032-004",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-01",
+      "category": "happy_path",
+      "description": "usp_load_fact_membership_events sets country_id by the gold country by local group pattern (ADR-015) and copies local_group_id and contact_country_id. Through dim_country, G1's events reach MEA and its own UK&I, G2's reach Gulf India's MEA (the combination row, not India's APAC) and its own APAC, and N1's (no group) reach APAC.",
+      "preconditions": "Common SetUp. One run of the four loads. Regions are read through dim_country on country_id and on contact_country_id; no generated id is asserted.",
+      "expected": "7 gold events, each matched to a silver event. (event_nk, local_group_id, country, region, market region, own country, own region, own market region): G1's 3 events (1, United Arab Emirates, MEA, MEA, United Kingdom, UK&I, UK&I); G2's 2 events (3, India, MEA, MEA, India, APAC, APAC); N1's 2 events (0, India, APAC, APAC, India, APAC, APAC).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-004 gold events reach the group region through country_id and the own region through contact_country_id]"
+    },
+    {
+      "id": "TC-032-005",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-01",
+      "category": "happy_path",
+      "description": "usp_load_silv_annual_rate_base counts each member under the member base's country_id, local_group_id and contact_country_id, for boundary headcounts and event counts alike (RULE-176).",
+      "preconditions": "Common SetUp. One run of the four loads. Only Campaign Years 2021 and 2025 are compared; every member is Qualified and Practising (elected 2015, no retirement date) and active at both boundaries.",
+      "expected": "For 2021 and 2025 exactly (campaign_year, grade, status, country, gender, local group, own country: start, end, joined, readmitted, lapsed, renewed): 2021 (2, 1, 2, 1, 1, 1: 1, 1, 0, 0, 0, 1), (2, 1, 3, 1, 3, 3: 1, 1, 0, 0, 0, 0), (2, 1, 3, 1, 0, 3: 1, 1, 0, 0, 0, 0); 2025 the same three cells, each with renewed 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-005 the silver annual rate base counts members under their local group country and own country]"
+    },
+    {
+      "id": "TC-032-006",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-01",
+      "category": "happy_path",
+      "description": "usp_load_fact_annual_rate_base maps country_id by the gold country by local group pattern and copies local_group_id and contact_country_id. G1's 2021 and 2025 rows reach MEA through country_id and UK&I through contact_country_id.",
+      "preconditions": "Common SetUp. One run of the four loads. Only 2021 and 2025 are compared.",
+      "expected": "For each of 2021 and 2025 (grade 2, status 1, gender 1): local group 1, MEA/MEA, own UK&I/UK&I; local group 3, MEA/MEA, own APAC/APAC; local group 0, APAC/APAC, own APAC/APAC. Each has start 1 and end 1; renewed is 1 for local group 1 in both years, and 1 for local groups 3 and 0 in 2025 only.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-006 the gold annual rate base reaches the group region and the own region through its two country keys]"
+    },
+    {
+      "id": "TC-032-007",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-11",
+      "category": "duplicates",
+      "description": "The annual grain gains local_group_id and contact_country_id. G2 (Gulf India) and N1 (no group) share the old five-column grain in 2025 but stay two rows. No two silver rows share the seven-column grain, and gold has exactly one row per silver row.",
+      "preconditions": "Common SetUp. One run of the four loads.",
+      "expected": "No duplicate seven-column grain in silv_annual_rate_base. For country 3 in 2025, exactly two rows: local group 3 and local group 0, each with start 1 and end 1. Gold and silver annual rows match one to one on (campaign_year, grade, status, gender, local group, own country) and all six counts.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-007 the annual grain keeps members of one country in different local groups apart]"
+    },
+    {
+      "id": "TC-032-008",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-027-05",
+      "category": "reconciliation",
+      "description": "On the same synthetic data, before and after the change: the events keep their row counts by type and their (event_nk, event_id) pairs, and both annual rate bases summed over country_id, local_group_id and contact_country_id are unchanged (RULE-177).",
+      "preconditions": "Common SetUp. Before: the member base set as it stood before the change (country_id = own country, local group 0), then run 1, which leaves the targets as the Phase 1 loads and MOD-032's change scripts would (local group 0, contact_country_id = country_id); snapshots taken. After: the member base on its local group basis, then run 2.",
+      "expected": "Before: 3 Joins and 4 Renewals; annual summed over the country columns gives 2021 (Qualified, Practising, gender 1) start 3, end 3, renewed 1 and 2025 start 3, end 3, renewed 3. After: 5 events now carry a local group. Silver (event_nk, event_id, type) and gold (event_id, type) equal their snapshots: 0 added, 0 removed, 0 changed. Silver and gold annual rate bases summed by (campaign_year, grade, status, gender) equal their snapshots for every year: 0 differences.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-008 totals not split by region country or local group are the same before and after the change]"
+    },
+    {
+      "id": "TC-032-009",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-06",
+      "category": "reconciliation",
+      "description": "contact_country_id on every silver and gold event equals the country_id the same event had before the change, and the silver annual rate base by contact_country_id equals it before the change by country_id (RULE-175).",
+      "preconditions": "Common SetUp. Before and after as in TC-032-008. Events are matched on event_id.",
+      "expected": "0 silver and 0 gold mismatches. contact_country_id is 1 on G1's 3 events and 3 on G2's and N1's 4. Annual by (campaign_year, grade, status, own country, gender) after equals by country before for every year: 0 differences; for 2025, own country 1 start 1, end 1, renewed 1 and own country 3 start 2, end 2, renewed 2.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-009 contact_country_id holds the country each event and annual row had before the change]"
+    },
+    {
+      "id": "TC-032-010",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-08",
+      "category": "happy_path",
+      "description": "G1 moves from Gulf to London. On the next run the events load updates G1's events in place, the annual rate base moves G1's rows to London, gold follows to UK&I, and no Gulf row remains. The result equals a fresh load from empty targets, which is what @FullRebuild gives for these two tables (Q-064, RULE-174, RULE-178).",
+      "preconditions": "Common SetUp. Run 1. G1's member base row is then set as MOD-031's load leaves it once rics_localgroupid is London: (country 1, local group 2, own country 1). Run 2. Then the four targets are emptied and the loads run again (run 3) for the fresh-load comparison. The daily count part of AC-027-08 (G1's cells, 1 contact recomputed on the normal path, adjustment rows, @FullRebuild parity) is MOD-031's TC-031-010.",
+      "expected": "Silver (event_nk, event_id) pairs are unchanged. G1's 3 events (1, 2, 1); G2 (3, 3, 3) and N1 (3, 0, 3) unchanged. Silver annual for own country 1: 2021 and 2025 (Qualified, Practising, country 1, gender 1, local group 2, own country 1) start 1, end 1, renewed 1. No row with local group 1 in any of the four tables. G1's gold events: local group 2, UK&I/UK&I through country_id, own UK&I. G1's gold annual rows for 2021 and 2025: local group 2, UK&I/UK&I, own UK&I. After run 3 all four tables (except event_id and the fact id) equal their state after run 2.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-010 G1 moving from Gulf to London moves its events and annual rows on the next run and matches a fresh load]"
+    },
+    {
+      "id": "TC-032-011",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-16",
+      "category": "negative",
+      "description": "Gulf becomes inactive. G1 no longer has a usable group, so on the next run its events, annual rows and gold rows move wholly back to the United Kingdom and UK&I with local group 0. No row anywhere keeps Gulf, and the result equals a fresh load (RULE-171 to RULE-173 as amended by AMD-009).",
+      "preconditions": "Common SetUp. Run 1. Gulf's list row is then set as MOD-030's load leaves an inactive group (statecode 1, is_reportable 0, dim_country_id NULL), and G1's member base row as MOD-031's load gives it (1, 0, 1). Run 2. Then a fresh load as in TC-032-010. The daily count part is MOD-031's TC-031-006.",
+      "expected": "Silver (event_nk, event_id) pairs are unchanged. G1's 3 events (country 1, local group 0, own country 1). Silver annual for own country 1: 2021 and 2025 (country 1, local group 0, own country 1) start 1, end 1, renewed 1. No row with local group 1 in any of the four tables. G1's gold events: local group 0, United Kingdom, UK&I, UK&I. G1's gold annual rows for 2021 and 2025: local group 0, UK&I/UK&I. Fresh load equal.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-011 Gulf made inactive moves G1 events and annual rows wholly back to its own country with local group 0]"
+    },
+    {
+      "id": "TC-032-012",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-01",
+      "category": "boundary",
+      "description": "Gulf's regions change from MEA to GCC. Its country stays the United Arab Emirates, so no silver event or annual row changes, but its dim_country_id moves to a new combination row. The two gold loads treat the different mapped country_id as a change, so G1's gold rows reach GCC on the next run (gold country by local group pattern).",
+      "preconditions": "Common SetUp. Run 1; snapshots of the silver events and annual rate base (every column). Then, as MOD-030's loads leave them: silv_ref_country_region 1000002 (UAE, GCC, GCC), dim_country 1000002 (United Arab Emirates, GCC, GCC), and Gulf with GCC/GCC and dim_country_id 1000002. Run 2.",
+      "expected": "Silver events and silver annual rate base equal their snapshots. Gold events through country_id: G1's 3 GCC/GCC (own UK&I), G2's 2 MEA/MEA (own APAC), N1's 2 APAC/APAC. Gold annual for 2021 and 2025: local group 1 GCC/GCC (own UK&I), local group 3 MEA/MEA (own APAC), local group 0 APAC/APAC.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-012 a change to the group dim_country_id alone moves gold rows and leaves silver unchanged]"
+    },
+    {
+      "id": "TC-032-013",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-08",
+      "category": "boundary",
+      "description": "The events diff-sync includes each new column on its own. L1 leaves London, so only its local_group_id changes (2 to 0) and its country stays the United Kingdom. G1's own country becomes India, so only its contact_country_id changes (1 to 3) and it stays in Gulf. Both are updated in place on the next run, and gold and the annual rate base follow.",
+      "preconditions": "Common SetUp plus L1 (elected 2015-01-01, member base country 1, local group 2, own country 1; payment CY2025 2024-11-10). Run 1; (event_nk, event_id) snapshots of silver and gold. Then L1 local group 0, and G1 own country 3, as MOD-031's load leaves them. Run 2.",
+      "expected": "Silver (event_nk, event_id) and gold event_id unchanged. Silver: G1's 3 events (2, 1, 3); JR:L1 and RN:L1:2025 (1, 0, 1). Gold: G1's events local group 1, MEA through country_id, APAC through contact_country_id; L1's events local group 0, UK&I and UK&I. Silver annual 2025 exactly (Qualified, Practising, gender 1; start 1, end 1, renewed 1 each): (country 2, local group 1, own 3), (3, 3, 3), (3, 0, 3), (1, 0, 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-013 a change of local group alone or of own country alone updates the events in place]"
+    },
+    {
+      "id": "TC-032-014",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-08",
+      "category": "idempotency",
+      "description": "A second run on unchanged data changes no event or annual row in silver or gold, and every load logs 'Success' with 0 inserted, 0 updated and 0 deleted (idempotency pattern).",
+      "preconditions": "Common SetUp. Run 1; SELECT * snapshots of the four tables; run 2 under its own run_id.",
+      "expected": "All four tables equal their snapshots in every column. Run 2 logs exactly 4 etl_run_log rows, each 'Success' with rows_inserted, rows_updated and rows_deleted 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-014 a rerun on unchanged data changes no event or annual row and logs 0 0 0]"
+    },
+    {
+      "id": "TC-032-015",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-027-05",
+      "category": "reconciliation",
+      "description": "Daily count part of AC-027-05: before and after the change, silv_daily_count summed over region, silv_daily_count_detail summed over region, country_id, local_group_id, contact_country_id and contact_region, and fact_daily_member_count_detail summed over country_id, local_group_id and contact_country_id are unchanged, while the regions move to the local group's (RULE-177).",
+      "preconditions": "Common SetUp plus the daily count inputs: ref_date_spine and dim_date 2020-10-01 (1, CY2021 Q1) and 2025-01-10 (2, CY2025 Q2); silv_member_profile and one open election range from 2015-01-01 per member (G1 MEA / UK&I, G2 MEA / APAC, N1 APAC / APAC), as MOD-031's loads give them; no attributes rows. Before: profile, ranges and member base on the own-country basis (region = contact_region); run 1 = the four loads, then usp_load_silv_daily_count and usp_load_fact_daily_member_count_detail. After: the local group basis; run 2 the same, so G1 and G2 change on the normal path.",
+      "expected": "The three summed comparisons give 0 differences in all seven measures. Active members per date are 3 (election) on both dates. silv_daily_count by region before: UK&I 1 and APAC 2 on each date; after: MEA 2 and APAC 1 on each date.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-015 daily count totals not split by region country or local group are the same before and after the change]"
+    },
+    {
+      "id": "TC-032-016",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-06",
+      "category": "reconciliation",
+      "description": "Daily count part of AC-027-06: silv_daily_count_detail after the change, summed by ([date], contact_country_id, contact_region, gender, grade, status, the three segment ids), equals the detail before the change summed by ([date], country_id, region and the same columns).",
+      "preconditions": "Data, before and after as in TC-032-015.",
+      "expected": "0 differences in all seven measures. Active members by own country after: country 1 UK&I 1 and country 3 APAC 2, on each of 2020-10-01 and 2025-01-10.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-016 daily count detail by own country equals the detail before the change by country]"
+    },
+    {
+      "id": "TC-032-017",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-10",
+      "category": "nulls",
+      "description": "After the change, no member table, event table, annual rate base, daily count cell or fact row has a NULL local_group_id or contact_country_id, or a local_group_id of -2. Every silver local_group_id, including the adjustment history's, resolves to silv_ref_local_group; every gold local_group_id resolves to dim_local_group; every gold contact_country_id resolves to dim_country. -2 appears only on the pre-deployment adjustment row (RULE-179, AMD-009).",
+      "preconditions": "Data as in TC-032-015, plus one adjustment row written before deployment as MOD-031's migration leaves it (run E..99, 2025-01-10, UK&I, country 1, election, Practising, segments 0, active +1, local group -2, own country 1, UK&I). Run 1 on the own-country basis, run 2 on the local group basis. The list's nine rows, dim_local_group's matching pairs, reload and rename are MOD-030's (TC-030-013, TC-030-016, TC-030-017, TC-030-023); here they are given as MOD-030 leaves them.",
+      "expected": "All ten checked tables hold rows. 0 rows with a NULL or -2 value, 0 local group orphans, 0 gold own-country orphans. The adjustment history's local groups are exactly -2, 0, 1 and 3. The only -2 row is run E..99's, and it resolves to 'Not applicable'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-017 no table holds a null or -2 local group or own country and every id resolves]"
+    },
+    {
+      "id": "TC-032-018",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-001"
+      ],
+      "acceptance_criterion_id": "AC-027-14",
+      "category": "reconciliation",
+      "description": "The database fact that the edited check D2 depends on: gold events, the gold annual rate base and the gold daily star reconcile to silver. They carry local_group_id and contact_country_id, and country_id is the group's dim_country_id where the group is reportable and the silver country_id otherwise (RULE-181).",
+      "preconditions": "Data as in TC-032-015 on the local group basis; one run of the four loads plus the daily count and its gold load. The D2 edit, the re-baselining of active-member-difference.sql and paid-member-difference.sql, and the run of all three scripts in SQLCMD mode after one usp_run_daily_load are a human handover step listed in the runbook (MP-001). A tSQLt test cannot run SQLCMD scripts.",
+      "expected": "Gold events equal silver events mapped this way on (event_id, country, local group, own country, gender, grade, status, campaign_year): 0 differences, 7 rows. The gold annual rate base equals silver mapped: 0 differences. The gold daily star summed by (date_id, country, gender, status, segments, local group, own country) equals silver detail mapped and summed the same way: 0 differences. The fact holds 6 cells, three per loaded date.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-018 gold events annual rate base and daily star reconcile to silver under the gold country by local group rule]"
+    },
+    {
+      "id": "TC-032-019",
+      "requirement_ids": [
+        "REQ-015",
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-15",
+      "category": "happy_path",
+      "description": "The database facts the handover pack must describe exist: silv_ref_local_group and dim_local_group, local_group_id and contact_country_id on the member base, both event tables, both annual rate bases and the gold daily fact, and contact_region on silv_daily_count_detail.",
+      "preconditions": "Common SetUp. Checked with OBJECT_ID and COL_LENGTH. The pack's wording is written in MOD-032's documentation update and checked at the documentation review, as ASM-009 and TC-014-016 do for AC-013-05. That covers the data lineage, glossary, runbook or lineage note on summing over local_group_id and contact_country_id, and the known limitations on Q-064 and Q-067. tSQLt cannot read the pack.",
+      "expected": "All 15 objects and columns are present.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD032].[test TC-032-019 the objects and columns the handover pack describes exist]"
+    }
+  ]
+}
