@@ -890,6 +890,8 @@ BEGIN
                  (N'silv_annual_rate_base', 9, N'members_readmitted'),
                  (N'silv_annual_rate_base', 10, N'members_lapsed'),
                  (N'silv_annual_rate_base', 11, N'members_renewed'),
+                 (N'silv_annual_rate_base', 12, N'local_group_id'),
+                 (N'silv_annual_rate_base', 13, N'contact_country_id'),
                  (N'fact_annual_rate_base', 1, N'id'),
                  (N'fact_annual_rate_base', 2, N'campaign_year'),
                  (N'fact_annual_rate_base', 3, N'grade_id'),
@@ -901,7 +903,9 @@ BEGIN
                  (N'fact_annual_rate_base', 9, N'members_joined'),
                  (N'fact_annual_rate_base', 10, N'members_readmitted'),
                  (N'fact_annual_rate_base', 11, N'members_lapsed'),
-                 (N'fact_annual_rate_base', 12, N'members_renewed'))
+                 (N'fact_annual_rate_base', 12, N'members_renewed'),
+                 (N'fact_annual_rate_base', 13, N'local_group_id'),
+                 (N'fact_annual_rate_base', 14, N'contact_country_id'))
          AS v (table_name, ordinal, column_name);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
