@@ -14,6 +14,13 @@
     deployment, and by the restating run, carry -2, so for a time before
     deployment the figures are exact summed over the three columns but
     not split by segment (RULE-163).
+    MOD-031 (REQ-027, RULE-176, RULE-179): the cell also includes
+    local_group_id, contact_country_id and contact_region. Rows written
+    before that deployment carry their own country and region in the
+    contact columns and -2 in local_group_id, so for a time before it the
+    figures are exact by own country and wherever region, country_id and
+    local_group_id are summed over, but not split by the local group's
+    region or country.
 ====================================================================*/
 CREATE OR ALTER FUNCTION Layercake.fn_silv_daily_count_detail_as_known_at
 (
@@ -34,6 +41,9 @@ RETURN
         f.payment_method_id,
         f.payer_type_id,
         f.concession_type_id,
+        f.local_group_id,
+        f.contact_country_id,
+        f.contact_region,
         ISNULL(SUM(f.active_count), 0)            AS active_count,
         ISNULL(SUM(f.paid_count), 0)              AS paid_count,
         ISNULL(SUM(f.paid_count_event), 0)        AS paid_count_event,
@@ -45,6 +55,7 @@ RETURN
         SELECT
             d.[date], d.region, d.country_id, d.gender_id, d.grade, d.membership_status_id,
             d.payment_method_id, d.payer_type_id, d.concession_type_id,
+            d.local_group_id, d.contact_country_id, d.contact_region,
             d.active_count, d.paid_count, d.paid_count_event, d.event_join_count,
             d.event_renewal_count, d.event_readmission_count, d.event_lapse_count,
             1 AS is_stored
@@ -58,6 +69,7 @@ RETURN
         SELECT
             a.[date], a.region, a.country_id, a.gender_id, a.grade, a.membership_status_id,
             a.payment_method_id, a.payer_type_id, a.concession_type_id,
+            a.local_group_id, a.contact_country_id, a.contact_region,
             -a.active_count_change, -a.paid_count_change, -a.paid_count_event_change, -a.event_join_count_change,
             -a.event_renewal_count_change, -a.event_readmission_count_change, -a.event_lapse_count_change,
             0 AS is_stored
@@ -66,7 +78,8 @@ RETURN
           AND a.written_at > @as_known_at
     ) AS f
     GROUP BY f.[date], f.region, f.country_id, f.gender_id, f.grade, f.membership_status_id,
-             f.payment_method_id, f.payer_type_id, f.concession_type_id
+             f.payment_method_id, f.payer_type_id, f.concession_type_id,
+             f.local_group_id, f.contact_country_id, f.contact_region
     -- A stored row is always returned, even all zeros; a cell that exists only in the history
     -- (removed after T) is returned only if it had a figure at T.
     HAVING MAX(f.is_stored) = 1

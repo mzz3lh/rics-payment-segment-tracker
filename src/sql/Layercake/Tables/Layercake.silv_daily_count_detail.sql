@@ -7,11 +7,13 @@
 --  Layercake.silv_daily_count_detail
 --  The main daily count at the finer grain
 --  [date] x region x country x gender x grade x membership status
---  x payment method x payer type x concession type (RPST MOD-028, REQ-026).
+--  x payment method x payer type x concession type (RPST MOD-028, REQ-026)
+--  x local group x own country x own-country region (RPST MOD-031, REQ-027).
 --  Feeds gold fact_daily_member_count_detail. silv_daily_count is derived
---  from this table (SUM over country/gender/status and the three segment
---  ids), so the two always reconcile. Date-leading clustered PK keeps the
---  per-chunk delete + re-insert cheap and idempotent.
+--  from this table (SUM over country/gender/status, the three segment
+--  ids and the three local group columns), so the two always reconcile.
+--  Date-leading clustered PK keeps the per-chunk delete + re-insert cheap
+--  and idempotent.
 --
 --  TWO PAID MEASURES, side by side and deliberately not reconciled:
 --    paid_count       - PAYMENT-driven. A payment event for the campaign
@@ -33,14 +35,20 @@
 --  deployment, until the first run restates them, ADR-013). A contact-day
 --  takes them from its silv_member_year_attributes row for the day's
 --  Campaign Year, 0 Unknown where it has none.
+--
+--  RPST (MOD-031): region and country_id carry the member's region and
+--  country BY LOCAL GROUP; local_group_id, contact_country_id (own
+--  country) and contact_region (own country's region) added by change
+--  script and part of the grain. Rows stored before deployment take 0,
+--  their country_id and their region until the first run restates them.
 ----------------------------------------------------
 create table Layercake.silv_daily_count_detail
 (
     [date]                  date not null,
     campaign_year           int not null,
     campaign_quarter        char(2) not null,
-    region                  varchar(12) not null,   -- RANGE region (same as silv_daily_count)
-    country_id              int not null,           -- -> silv_ref_country (contact's CURRENT country)
+    region                  varchar(12) not null,   -- RANGE region by local group (same as silv_daily_count)
+    country_id              int not null,           -- -> silv_ref_country (contact's CURRENT country by local group)
     gender_id               int not null,           -- -> silv_ref_gender
     grade                   varchar(12) not null,   -- enrolment, election, lapse
     membership_status_id    int not null,           -- -> silv_ref_membership_status (0 = N/A outside 'election')
@@ -54,7 +62,11 @@ create table Layercake.silv_daily_count_detail
     payment_method_id       int not null,           -- -> silv_ref_payment_method
     payer_type_id           int not null,           -- -> silv_ref_payer_type
     concession_type_id      int not null,           -- -> silv_ref_concession_type
+    local_group_id          int not null,           -- -> silv_ref_local_group (0 = Unknown)
+    contact_country_id      int not null,           -- -> silv_ref_country (own country)
+    contact_region          varchar(12) not null,   -- own country's RANGE region
     constraint pk_silv_daily_count_detail primary key clustered
         ([date], region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id)
+         payment_method_id, payer_type_id, concession_type_id,
+         local_group_id, contact_country_id, contact_region)
 );

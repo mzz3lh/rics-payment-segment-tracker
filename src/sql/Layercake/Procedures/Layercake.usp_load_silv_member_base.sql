@@ -118,6 +118,15 @@
     annual rate base and (through silv_member_profile) the daily count
     read this column for Practising / Retired and pick it up unchanged.
 
+    COUNTRY BY LOCAL GROUP (MOD-031, REQ-027, RULE-172, RULE-175):
+    country_id, local_group_id and contact_country_id come from
+    Layercake.vw_silv_contact_local_group, the one place that decides
+    them, joined on the contact's ContactId (one view row per live
+    brnz_contact row). country_id is the usable local group's country,
+    else the own country; contact_country_id is the own country, derived
+    exactly as country_id was before (0 where rics_countryid is null or
+    not in silv_ref_country). Only the values change; the row set does not.
+
     DRIVER EXCLUSIONS:
       * Student grade (200000003) on the latest rics record - 'Rules to
         note' #2 - UNLESS the Student status is SUPERSEDED in the
@@ -298,7 +307,7 @@ begin
          recorded_election_date, election_from_subs_history,
          contact_lapsed_date, lapsed_date,
          lapse_reason_id, lapse_reason_name, retirement_date, source_enr_id, rpq_variant_id,
-         country_id, gender_id)
+         country_id, gender_id, local_group_id, contact_country_id)
         select
             c.ContactId                             as contact_id,
             c.Rics_contactno                        as contact_no,
@@ -327,8 +336,12 @@ begin
             drd.derived_retirement_date             as retirement_date,
             lin.[ENR ID]                            as source_enr_id,
             isnull(rv.id, 0)                        as rpq_variant_id,
-            isnull(ctry.id, 0)                      as country_id,
-            isnull(g.id, 0)                         as gender_id
+            -- MOD-031: country by local group, the local group and the own
+            -- country, all from the one view (see the header)
+            isnull(clg.country_id, 0)               as country_id,
+            isnull(g.id, 0)                         as gender_id,
+            isnull(clg.local_group_id, 0)           as local_group_id,
+            isnull(clg.contact_country_id, 0)       as contact_country_id
         from Layercake.brnz_contact c
         left join (
             -- v6 aggregate over the staged rows (see #enr_base above)
@@ -428,8 +441,9 @@ begin
             on drd.contact_no = c.Rics_contactno
         left join Layercake.silv_ref_lapse_reason lr
             on rec.apuk_lapsecode = lr.lapse_code
-        left join Layercake.silv_ref_country ctry
-            on c.rics_countryid = ctry.country_id
+        -- MOD-031: one view row per brnz_contact row, so the join cannot fan out
+        left join Layercake.vw_silv_contact_local_group clg
+            on clg.contact_id = c.ContactId
         left join Layercake.silv_ref_gender g
             on c.GenderCode = g.gender_code
         where c._is_deleted = 0

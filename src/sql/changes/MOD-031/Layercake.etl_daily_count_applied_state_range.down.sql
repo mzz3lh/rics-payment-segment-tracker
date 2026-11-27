@@ -1,0 +1,1 @@
+ALTER TABLE Layercake.etl_daily_count_applied_state_range DROP COLUMN contact_region;

@@ -7,8 +7,12 @@
     12. Layercake.silv_member_profile
     ------------------------------------------------------------------
     Per-contact reporting attributes for the DETAIL daily count:
-    country_id, gender_id, retirement_date. Staged straight from
-    silv_member_base and diff-synced on contact_no.
+    country_id, gender_id, retirement_date and (MOD-031, REQ-027)
+    local_group_id and contact_country_id. Staged straight from
+    silv_member_base and diff-synced on contact_no. country_id is the
+    country by local group and contact_country_id the own country, as
+    the member base holds them; a difference in either new column is a
+    change like any other.
 
     WHY IT EXISTS: the state ranges don't carry these columns, so the
     range diff can never see an attribute change - without this table a
@@ -16,9 +20,9 @@
     be completely invisible to the daily count.
 
     AFFECTED-DATE DERIVATION (feeds the pending-rebuild log):
-      * country/gender changed  -> the contact's earliest range
-        valid_from (attributes apply day-by-day as CURRENT values, so
-        the whole active history would re-bucket);
+      * country/gender/local group/own country changed -> the contact's
+        earliest range valid_from (attributes apply day-by-day as CURRENT
+        values, so the whole active history would re-bucket);
       * retirement date changed -> the EARLIER of the old and new
         retirement dates (day-level Practising/Retired status is the
         only thing that reads it).
@@ -51,7 +55,7 @@ begin
         set @substep_ts = sysdatetime();
         begin tran;
 
-        select b.contact_no, b.country_id, b.gender_id, b.retirement_date
+        select b.contact_no, b.country_id, b.gender_id, b.retirement_date, b.local_group_id, b.contact_country_id
         into #prof_stage
         from Layercake.silv_member_base b;
         set @rc = @@rowcount;
@@ -64,9 +68,9 @@ begin
         -- changed contacts, with the narrowest date each change can affect
         select
             s.contact_no,
-            iif(exists (select s.country_id, s.gender_id
+            iif(exists (select s.country_id, s.gender_id, s.local_group_id, s.contact_country_id
                         except
-                        select t.country_id, t.gender_id), 1, 0) as demo_changed,
+                        select t.country_id, t.gender_id, t.local_group_id, t.contact_country_id), 1, 0) as demo_changed,
             case when isnull(s.retirement_date, '99991231') <> isnull(t.retirement_date, '99991231')
                  then (select min(d) from (values (s.retirement_date), (t.retirement_date)) x(d) where d is not null)
             end as retirement_changed_from
@@ -74,15 +78,15 @@ begin
         from #prof_stage s
         join Layercake.silv_member_profile t
           on  t.contact_no = s.contact_no
-        where exists (select s.country_id, s.gender_id, s.retirement_date
+        where exists (select s.country_id, s.gender_id, s.retirement_date, s.local_group_id, s.contact_country_id
                       except
-                      select t.country_id, t.gender_id, t.retirement_date);
+                      select t.country_id, t.gender_id, t.retirement_date, t.local_group_id, t.contact_country_id);
         set @rc = @@rowcount;
 
         set @prof_recalc_from = (
             select min(v.win_from)
             from (
-                -- country/gender: from the contact's earliest state range
+                -- country/gender/local group: from the contact's earliest state range
                 select min(r.valid_from) as win_from
                 from #prof_changed ch
                 join Layercake.silv_member_state_ranges r
@@ -99,9 +103,11 @@ begin
 
         -- diff-sync: update changed
         update tgt
-        set country_id      = s.country_id,
-            gender_id       = s.gender_id,
-            retirement_date = s.retirement_date
+        set country_id         = s.country_id,
+            gender_id          = s.gender_id,
+            retirement_date    = s.retirement_date,
+            local_group_id     = s.local_group_id,
+            contact_country_id = s.contact_country_id
         from Layercake.silv_member_profile tgt
         join #prof_changed ch on ch.contact_no = tgt.contact_no
         join #prof_stage   s  on s.contact_no  = tgt.contact_no;
@@ -109,8 +115,9 @@ begin
         exec Layercake.usp_etl_log_progress @log_id, N'sync: update', @upd, @substep_ts output;
 
         -- insert new contacts (their dates are covered by the range diff)
-        insert into Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date)
-        select s.contact_no, s.country_id, s.gender_id, s.retirement_date
+        insert into Layercake.silv_member_profile
+        (contact_no, country_id, gender_id, retirement_date, local_group_id, contact_country_id)
+        select s.contact_no, s.country_id, s.gender_id, s.retirement_date, s.local_group_id, s.contact_country_id
         from #prof_stage s
         where not exists (select 1 from Layercake.silv_member_profile t
                           where t.contact_no = s.contact_no);

@@ -16,6 +16,13 @@
 --  script and part of the star grain. No foreign keys, as on the segment
 --  columns of fact_membership_events. A report that wants the old grain
 --  SUMs over the three columns (RULE-167).
+--  RPST (MOD-031, REQ-027, ADR-015): country_id now holds the dim_country
+--  row that gives the member's region BY LOCAL GROUP (a usable group's
+--  silv_ref_local_group.dim_country_id, else the own country);
+--  local_group_id (dim_local_group) and contact_country_id (dim_country
+--  key of the own country) added by change script and part of the star
+--  grain, no foreign keys. A report that wants the old grain also SUMs
+--  over these two columns (RULE-182).
 --
 --  PaidMembers vs PaidMembersEvent are two independent readings of the
 --  same question, carried side by side so a report can show either or
@@ -36,7 +43,7 @@ create table Layercake.fact_daily_member_count_detail
     id                   bigint identity not null
         constraint pk_fact_daily_member_count_detail primary key nonclustered,
     date_id              int not null,    -- -> dim_date
-    country_id           int not null,    -- -> dim_country (region rolls up here)
+    country_id           int not null,    -- -> dim_country (region by local group rolls up here)
     gender_id            int not null,    -- -> dim_gender
     membership_grade_id  int not null,    -- -> dim_membership_grade (0 = N/A - incl. daily lapse rows; lapse is event-only)
     membership_status_id int not null,    -- -> dim_membership_status (Practising/Retired; 0 = N/A - incl. daily lapse rows)
@@ -49,10 +56,12 @@ create table Layercake.fact_daily_member_count_detail
     LapseEvents          int not null,    -- reported, not deducted from PaidMembersEvent
     payment_method_id    int not null,    -- -> dim_payment_method
     payer_type_id        int not null,    -- -> dim_payer_type
-    concession_type_id   int not null     -- -> dim_concession_type
+    concession_type_id   int not null,    -- -> dim_concession_type
+    local_group_id       int not null,    -- -> dim_local_group (0 = Unknown)
+    contact_country_id   int not null     -- -> dim_country (own country and its regions)
 );
 
 create unique clustered index cx_fact_daily_member_count_detail
     on Layercake.fact_daily_member_count_detail
     (date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-     payment_method_id, payer_type_id, concession_type_id);
+     payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id);

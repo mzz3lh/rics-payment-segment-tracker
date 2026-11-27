@@ -27,6 +27,18 @@
     enrolment -> election -> lapse (-> readmission), and that per-contact
     sequence is PERSISTED in state_seq.
 
+    REGION BY LOCAL GROUP (MOD-031, REQ-027, RULE-173, RULE-175): region
+    is the member's world region (the flavour Phase 1 uses) from
+    Layercake.vw_silv_contact_local_group: the usable local group's
+    region, else the own country's. contact_region is always the own
+    country's world region. An unknown own country (country 0) gives
+    'N/K', as Phase 1 does: in contact_region always, and in region
+    when the member has no usable local group (a usable group still
+    gives its own region). A contact the view does not hold (no live
+    brnz_contact row) keeps the Phase 1 rule from the event's country in
+    both columns. A region longer than varchar(12) fails the load with
+    an error naming the value; it is never cut short.
+
     The earliest date the changed contacts could affect goes to the
     RETRO-CHANGE LOG - it does not rebuild history.
 ====================================================================*/
@@ -45,12 +57,34 @@ begin
             @rc              int,
             @substep_ts      datetime2(3),
             @err             nvarchar(4000),
-            @rng_recalc_from date;
+            @rng_recalc_from date,
+            @long_value      nvarchar(200),
+            @long_contact    nvarchar(200),
+            @long_n          int,
+            @long_msg        nvarchar(2048);
 
     begin try
         exec Layercake.usp_etl_log_start @run_id, 'silver', 'silv_member_state_ranges', @log_id output;
         set @substep_ts = sysdatetime();
         begin tran;
+
+        -- MOD-031: each contact's regions, one row per contact number. The view
+        -- has one row per live brnz_contact row; a contact number held twice is
+        -- stopped downstream (the events and profile loads fail on it), and the
+        -- lowest ContactId keeps this stage deterministic meanwhile.
+        select v.contact_no,
+               iif(v.local_group_id = 0 and v.contact_country_id = 0, N'N/K', v.region_name) as region,
+               iif(v.contact_country_id = 0, N'N/K', v.contact_region_name)                 as contact_region
+        into #clg
+        from (
+            select l.contact_no, l.local_group_id, l.contact_country_id, l.region_name, l.contact_region_name,
+                   row_number() over (partition by l.contact_no order by l.contact_id) as rn
+            from Layercake.vw_silv_contact_local_group l
+            where l.contact_no is not null
+        ) v
+        where v.rn = 1;
+
+        create unique clustered index cx_clg on #clg (contact_no);
 
         -- one row per contact per state, with valid_from/valid_to bounding the
         -- period in that state. Retirement is NOT a range: Practising/Retired
@@ -76,8 +110,12 @@ begin
                 end as grade,
                 -- v2 parity: Region is the WORLD region name (as Gold Layer v2
                 -- uses), not market_reporting_region - both stay available on
-                -- silv_ref_country / dim_country
-                iif(e.country_id = 0, 'N/K', ctry.region_name) as region,
+                -- silv_ref_country / dim_country. MOD-031: by local group, from
+                -- the view (see the header); Phase 1's rule where it has no row.
+                case when clg.contact_no is not null then clg.region
+                     else iif(e.country_id = 0, 'N/K', ctry.region_name) end as region,
+                case when clg.contact_no is not null then clg.contact_region
+                     else iif(e.country_id = 0, 'N/K', ctry.region_name) end as contact_region,
                 -- same-day ordering: enrolment < election < lapse < readmit,
                 -- so a same-day lapse + readmission nets out to an active
                 -- state, and a same-day enrolment + election ends the day
@@ -94,6 +132,8 @@ begin
                 on  e.country_id = ctry.id
             left join Layercake.silv_ref_membership_grade mg
                 on  mg.id = e.grade_id
+            left join #clg clg
+                on  clg.contact_no = e.contact_no
             -- Renewal events don't open or close a state: they drive the paid
             -- count via silv_payment_events, not the active state ranges
             where e.event_type in ('Join', 'Change', 'Lapse', 'Readmission')
@@ -107,8 +147,9 @@ begin
                 v.event_date,
                 v.grade,
                 v.region,
+                v.contact_region,
                 row_number() over (partition by v.contact_no order by v.event_date, v.ord) as id
-            from (select distinct contact_no, event_date, grade, region, ord from ev) v
+            from (select distinct contact_no, event_date, grade, region, contact_region, ord from ev) v
         )
         -- each state runs from its own event date to the NEXT event in the
         -- sequence (null = open ended). Same-day transitions produce
@@ -122,7 +163,8 @@ begin
             case when month(a.event_date) >= 10 then year(a.event_date) + 1 else year(a.event_date) end as campaign_year_from,
             a.grade,
             a.region,
-            a.id         as state_seq
+            a.id         as state_seq,
+            a.contact_region
         into #rng_stage
         from date_list a
         left join date_list b
@@ -133,21 +175,38 @@ begin
         create clustered index cx_rng_stage on #rng_stage (contact_no);
         exec Layercake.usp_etl_log_progress @log_id, N'stage #rng_stage (events -> ranges)', @rc, @substep_ts output;
 
+        -- MOD-031: a region that does not fit varchar(12) stops the load with
+        -- the whole value named, rather than being cut short on insert
+        select @long_n = count(*),
+               @long_value = min(v.val),
+               @long_contact = min(v.contact_no)
+        from (select s.contact_no, s.region as val from #rng_stage s where len(s.region) > 12
+              union all
+              select s.contact_no, s.contact_region from #rng_stage s where len(s.contact_region) > 12) v;
+
+        if @long_n > 0
+        begin
+            set @long_msg = concat(N'Region value too long for Layercake.silv_member_state_ranges (varchar(12)): ''',
+                                   @long_value, N''' (contact ', @long_contact, N'; ', @long_n,
+                                   N' range(s) affected). Nothing was written; correct the local group or country region and rerun.');
+            throw 50031, @long_msg, 1;
+        end
+
         -- contacts whose derived range set differs from what's stored
         -- (either direction: new/moved ranges, and ranges that disappeared).
         select contact_no
         into #rng_changed
         from (
             select contact_no from (
-                select contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq from #rng_stage
+                select contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq, contact_region from #rng_stage
                 except
-                select contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq from Layercake.silv_member_state_ranges
+                select contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq, contact_region from Layercake.silv_member_state_ranges
             ) a
             union
             select contact_no from (
-                select contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq from Layercake.silv_member_state_ranges
+                select contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq, contact_region from Layercake.silv_member_state_ranges
                 except
-                select contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq from #rng_stage
+                select contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq, contact_region from #rng_stage
             ) b
         ) v;
         set @rc = @@rowcount;
@@ -179,8 +238,8 @@ begin
         exec Layercake.usp_etl_log_progress @log_id, N'sync: delete changed contacts', @del, @substep_ts output;
 
         insert into Layercake.silv_member_state_ranges
-        (contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq)
-        select s.contact_no, s.valid_from, s.valid_to, s.campaign_year_from, s.grade, s.region, s.state_seq
+        (contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq, contact_region)
+        select s.contact_no, s.valid_from, s.valid_to, s.campaign_year_from, s.grade, s.region, s.state_seq, s.contact_region
         from #rng_stage s
         join #rng_changed ch on ch.contact_no = s.contact_no;
         set @ins = @@rowcount;
