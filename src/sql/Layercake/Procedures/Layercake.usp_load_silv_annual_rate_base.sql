@@ -7,7 +7,7 @@
     14. Layercake.silv_annual_rate_base
     ------------------------------------------------------------------
     Segment-level annual counts for the DAX rate measures. Full
-    re-derive into #rate_stage, then diff-sync on the 5-column key.
+    re-derive into #rate_stage, then diff-sync on the 7-column key.
     Cheap: the table is small and sparse. Reads silv_member_base
     (boundary headcounts) and silv_membership_events (event counts).
 
@@ -23,6 +23,16 @@
     view from the daily fact's region/grade Lapsed bucket, so reconcile
     at the 30 Sep boundary as a validation step (tests T-06 / T-09)
     rather than expecting an identical total.
+
+    COUNTRY BY LOCAL GROUP (MOD-032, REQ-027, RULE-176): the grain gains
+    local_group_id and contact_country_id. Boundary headcounts take
+    country_id, local_group_id and contact_country_id from
+    silv_member_base, event counts from the event row, which carries the
+    same three values. Summed over the three columns every count is the
+    Phase 1 figure (RULE-177). The member base and the events always hold
+    both new columns; the isnull()s only keep a row written without them
+    (0, and the own country = country_id, as the change script gives
+    existing rows) from breaking the not-null key.
 ====================================================================*/
 create or alter procedure Layercake.usp_load_silv_annual_rate_base
     @run_id uniqueidentifier = null
@@ -73,6 +83,8 @@ begin
                 c.boundary,
                 b.country_id,
                 b.gender_id,
+                isnull(b.local_group_id, 0)                     as local_group_id,
+                isnull(b.contact_country_id, b.country_id)      as contact_country_id,
                 case when b.election_date <= c.boundary_date then 'Qualified'
                      when b.enrolment_date <= c.boundary_date then 'Candidate'
                      else 'N/A' end as grade_name,
@@ -87,16 +99,22 @@ begin
         ),
         boundary_counts as (
             select am.campaign_year, mg.id as grade_id, ms.id as membership_status_id,
-                   am.country_id, am.gender_id,
+                   am.country_id, am.gender_id, am.local_group_id, am.contact_country_id,
                    sum(iif(am.boundary = 'start', 1, 0)) as members_start,
                    sum(iif(am.boundary = 'end',   1, 0)) as members_end
             from active_members am
             inner join Layercake.silv_ref_membership_grade mg  on mg.grade_name = am.grade_name
             inner join Layercake.silv_ref_membership_status ms on ms.status_name = am.status_name
-            group by am.campaign_year, mg.id, ms.id, am.country_id, am.gender_id
+            group by am.campaign_year, mg.id, ms.id, am.country_id, am.gender_id, am.local_group_id, am.contact_country_id
+        ),
+        events as (
+            select campaign_year, grade_id, membership_status_id, country_id, gender_id, event_type,
+                   isnull(local_group_id, 0)                as local_group_id,
+                   isnull(contact_country_id, country_id)   as contact_country_id
+            from Layercake.silv_membership_events
         ),
         event_counts as (
-            select campaign_year, grade_id, membership_status_id, country_id, gender_id,
+            select campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id,
                    sum(iif(event_type = 'Join',        1, 0)) as members_joined,
                    sum(iif(event_type = 'Readmission', 1, 0)) as members_readmitted,
                    sum(iif(event_type = 'Lapse',       1, 0)) as members_lapsed,
@@ -108,11 +126,12 @@ begin
                    -- than it was, and is a truer count of payments: the old rule
                    -- dropped any renewal whose payment history had a gap.
                    sum(iif(event_type = 'Renewal',     1, 0)) as members_renewed
-            from Layercake.silv_membership_events
-            group by campaign_year, grade_id, membership_status_id, country_id, gender_id
+            from events
+            group by campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id
         )
         select
             u.campaign_year, u.grade_id, u.membership_status_id, u.country_id, u.gender_id,
+            u.local_group_id, u.contact_country_id,
             sum(u.members_start)      as members_start,
             sum(u.members_end)        as members_end,
             sum(u.members_joined)     as members_joined,
@@ -121,19 +140,20 @@ begin
             sum(u.members_renewed)    as members_renewed
         into #rate_stage
         from (
-            select campaign_year, grade_id, membership_status_id, country_id, gender_id,
+            select campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id,
                    members_start, members_end, 0 members_joined, 0 members_readmitted, 0 members_lapsed, 0 members_renewed
             from boundary_counts
             union all
-            select campaign_year, grade_id, membership_status_id, country_id, gender_id,
+            select campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id,
                    0, 0, members_joined, members_readmitted, members_lapsed, members_renewed
             from event_counts
         ) u
-        group by u.campaign_year, u.grade_id, u.membership_status_id, u.country_id, u.gender_id;
+        group by u.campaign_year, u.grade_id, u.membership_status_id, u.country_id, u.gender_id,
+                 u.local_group_id, u.contact_country_id;
         set @rc = @@rowcount;
 
         create unique clustered index cx_rate_stage on #rate_stage
-            (campaign_year, grade_id, membership_status_id, country_id, gender_id);
+            (campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id);
         exec Layercake.usp_etl_log_progress @log_id, N'stage #rate_stage (boundary + event counts)', @rc, @substep_ts output;
 
         update tgt
@@ -150,6 +170,8 @@ begin
           and s.membership_status_id = tgt.membership_status_id
           and s.country_id = tgt.country_id
           and s.gender_id = tgt.gender_id
+          and s.local_group_id = tgt.local_group_id
+          and s.contact_country_id = tgt.contact_country_id
         where exists (select s.members_start, s.members_end, s.members_joined,
                              s.members_readmitted, s.members_lapsed, s.members_renewed
                       except
@@ -158,9 +180,10 @@ begin
         set @upd = @@rowcount;
 
         insert into Layercake.silv_annual_rate_base
-        (campaign_year, grade_id, membership_status_id, country_id, gender_id,
+        (campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id,
          members_start, members_end, members_joined, members_readmitted, members_lapsed, members_renewed)
         select s.campaign_year, s.grade_id, s.membership_status_id, s.country_id, s.gender_id,
+               s.local_group_id, s.contact_country_id,
                s.members_start, s.members_end, s.members_joined, s.members_readmitted, s.members_lapsed, s.members_renewed
         from #rate_stage s
         where not exists (select 1 from Layercake.silv_annual_rate_base t
@@ -168,7 +191,9 @@ begin
                             and t.grade_id = s.grade_id
                             and t.membership_status_id = s.membership_status_id
                             and t.country_id = s.country_id
-                            and t.gender_id = s.gender_id);
+                            and t.gender_id = s.gender_id
+                            and t.local_group_id = s.local_group_id
+                            and t.contact_country_id = s.contact_country_id);
         set @ins = @@rowcount;
 
         delete tgt
@@ -178,7 +203,9 @@ begin
                             and s.grade_id = tgt.grade_id
                             and s.membership_status_id = tgt.membership_status_id
                             and s.country_id = tgt.country_id
-                            and s.gender_id = tgt.gender_id);
+                            and s.gender_id = tgt.gender_id
+                            and s.local_group_id = tgt.local_group_id
+                            and s.contact_country_id = tgt.contact_country_id);
         set @del = @@rowcount;
         exec Layercake.usp_etl_log_progress @log_id, N'sync: update/insert/delete', null, @substep_ts output;
 

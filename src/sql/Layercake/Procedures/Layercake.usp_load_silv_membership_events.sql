@@ -147,6 +147,22 @@
     face value as a renewal unless it is the first subscription (the
     Join year) or already emitted as a Readmission.
 
+    COUNTRY BY LOCAL GROUP (MOD-032, REQ-027, RULE-172, RULE-175):
+    every event carries country_id (the member's country by local
+    group), local_group_id and contact_country_id (the own country).
+    Events off the member base take all three from silv_member_base,
+    which takes them from Layercake.vw_silv_contact_local_group. The
+    Join/Subscription cohort, which the base does not hold, takes them
+    from that view directly, on the ContactId of the brnz_contact row it
+    picks - in place of its own silv_ref_country lookup, which the view
+    keeps for contact_country_id. Renewal and Readmission keep their left
+    join to the base, so one with no base row still gets 0 in all three.
+    The base always holds both new columns; the isnull()s on them only
+    keep a base row written without them (0, and the own country =
+    country_id, as the change script gives existing rows) from failing
+    the not-null stage. Event logic, row set, event_nk and event_id are
+    unchanged (RULE-177); the diff-sync includes the two new columns.
+
     Diff-sync order is DELETE -> UPDATE -> INSERT. See the comment at
     the sync: the filtered unique index on source_enr_id makes the order
     load-bearing whenever an event is re-keyed.
@@ -201,7 +217,9 @@ begin
             gender_id            int not null,
             membership_status_id int not null,
             campaign_year        int not null,
-            campaign_quarter     char(2) collate database_default not null
+            campaign_quarter     char(2) collate database_default not null,
+            local_group_id       int not null,          -- MOD-032
+            contact_country_id   int not null           -- MOD-032
         );
 
         -- Join / Candidate: one event per contact. The earliest qualifying
@@ -223,7 +241,8 @@ begin
         -- every later paid year renews.
         insert into #ev_stage
         (event_nk, event_type, event_subtype, event_date, source_enr_id, contact_no, grade_id, assessment_route_id,
-         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter)
+         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
+         local_group_id, contact_country_id)
         select
             N'JC:' + b.contact_no,
             'Join',
@@ -243,7 +262,9 @@ begin
                  when month(b.enrolment_date) in (1,2,3)    then 'Q2'
                  when month(b.enrolment_date) in (4,5,6)    then 'Q3'
                  when month(b.enrolment_date) in (7,8,9)    then 'Q4'
-                 else 'NK' end
+                 else 'NK' end,
+            isnull(b.local_group_id, 0),                    -- MOD-032 (see the header)
+            isnull(b.contact_country_id, b.country_id)
         from Layercake.silv_member_base b
         inner join Layercake.silv_ref_membership_grade mg
             on  mg.grade_name = 'Candidate'
@@ -295,7 +316,8 @@ begin
         -- to Practising.
         insert into #ev_stage
         (event_nk, event_type, event_subtype, event_date, source_enr_id, contact_no, grade_id, assessment_route_id,
-         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter)
+         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
+         local_group_id, contact_country_id)
         select
             N'JR:' + b.contact_no,
             'Join',
@@ -316,7 +338,9 @@ begin
                  when month(b.election_date) in (1,2,3)    then 'Q2'
                  when month(b.election_date) in (4,5,6)    then 'Q3'
                  when month(b.election_date) in (7,8,9)    then 'Q4'
-                 else 'NK' end
+                 else 'NK' end,
+            isnull(b.local_group_id, 0),                    -- MOD-032 (see the header)
+            isnull(b.contact_country_id, b.country_id)
         from Layercake.silv_member_base b
         inner join Layercake.silv_ref_membership_grade mg
             on  mg.grade_name = 'Qualified'
@@ -353,7 +377,8 @@ begin
         -- counts, just grade-segmented ones.
         insert into #ev_stage
         (event_nk, event_type, event_subtype, event_date, source_enr_id, contact_no, grade_id, assessment_route_id,
-         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter)
+         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
+         local_group_id, contact_country_id)
         select
             N'CH:' + b.contact_no,
             'Change',
@@ -371,7 +396,9 @@ begin
                  when month(b.election_date) in (1,2,3)    then 'Q2'
                  when month(b.election_date) in (4,5,6)    then 'Q3'
                  when month(b.election_date) in (7,8,9)    then 'Q4'
-                 else 'NK' end
+                 else 'NK' end,
+            isnull(b.local_group_id, 0),                    -- MOD-032 (see the header)
+            isnull(b.contact_country_id, b.country_id)
         from Layercake.silv_member_base b
         inner join Layercake.silv_ref_membership_grade mg
             on  mg.grade_name = 'Qualified'
@@ -426,6 +453,11 @@ begin
         -- silv_payment_events is keyed on (contact_no, campaign_year) and
         -- every row carries a date, so ranking on the campaign year alone
         -- picks exactly one row per contact.
+        -- MOD-032: country_id, local_group_id and contact_country_id come
+        -- from Layercake.vw_silv_contact_local_group for the ContactId the
+        -- cross apply picks (one view row per live brnz_contact row, so the
+        -- join cannot fan out), in place of the silv_ref_country lookup on
+        -- rics_countryid, which the view keeps for contact_country_id.
         select
             fp.contact_no,
             fp.campaign_year,
@@ -435,8 +467,10 @@ begin
             iif(cast(c.Rics_LapsedDate as date) < fp.join_date, null,
                 cast(c.Rics_LapsedDate as date))   as lapsed_date,
             lr.reason_name                         as lapse_reason_name,
-            isnull(ctry.id, 0)                     as country_id,
-            isnull(g.id, 0)                        as gender_id
+            isnull(clg.country_id, 0)              as country_id,
+            isnull(g.id, 0)                        as gender_id,
+            isnull(clg.local_group_id, 0)          as local_group_id,
+            isnull(clg.contact_country_id, 0)      as contact_country_id
         into #pay_join
         from (
             select p.contact_no,
@@ -453,7 +487,7 @@ begin
                             and ct._is_deleted = 0)
         ) fp
         cross apply (
-            select top (1) cc.Rics_LapsedDate, cc.rics_countryid, cc.GenderCode
+            select top (1) cc.ContactId, cc.Rics_LapsedDate, cc.GenderCode
             from Layercake.brnz_contact cc
             where cc.Rics_contactno = fp.contact_no
               and cc._is_deleted    = 0
@@ -472,8 +506,8 @@ begin
         ) rec
         left join Layercake.silv_ref_lapse_reason lr
             on  lr.lapse_code = rec.apuk_lapsecode
-        left join Layercake.silv_ref_country ctry
-            on  ctry.country_id = c.rics_countryid
+        left join Layercake.vw_silv_contact_local_group clg
+            on  clg.contact_id = c.ContactId
         left join Layercake.silv_ref_gender g
             on  g.gender_code = c.GenderCode
         where fp.rn = 1;
@@ -501,7 +535,8 @@ begin
         -- re-derived from the date.
         insert into #ev_stage
         (event_nk, event_type, event_subtype, event_date, source_enr_id, contact_no, grade_id, assessment_route_id,
-         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter)
+         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
+         local_group_id, contact_country_id)
         select
             N'JS:' + j.contact_no,
             'Join',
@@ -519,7 +554,9 @@ begin
                  when month(j.join_date) in (1,2,3)    then 'Q2'
                  when month(j.join_date) in (4,5,6)    then 'Q3'
                  when month(j.join_date) in (7,8,9)    then 'Q4'
-                 else 'NK' end
+                 else 'NK' end,
+            j.local_group_id,
+            j.contact_country_id
         from #pay_join j
         inner join Layercake.silv_ref_membership_grade mg
             on  mg.grade_name = 'N/A';
@@ -532,7 +569,8 @@ begin
         -- renewal payment.
         insert into #ev_stage
         (event_nk, event_type, event_subtype, event_date, source_enr_id, contact_no, grade_id, assessment_route_id,
-         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter)
+         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
+         local_group_id, contact_country_id)
         select
             N'LA:' + b.contact_no,
             'Lapse',
@@ -550,7 +588,9 @@ begin
                  when month(b.lapsed_date) in (1,2,3)    then 'Q2'
                  when month(b.lapsed_date) in (4,5,6)    then 'Q3'
                  when month(b.lapsed_date) in (7,8,9)    then 'Q4'
-                 else 'NK' end
+                 else 'NK' end,
+            isnull(b.local_group_id, 0),                    -- MOD-032 (see the header)
+            isnull(b.contact_country_id, b.country_id)
         from Layercake.silv_member_base b
         inner join Layercake.silv_ref_membership_grade mg
             on  mg.grade_name = case when b.election_date <= b.lapsed_date then 'Qualified'
@@ -587,7 +627,8 @@ begin
         -- there is no grade held at the point of lapse.
         insert into #ev_stage
         (event_nk, event_type, event_subtype, event_date, source_enr_id, contact_no, grade_id, assessment_route_id,
-         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter)
+         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
+         local_group_id, contact_country_id)
         select
             N'LA:' + j.contact_no,
             'Lapse',
@@ -605,7 +646,9 @@ begin
                  when month(j.lapsed_date) in (1,2,3)    then 'Q2'
                  when month(j.lapsed_date) in (4,5,6)    then 'Q3'
                  when month(j.lapsed_date) in (7,8,9)    then 'Q4'
-                 else 'NK' end
+                 else 'NK' end,
+            j.local_group_id,
+            j.contact_country_id
         from #pay_join j
         inner join Layercake.silv_ref_membership_grade mg
             on  mg.grade_name = 'N/A'
@@ -715,7 +758,8 @@ begin
         -- construction and needs no separate test.
         insert into #ev_stage
         (event_nk, event_type, event_subtype, event_date, source_enr_id, contact_no, grade_id, assessment_route_id,
-         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter)
+         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
+         local_group_id, contact_country_id)
         select
             N'RA:' + p.contact_no + N':' + cast(p.campaign_year as nvarchar(6)),
             'Readmission',
@@ -738,7 +782,9 @@ begin
                  when month(d.event_date) in (1,2,3)    then 'Q2'
                  when month(d.event_date) in (4,5,6)    then 'Q3'
                  when month(d.event_date) in (7,8,9)    then 'Q4'
-                 else 'NK' end
+                 else 'NK' end,
+            isnull(b.local_group_id, 0),                    -- MOD-032 (see the header)
+            coalesce(b.contact_country_id, b.country_id, 0)
         from Layercake.silv_payment_events p
         cross apply (select cast(isnull(p.renewal_date_adj, p.payment_date) as date) as event_date) d
         left join Layercake.silv_member_base b
@@ -851,7 +897,8 @@ begin
         -- (see the left join above).
         insert into #ev_stage
         (event_nk, event_type, event_subtype, event_date, source_enr_id, contact_no, grade_id, assessment_route_id,
-         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter)
+         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
+         local_group_id, contact_country_id)
         select
             N'RN:' + p.contact_no + N':' + cast(p.campaign_year as nvarchar(6)),
             'Renewal',
@@ -874,7 +921,9 @@ begin
                  when month(d.event_date) in (1,2,3)    then 'Q2'
                  when month(d.event_date) in (4,5,6)    then 'Q3'
                  when month(d.event_date) in (7,8,9)    then 'Q4'
-                 else 'NK' end
+                 else 'NK' end,
+            isnull(b.local_group_id, 0),                    -- MOD-032 (see the header)
+            coalesce(b.contact_country_id, b.country_id, 0)
         from Layercake.silv_payment_events p
         left join #join_cy jn
             on  jn.contact_no = p.contact_no
@@ -930,27 +979,33 @@ begin
             gender_id            = s.gender_id,
             membership_status_id = s.membership_status_id,
             campaign_year        = s.campaign_year,
-            campaign_quarter     = s.campaign_quarter
+            campaign_quarter     = s.campaign_quarter,
+            local_group_id       = s.local_group_id,
+            contact_country_id   = s.contact_country_id
         from Layercake.silv_membership_events tgt
         join #ev_stage s on s.event_nk = tgt.event_nk
         where exists (select s.event_type, s.event_subtype, s.event_date, s.source_enr_id, s.contact_no,
                              s.grade_id, s.assessment_route_id, s.rpq_variant_id, s.hpb_id,
                              s.country_id, s.gender_id, s.membership_status_id,
-                             s.campaign_year, s.campaign_quarter
+                             s.campaign_year, s.campaign_quarter,
+                             s.local_group_id, s.contact_country_id
                       except
                       select tgt.event_type, tgt.event_subtype, tgt.event_date, tgt.source_enr_id, tgt.contact_no,
                              tgt.grade_id, tgt.assessment_route_id, tgt.rpq_variant_id, tgt.hpb_id,
                              tgt.country_id, tgt.gender_id, tgt.membership_status_id,
-                             tgt.campaign_year, tgt.campaign_quarter);
+                             tgt.campaign_year, tgt.campaign_quarter,
+                             tgt.local_group_id, tgt.contact_country_id);
         set @upd = @@rowcount;
         exec Layercake.usp_etl_log_progress @log_id, N'sync: update', @upd, @substep_ts output;
 
         insert into Layercake.silv_membership_events
         (event_nk, event_type, event_subtype, event_date, source_enr_id, contact_no, grade_id, assessment_route_id,
-         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter)
+         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
+         local_group_id, contact_country_id)
         select s.event_nk, s.event_type, s.event_subtype, s.event_date, s.source_enr_id, s.contact_no, s.grade_id,
                s.assessment_route_id, s.rpq_variant_id, s.hpb_id, s.country_id, s.gender_id,
-               s.membership_status_id, s.campaign_year, s.campaign_quarter
+               s.membership_status_id, s.campaign_year, s.campaign_quarter,
+               s.local_group_id, s.contact_country_id
         from #ev_stage s
         where not exists (select 1 from Layercake.silv_membership_events t
                           where t.event_nk = s.event_nk);

@@ -11,6 +11,15 @@
     date_id is resolved from dim_date on event_date; events that
     pre-date the spine resolve to the id-0 'NA' member - which is why
     event_date stays on the fact as an attribute.
+
+    GOLD COUNTRY BY LOCAL GROUP (MOD-032, REQ-027, ADR-015, RULE-180):
+    country_id is the silv_ref_local_group.dim_country_id of a reportable
+    local group, so region rolls up from dim_country to the group's
+    region; otherwise it is the silver country_id (the own country's
+    dim_country row). local_group_id and contact_country_id are copied
+    from silver. A change of the mapped country alone (a group's
+    dim_country row moving) is a change like any other and updates the
+    event in place.
 ====================================================================*/
 create or alter procedure Layercake.usp_load_fact_membership_events
     @run_id uniqueidentifier = null
@@ -43,33 +52,44 @@ begin
             assessment_route_id  = s.assessment_route_id,
             rpq_variant_id       = s.rpq_variant_id,
             hpb_id               = s.hpb_id,
-            country_id           = s.country_id,
+            country_id           = isnull(lg.dim_country_id, s.country_id),
             gender_id            = s.gender_id,
             membership_status_id = s.membership_status_id,
             campaign_year        = s.campaign_year,
-            campaign_quarter     = s.campaign_quarter
+            campaign_quarter     = s.campaign_quarter,
+            local_group_id       = s.local_group_id,
+            contact_country_id   = s.contact_country_id
         from Layercake.fact_membership_events tgt
         join Layercake.silv_membership_events s on s.event_id = tgt.event_id
         left join Layercake.dim_date dd on dd.[date] = s.event_date
+        -- gold country by local group (see the header)
+        left join Layercake.silv_ref_local_group lg
+            on  lg.id            = s.local_group_id
+            and lg.is_reportable = 1
         where exists (select s.event_type, s.event_subtype, s.event_date, isnull(dd.id, 0), s.contact_no,
                              s.grade_id, s.assessment_route_id, s.rpq_variant_id, s.hpb_id,
-                             s.country_id, s.gender_id, s.membership_status_id,
-                             s.campaign_year, s.campaign_quarter
+                             isnull(lg.dim_country_id, s.country_id), s.gender_id, s.membership_status_id,
+                             s.campaign_year, s.campaign_quarter, s.local_group_id, s.contact_country_id
                       except
                       select tgt.event_type, tgt.event_subtype, tgt.event_date, tgt.date_id, tgt.contact_no,
                              tgt.grade_id, tgt.assessment_route_id, tgt.rpq_variant_id, tgt.hpb_id,
                              tgt.country_id, tgt.gender_id, tgt.membership_status_id,
-                             tgt.campaign_year, tgt.campaign_quarter);
+                             tgt.campaign_year, tgt.campaign_quarter, tgt.local_group_id, tgt.contact_country_id);
         set @upd = @@rowcount;
 
         insert into Layercake.fact_membership_events
         (event_id, event_type, event_subtype, event_date, date_id, contact_no, grade_id, assessment_route_id,
-         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter)
+         rpq_variant_id, hpb_id, country_id, gender_id, membership_status_id, campaign_year, campaign_quarter,
+         local_group_id, contact_country_id)
         select s.event_id, s.event_type, s.event_subtype, s.event_date, isnull(dd.id, 0), s.contact_no, s.grade_id,
-               s.assessment_route_id, s.rpq_variant_id, s.hpb_id, s.country_id, s.gender_id,
-               s.membership_status_id, s.campaign_year, s.campaign_quarter
+               s.assessment_route_id, s.rpq_variant_id, s.hpb_id, isnull(lg.dim_country_id, s.country_id), s.gender_id,
+               s.membership_status_id, s.campaign_year, s.campaign_quarter,
+               s.local_group_id, s.contact_country_id
         from Layercake.silv_membership_events s
         left join Layercake.dim_date dd on dd.[date] = s.event_date
+        left join Layercake.silv_ref_local_group lg
+            on  lg.id            = s.local_group_id
+            and lg.is_reportable = 1
         where not exists (select 1 from Layercake.fact_membership_events t where t.event_id = s.event_id);
         set @ins = @@rowcount;
 

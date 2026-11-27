@@ -7,8 +7,14 @@
 --  Layercake.silv_annual_rate_base
 --  Segment-level annual counts feeding the DAX rate measures. One row per
 --  campaign year per non-zero segment combination. Grain: campaign_year x
---  grade x membership_status x country x gender (region rolls up from
---  country in the Power BI model, so it is NOT a separate key here).
+--  grade x membership_status x country x gender x local group x own
+--  country (region rolls up from country in the Power BI model, so it is
+--  NOT a separate key here).
+--  RPST (MOD-032, REQ-027, RULE-176): local_group_id and
+--  contact_country_id added by change script and joined to the grain;
+--  country_id now holds the member's country BY LOCAL GROUP. Summed over
+--  country_id, local_group_id and contact_country_id every count is the
+--  Phase 1 figure (RULE-177).
 --
 --  members_start / members_end  - member-grade snapshots at the 30 Sep
 --                                 boundaries (prior / current campaign year)
@@ -26,7 +32,7 @@ create table Layercake.silv_annual_rate_base
     campaign_year        int not null,      -- -> ref_campaign_year_config
     grade_id             int not null,      -- -> silv_ref_membership_grade
     membership_status_id int not null,      -- -> silv_ref_membership_status
-    country_id           int not null,      -- -> silv_ref_country (region rolls up from here)
+    country_id           int not null,      -- -> silv_ref_country: country BY LOCAL GROUP (MOD-032)
     gender_id            int not null,      -- -> silv_ref_gender
     members_start        int not null,
     members_end          int not null,
@@ -34,6 +40,8 @@ create table Layercake.silv_annual_rate_base
     members_readmitted   int not null,
     members_lapsed       int not null,
     members_renewed      int not null,
+    local_group_id       int not null,      -- -> silv_ref_local_group (0 = Unknown) (MOD-032)
+    contact_country_id   int not null,      -- -> silv_ref_country: the member's OWN country (MOD-032)
     constraint pk_silv_annual_rate_base primary key clustered
-        (campaign_year, grade_id, membership_status_id, country_id, gender_id)
+        (campaign_year, grade_id, membership_status_id, country_id, gender_id, local_group_id, contact_country_id)
 );

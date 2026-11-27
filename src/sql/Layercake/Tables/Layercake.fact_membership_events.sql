@@ -16,6 +16,11 @@
     usp_load_fact_membership_events_segments.
     RPST (MOD-012): the eight amount columns Subs.vwSubsMemberStatuses
     cannot supply dropped by change script (Q-038).
+    RPST (MOD-032, REQ-027, ADR-015): local_group_id and
+    contact_country_id added by change script, copied from silver.
+    country_id is the dim_country row of the member's region BY LOCAL
+    GROUP (a reportable group's dim_country_id, else the silver country);
+    contact_country_id reaches the own country's regions. No foreign keys.
 ====================================================================*/
 
 create table Layercake.fact_membership_events
@@ -31,7 +36,7 @@ create table Layercake.fact_membership_events
     assessment_route_id  int not null,          -- -> dim_assessment_route
     rpq_variant_id       int not null,          -- -> dim_rpq_variant
     hpb_id               int not null,
-    country_id           int not null,          -- -> dim_country
+    country_id           int not null,          -- -> dim_country (region BY LOCAL GROUP, MOD-032)
     gender_id            int not null,          -- -> dim_gender
     membership_status_id int not null,          -- -> dim_membership_status
     campaign_year        int not null,          -- -> dim_campaign_year (kept: pre-spine events)
@@ -44,5 +49,7 @@ create table Layercake.fact_membership_events
     concession_type_carried bit not null constraint DF_Layercake_fact_membership_events_concession_type_carried default 0,
     subs_amount_gbp         decimal(19, 4) null,    -- additive measures: Join / Renewal / Readmission only
     invoiced_subtotal_gbp   decimal(19, 4) null,
-    amount_status           varchar(30) null
+    amount_status           varchar(30) null,
+    local_group_id          int not null,           -- -> dim_local_group (MOD-032)
+    contact_country_id      int not null            -- -> dim_country: the member's OWN country (MOD-032)
 );
