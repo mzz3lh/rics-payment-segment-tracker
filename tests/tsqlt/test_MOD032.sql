@@ -278,12 +278,12 @@ GO
 CREATE PROCEDURE test_MOD032.[test TC-032-001 events and annual rate base tables gain local_group_id and contact_country_id int not null]
 AS
 BEGIN
-    SELECT r.OriginalName AS table_name, c.name AS column_name, TYPE_NAME(c.user_type_id) AS data_type, c.is_nullable
+    SELECT PARSENAME(r.OriginalName, 1) AS table_name, c.name AS column_name, TYPE_NAME(c.user_type_id) AS data_type, c.is_nullable
     INTO #Actual
     FROM tSQLt.Private_RenamedObjectLog AS r
     INNER JOIN sys.columns AS c ON c.object_id = r.ObjectId
     WHERE OBJECT_SCHEMA_NAME(r.ObjectId) = N'Layercake'
-      AND r.OriginalName IN (N'silv_membership_events', N'fact_membership_events', N'silv_annual_rate_base', N'fact_annual_rate_base')
+      AND PARSENAME(r.OriginalName, 1) IN (N'silv_membership_events', N'fact_membership_events', N'silv_annual_rate_base', N'fact_annual_rate_base')
       AND c.name IN (N'local_group_id', N'contact_country_id');
 
     SELECT v.table_name, v.column_name, v.data_type, CAST(v.is_nullable AS bit) AS is_nullable
@@ -301,13 +301,13 @@ BEGIN
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 
-    SELECT r.OriginalName AS table_name, COUNT(*) AS column_count
+    SELECT PARSENAME(r.OriginalName, 1) AS table_name, COUNT(*) AS column_count
     INTO #ActualCounts
     FROM tSQLt.Private_RenamedObjectLog AS r
     INNER JOIN sys.columns AS c ON c.object_id = r.ObjectId
     WHERE OBJECT_SCHEMA_NAME(r.ObjectId) = N'Layercake'
-      AND r.OriginalName IN (N'silv_membership_events', N'fact_membership_events', N'silv_annual_rate_base', N'fact_annual_rate_base')
-    GROUP BY r.OriginalName;
+      AND PARSENAME(r.OriginalName, 1) IN (N'silv_membership_events', N'fact_membership_events', N'silv_annual_rate_base', N'fact_annual_rate_base')
+    GROUP BY PARSENAME(r.OriginalName, 1);
 
     SELECT v.table_name, v.column_count
     INTO #ExpectedCounts
@@ -329,7 +329,7 @@ BEGIN
         (SELECT r.ObjectId
          FROM tSQLt.Private_RenamedObjectLog AS r
          WHERE OBJECT_SCHEMA_NAME(r.ObjectId) = N'Layercake'
-           AND r.OriginalName = N'fact_annual_rate_base');
+           AND PARSENAME(r.OriginalName, 1) = N'fact_annual_rate_base');
 
     SELECT i.index_id,
            STRING_AGG(CAST(c.name AS nvarchar(128)), N',') WITHIN GROUP (ORDER BY c.name) AS key_columns

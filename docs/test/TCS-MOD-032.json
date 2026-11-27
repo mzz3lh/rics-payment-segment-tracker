@@ -4,10 +4,10 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-032",
-    "version": 1,
+    "version": 2,
     "produced_by": "tester",
-    "produced_at": "2026-11-27T13:44:41Z",
-    "status": "rejected",
+    "produced_at": "2026-11-27T14:40:10Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,9 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-27T14:39:19Z",
+      "approved_at": "2026-11-27T14:40:54Z",
       "gate": "test_design_review",
-      "comments": "Reopened: TC-032-001 and TC-032-002: the filter on tSQLt.Private_RenamedObjectLog compares r.OriginalName to the bare table name, but this tSQLt stores it bracketed ('[fact_annual_rate_base]'), so both tests can never pass. Compare PARSENAME(r.OriginalName, 1) instead, as the MOD-012 and MOD-031 tests do. Change nothing else."
+      "comments": "Approved by Claude on Mike's delegation (docs/answers.md, 2026-11-27): only TC-032-001 and TC-032-002 changed, to compare PARSENAME(r.OriginalName, 1)."
     }
   },
   "module_id": "MOD-032",
@@ -35,7 +35,7 @@
       "acceptance_criterion_id": "AC-027-10",
       "category": "nulls",
       "description": "Structure (RULE-176): silv_membership_events, fact_membership_events, silv_annual_rate_base and fact_annual_rate_base each gain local_group_id and contact_country_id, int NOT NULL, through MOD-032's change scripts, and nothing else.",
-      "preconditions": "Common SetUp (every test): fakes of etl_run_log and etl_progress_log (identity, defaults); brnz_contact, brnz_cust_trans, brnz_rics_record and brnz_contact_test_record left empty, so the events load makes no Join/Subscription and no Readmission event; silv_ref_lapse_reason, silv_ref_gender, silv_ref_rpq_variant, silv_ref_assessment_route; silv_ref_membership_grade and dim_membership_grade (0 N/A, 1 Candidate, 2 Qualified); silv_ref_membership_status (0 N/A, 1 Practising, 2 Retired); silv_ref_country (1 United Kingdom UK&I/UK&I, 2 United Arab Emirates MEA/MEA, 3 India APAC/APAC); silv_ref_country_region 1000001 (India, MEA, MEA); dim_country (the three countries plus 1000001 India MEA/MEA); silv_ref_local_group and dim_local_group with the nine rows MOD-030 gives (-2 Not applicable, 0 Unknown, 1 Gulf (UAE, MEA, reportable, dim_country_id 2), 2 London (UK, reportable, 1), 3 Gulf India (India, MEA, reportable, 1000001), 4 No Country, 5 No Region, 6 Closed Gulf, 7 Half Region, not reportable); ref_campaign_year_config CY2021 to CY2027; the MOD-032 targets (silver events with identity and defaults, the gold fact with identity); dim_date; and the daily count tables. Members in silv_member_base as MOD-031's load leaves them, each elected 2015-01-01 with no enrolment date, gender 1: G1 (country 2, local group 1 Gulf, own country 1), G2 (3, 3 Gulf India, 3), N1 (3, 0, 3). Payments: G1 CY2021 (2020-10-20) and CY2025 (2024-10-15), G2 CY2025 (2024-10-20), N1 CY2025 (2024-11-05). This test reads the real tables through tSQLt.Private_RenamedObjectLog and sys.columns.",
+      "preconditions": "Common SetUp (every test): fakes of etl_run_log and etl_progress_log (identity, defaults); brnz_contact, brnz_cust_trans, brnz_rics_record and brnz_contact_test_record left empty, so the events load makes no Join/Subscription and no Readmission event; silv_ref_lapse_reason, silv_ref_gender, silv_ref_rpq_variant, silv_ref_assessment_route; silv_ref_membership_grade and dim_membership_grade (0 N/A, 1 Candidate, 2 Qualified); silv_ref_membership_status (0 N/A, 1 Practising, 2 Retired); silv_ref_country (1 United Kingdom UK&I/UK&I, 2 United Arab Emirates MEA/MEA, 3 India APAC/APAC); silv_ref_country_region 1000001 (India, MEA, MEA); dim_country (the three countries plus 1000001 India MEA/MEA); silv_ref_local_group and dim_local_group with the nine rows MOD-030 gives (-2 Not applicable, 0 Unknown, 1 Gulf (UAE, MEA, reportable, dim_country_id 2), 2 London (UK, reportable, 1), 3 Gulf India (India, MEA, reportable, 1000001), 4 No Country, 5 No Region, 6 Closed Gulf, 7 Half Region, not reportable); ref_campaign_year_config CY2021 to CY2027; the MOD-032 targets (silver events with identity and defaults, the gold fact with identity); dim_date; and the daily count tables. Members in silv_member_base as MOD-031's load leaves them, each elected 2015-01-01 with no enrolment date, gender 1: G1 (country 2, local group 1 Gulf, own country 1), G2 (3, 3 Gulf India, 3), N1 (3, 0, 3). Payments: G1 CY2021 (2020-10-20) and CY2025 (2024-10-15), G2 CY2025 (2024-10-20), N1 CY2025 (2024-11-05). This test reads the real tables through tSQLt.Private_RenamedObjectLog (matched on PARSENAME(OriginalName, 1), since the log stores the name bracketed) and sys.columns.",
       "expected": "The eight new columns are all int and NOT NULL. Column counts: silv_membership_events 27, fact_membership_events 26, silv_annual_rate_base 13, fact_annual_rate_base 14.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD032].[test TC-032-001 events and annual rate base tables gain local_group_id and contact_country_id int not null]"
@@ -48,7 +48,7 @@
       "acceptance_criterion_id": "AC-027-11",
       "category": "duplicates",
       "description": "Structure: the unique key on fact_annual_rate_base's grain is widened by local_group_id and contact_country_id (DES-001 fact_annual_rate_base: any unique key on the grain widened by both).",
-      "preconditions": "Common SetUp. The real fact is read through the renamed-object log. Only unique indexes whose key includes campaign_year are compared; the index name is not asserted. The daily count parts of AC-027-11 are MOD-031's (TC-031-002).",
+      "preconditions": "Common SetUp. The real fact is read through the renamed-object log, matched on PARSENAME(OriginalName, 1), since the log stores the name bracketed. Only unique indexes whose key includes campaign_year are compared; the index name is not asserted. The daily count parts of AC-027-11 are MOD-031's (TC-031-002).",
       "expected": "Exactly one such unique index, with key columns exactly campaign_year, contact_country_id, country_id, gender_id, grade_id, local_group_id and membership_status_id.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD032].[test TC-032-002 the fact annual rate base unique key covers the seven grain columns]"
