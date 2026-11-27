@@ -4,10 +4,10 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-007",
-    "version": 1,
+    "version": 2,
     "produced_by": "tester",
-    "produced_at": "2026-10-27T14:55:31Z",
-    "status": "rejected",
+    "produced_at": "2026-11-27T14:57:11Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,9 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-27T14:56:05Z",
+      "approved_at": "2026-11-27T14:57:48Z",
       "gate": "test_design_review",
-      "comments": "Reopened for MOD-032: Widen to the MOD-032 columns (DEF-017, DEF-018; decided by Claude on Mike's delegation, docs/answers.md): TC-007-051, TC-007-052 and TC-016-014 add local_group_id and contact_country_id (int NOT NULL, appended after the existing columns) to the expected column lists of silv_membership_events and fact_membership_events (TC-007-051, TC-007-052) and silv_annual_rate_base and fact_annual_rate_base (TC-016-014). Keep their requirement IDs. Change nothing else."
+      "comments": "Approved by Claude on Mike's delegation for MOD-032 (DEF-017): only TC-007-051 and TC-007-052 changed, adding local_group_id and contact_country_id to the column lists; test names updated to match."
     }
   },
   "module_id": "MOD-007",
@@ -680,28 +680,30 @@
     {
       "id": "TC-007-051",
       "requirement_ids": [
-        "REQ-001"
+        "REQ-001",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-001-03",
       "category": "reconciliation",
-      "description": "After the change scripts, silv_membership_events keeps its 16 Phase 1 columns with their types and nullability, and holds exactly the nine MOD-007 columns that MOD-012 keeps. MOD-012 drops eight of the seventeen (Q-038), so this checks the shape after MOD-012.",
-      "preconditions": "Reads the deployed table's metadata (not faked).",
-      "expected": "Exactly 25 columns: the 16 Phase 1 columns as before (event_nk nvarchar(220), contact_no nvarchar(200), campaign_quarter char(2), source_enr_id nullable, the rest not null); payment_method_id, payer_type_id, concession_type_id int not null; the three *_carried bit not null; subs_amount_gbp and invoiced_subtotal_gbp decimal(19,4) null; amount_status varchar(30) null. None of subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, fee_amount_gbp, credited_amount_gbp, net_amount_gbp.",
+      "description": "After the change scripts, silv_membership_events keeps its 16 Phase 1 columns with their types and nullability. It holds exactly the nine MOD-007 columns that MOD-012 keeps: MOD-012 drops eight of the seventeen (Q-038). It also holds the two columns MOD-032 adds (REQ-027, RULE-176), so this checks the shape after MOD-032.",
+      "preconditions": "Reads the deployed table's metadata (not faked). Widened for MOD-032 (DEF-017).",
+      "expected": "Exactly 27 columns. The 16 Phase 1 columns are as before: event_nk nvarchar(220), contact_no nvarchar(200), campaign_quarter char(2), source_enr_id nullable, the rest not null. payment_method_id, payer_type_id and concession_type_id are int not null; the three *_carried columns are bit not null; subs_amount_gbp and invoiced_subtotal_gbp are decimal(19,4) null; amount_status is varchar(30) null. local_group_id and contact_country_id are int not null. None of subs_amount, fee_amount, invoiced_subtotal, credited_amount, currency_id, fee_amount_gbp, credited_amount_gbp or net_amount_gbp is present.",
       "framework": "tsqlt",
-      "test_ref": "[test_MOD007].[test TC-007-051 silv_membership_events keeps Phase 1 columns and the nine columns left after MOD-012]"
+      "test_ref": "[test_MOD007].[test TC-007-051 silv_membership_events keeps Phase 1 columns the nine columns left after MOD-012 and the two MOD-032 columns]"
     },
     {
       "id": "TC-007-052",
       "requirement_ids": [
-        "REQ-001"
+        "REQ-001",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-001-03",
       "category": "reconciliation",
-      "description": "After the change scripts, fact_membership_events keeps its 15 Phase 1 columns and holds the same nine columns as in TC-007-051. MOD-012 drops eight of the seventeen (Q-038), so this checks the shape after MOD-012.",
-      "preconditions": "Reads the deployed table's metadata (not faked).",
-      "expected": "Exactly 24 columns: the 15 Phase 1 columns as before (all not null; contact_no nvarchar(200), campaign_quarter char(2), date_id int) plus the nine columns as in TC-007-051.",
+      "description": "After the change scripts, fact_membership_events keeps its 15 Phase 1 columns and holds the same nine segment columns and the same two MOD-032 columns as in TC-007-051. MOD-012 drops eight of the seventeen (Q-038) and MOD-032 adds local_group_id and contact_country_id (REQ-027, RULE-176), so this checks the shape after MOD-032.",
+      "preconditions": "Reads the deployed table's metadata (not faked). Widened for MOD-032 (DEF-017).",
+      "expected": "Exactly 26 columns: the 15 Phase 1 columns as before (all not null; contact_no nvarchar(200), campaign_quarter char(2), date_id int), the nine columns as in TC-007-051, and local_group_id and contact_country_id as int not null.",
       "framework": "tsqlt",
-      "test_ref": "[test_MOD007].[test TC-007-052 fact_membership_events keeps Phase 1 columns and the nine columns left after MOD-012]"
+      "test_ref": "[test_MOD007].[test TC-007-052 fact_membership_events keeps Phase 1 columns the nine columns left after MOD-012 and the two MOD-032 columns]"
     },
     {
       "id": "TC-007-053",
