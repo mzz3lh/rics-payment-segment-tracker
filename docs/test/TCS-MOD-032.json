@@ -7,7 +7,7 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-11-27T13:44:41Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,9 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-27T14:17:31Z",
+      "approved_at": "2026-11-27T14:39:19Z",
       "gate": "test_design_review",
-      "comments": "Approved with the Tester's working plan: the events tests use the member-base cohort only. The Join/Subscription cohort's use of vw_silv_contact_local_group is covered by a Developer unit test in test_MOD032_dev (docs/answers.md, 2026-11-27)."
+      "comments": "Reopened: TC-032-001 and TC-032-002: the filter on tSQLt.Private_RenamedObjectLog compares r.OriginalName to the bare table name, but this tSQLt stores it bracketed ('[fact_annual_rate_base]'), so both tests can never pass. Compare PARSENAME(r.OriginalName, 1) instead, as the MOD-012 and MOD-031 tests do. Change nothing else."
     }
   },
   "module_id": "MOD-032",
