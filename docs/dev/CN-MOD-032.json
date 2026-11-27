@@ -1,0 +1,146 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-032",
+    "version": 1,
+    "produced_by": "developer",
+    "produced_at": "2026-11-27T14:43:06Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-032.json",
+      "tests/tsqlt/test_MOD032.sql"
+    ]
+  },
+  "module_id": "MOD-032",
+  "branch": "agent/developer/MOD-032-events-and-annual-rate-base-by-local-gro",
+  "commit": "8a4e6fb0fa6c71ababc2bb889c2d9c9ab96ce117",
+  "requirement_ids": [
+    "REQ-027",
+    "REQ-001",
+    "REQ-015"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_membership_events.sql",
+      "object": "Layercake.silv_membership_events",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_membership_events.sql",
+      "object": "Layercake.usp_load_silv_membership_events",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-001",
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.fact_membership_events.sql",
+      "object": "Layercake.fact_membership_events",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_fact_membership_events.sql",
+      "object": "Layercake.usp_load_fact_membership_events",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_annual_rate_base.sql",
+      "object": "Layercake.silv_annual_rate_base",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_annual_rate_base.sql",
+      "object": "Layercake.usp_load_silv_annual_rate_base",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.fact_annual_rate_base.sql",
+      "object": "Layercake.fact_annual_rate_base",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_fact_annual_rate_base.sql",
+      "object": "Layercake.usp_load_fact_annual_rate_base",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD032_dev].[test a Join Subscription event takes its country local group and own country from vw_silv_contact_local_group]",
+    "[test_MOD032_dev].[test a campaign year whose boundary cannot be a date fails the annual load logs Failed and leaves it unchanged]",
+    "[test_MOD032_dev].[test a changed group dim_country row alone updates the gold event in place and logs one update]",
+    "[test_MOD032_dev].[test a changed group dim_country row moves the gold annual row with one insert and one delete]",
+    "[test_MOD032_dev].[test a duplicate member fails the events load logs Failed and leaves the events unchanged]",
+    "[test_MOD032_dev].[test a duplicate silver event_id fails the gold events load logs Failed and leaves gold unchanged]",
+    "[test_MOD032_dev].[test a member base row without the new columns counts under local group 0 and its own country_id]",
+    "[test_MOD032_dev].[test the annual load moves a member to its new local group with one insert and one delete]",
+    "[test_MOD032_dev].[test the events log counts an update for each event whose local group alone changed]",
+    "[test_MOD032_dev].[test two silver rows mapping to one gold key fail the gold annual load log Failed and leave it unchanged]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0034",
+      "up_script": "src/sql/deploy/MIG-0034_MOD-032_events-and-annual-rate-base-by-local-gro.up.sql",
+      "down_script": "src/sql/deploy/MIG-0034_MOD-032_events-and-annual-rate-base-by-local-gro.down.sql",
+      "rollback_test": {
+        "commit": "8a4e6fb0fa6c71ababc2bb889c2d9c9ab96ce117",
+        "run_at": "2026-11-27T14:42:59.135153+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "notes": "MOD-032 (MIG-0034). Four change scripts add local_group_id and contact_country_id (int NOT NULL) to silv_membership_events, fact_membership_events, silv_annual_rate_base and fact_annual_rate_base. Existing rows get local_group_id 0 and contact_country_id = country_id. The temporary defaults are dropped again because the loads always write both columns. The annual grain keys are widened by both columns: pk_silv_annual_rate_base and ux_fact_annual_rate_base_segment. The down scripts drop the columns and restore the keys.\n\nProcedures:\n- usp_load_silv_membership_events: events built from the member base take all three values from silv_member_base. The Join/Subscription cohort takes them from vw_silv_contact_local_group on the ContactId the existing cross apply picks. The view has one row per live contact, so the join cannot fan out. Renewal and Readmission keep their Phase 1 left join to the base, so one with no base row still gets 0 in all three. The diff-sync includes the two new columns. Event logic, event_nk and event_id are unchanged.\n- usp_load_fact_membership_events and usp_load_fact_annual_rate_base: country_id is the group's silv_ref_local_group.dim_country_id when the group is reportable, otherwise the silver country_id (ADR-015). local_group_id and contact_country_id are copied from silver.\n- usp_load_silv_annual_rate_base: both columns are added to the grain.\n\nThe down script restores the MOD-018 events load and the Phase 1 definitions of the other three procedures.\n\nUnit tests (test_MOD032_dev) include the Join/Subscription test Mike asked for: a usable group gives the group's country with the own country kept, and an unusable group falls back to 0 and the own country in both. They also cover the update, insert and delete counts on each load, rows from before deployment that lack the new columns, and one failure path per load.\n\nAC-027-14 (the D2 edit and re-baselining and running the reconciliation scripts) is a human handover step. AC-027-15 is the documentation update to the handover files. Neither is in this commit.\n\nTest-first: the first run had 19 of 19 of the Tester's tests passing; the final run passed 19 of 19 and 10 unit test(s), in 1 run(s)."
+}
