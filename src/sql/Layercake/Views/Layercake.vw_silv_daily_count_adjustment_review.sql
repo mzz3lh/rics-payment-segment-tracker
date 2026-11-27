@@ -7,6 +7,10 @@
     the silv_daily_count_detail column name.
     MOD-028 (RULE-155): the cell's segment ids, copied from the
     adjustment row; rows written before deployment show -2 (RULE-162).
+    MOD-031 (RULE-176): the cell's local group, own country and its
+    region, copied from the adjustment row, so a move between local
+    groups shows as -1 and +1 on two rows; rows written before that
+    deployment show -2 in local_group_id (RULE-179).
 ====================================================================*/
 CREATE OR ALTER VIEW Layercake.vw_silv_daily_count_adjustment_review
 AS
@@ -23,6 +27,9 @@ SELECT
     a.payment_method_id,
     a.payer_type_id,
     a.concession_type_id,
+    a.local_group_id,
+    a.contact_country_id,
+    a.contact_region,
     -- ISNULL only makes the column NOT NULL, as designed: a VALUES column is always reported nullable.
     ISNULL(m.measure_name, '') AS measure_name,
     m.change_value

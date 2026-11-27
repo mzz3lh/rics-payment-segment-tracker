@@ -1,0 +1,158 @@
+{
+  "meta": {
+    "artefact_type": "defect_report",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-27T10:36:40Z",
+    "status": "for_review",
+    "artefact_id": "DR-MOD-031-1",
+    "source_artefacts": [
+      "TR-MOD-031-1"
+    ]
+  },
+  "module_id": "MOD-031",
+  "loop_number": 1,
+  "defects": [
+    {
+      "id": "DEF-009",
+      "test_condition_ids": [
+        "TC-027-001",
+        "TC-027-002",
+        "TC-027-003",
+        "TC-027-004",
+        "TC-027-005",
+        "TC-027-006",
+        "TC-027-007",
+        "TC-027-008",
+        "TC-027-009",
+        "TC-027-010",
+        "TC-027-012"
+      ],
+      "requirement_ids": [
+        "REQ-025",
+        "REQ-026"
+      ],
+      "severity": "minor",
+      "summary": "The MOD-027 gold-sync tests are still written for the eight-column fact grain. The approved MOD-031 design (RULE-175, RULE-176) adds local_group_id, contact_country_id and contact_region to silv_daily_count_detail, and local_group_id and contact_country_id to the fact and its unique clustered index, so these tests need amending where they name the grain, as MP-001 MOD-031 says.",
+      "steps_to_reproduce": "run_suite: test_MOD027 TC-027-001 to -010 and -012 fail. Reproduce: EXEC test_MOD027.SetUp. Insert TC-027-001's detail rows adding local_group_id 0, contact_country_id = country_id and contact_region = region. EXEC Layercake.usp_load_fact_daily_member_count_detail. The fact equals TC-027-001's #Expected. Without the three columns the load raises 515.",
+      "expected": "DES-001 / MP-001 MOD-031: silv_daily_count_detail rows carry local_group_id, contact_country_id and contact_region (NOT NULL). fact_daily_member_count_detail has 18 columns and a ten-column unique clustered index (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id). MP-001 MOD-031: 'The Tester amends the MOD-021, MOD-022, MOD-026, MOD-027 and MOD-028 conditions only where they name the grain or the region source.'",
+      "actual": "TC-027-001 to -010 (not -011) insert rows into the faked silv_daily_count_detail without the three new columns. FakeTable drops NOT NULL, so they are NULL, and usp_load_fact_daily_member_count_detail fails with 515 ('Cannot insert the value NULL into column local_group_id, table #det_stage'). The real table cannot hold such rows. TC-027-012 expects the 16-column fact and the eight-column index. The build has 18 columns and the ten-column cx_fact_daily_member_count_detail that the design specifies, and TC-031-001 and TC-031-002 pass. Checked with run_sql: TC-027-001's five detail rows with local_group_id 0, contact_country_id 3 and contact_region = region give exactly the test's 4 expected fact rows (local group 0, contact country 3) and the log gold 'Success' 4/0/0.",
+      "suspected_cause": "design",
+      "status": "open"
+    },
+    {
+      "id": "DEF-010",
+      "test_condition_ids": [
+        "TC-022-019"
+      ],
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-026"
+      ],
+      "severity": "minor",
+      "summary": "MOD-022's first-run drift test seeds pre-existing silv_daily_count_detail rows without the MOD-031 grain columns (local_group_id, contact_country_id, contact_region). The load therefore reads every seeded cell as a different cell from the ones it derives, and writes extra adjustment rows.",
+      "steps_to_reproduce": "run_suite: test_MOD022 TC-022-019 fails. EXEC test_MOD022.SetUp. Run TC-022-019's inserts, adding local_group_id 0, contact_country_id = country_id and contact_region 'UK' to the detail rows. EXEC Layercake.usp_load_silv_daily_count. SELECT from silv_daily_count_adjustment: the 4 expected rows.",
+      "expected": "Under the approved MOD-031 design, detail cells carry the three new columns (NOT NULL). A pre-existing cell for a member with no local group is (..., local_group_id 0, contact_country_id = country_id, contact_region = region). With that, the run writes exactly the test's 4 drift adjustments.",
+      "actual": "The seeded rows have NULL in the new columns (faked table), so the AssertEqualsTable on the adjustment rows fails. Checked with run_sql: the same data with local_group_id 0, contact_country_id = country_id and contact_region 'UK' on the seeded rows gives exactly the 4 expected rows: 2022-11-01 c1 paid_event +1 renewal +1; 2023-06-15 c1 paid_event +1; 2023-06-15 c2 paid +1; 2025-01-10 c1 paid_event +1 renewal +1. The test's #Expected and #Mismatch also leave the three columns out of the cell.",
+      "suspected_cause": "design",
+      "status": "open"
+    },
+    {
+      "id": "DEF-011",
+      "test_condition_ids": [
+        "TC-021-015",
+        "TC-021-017"
+      ],
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020",
+        "REQ-026"
+      ],
+      "severity": "minor",
+      "summary": "The MOD-021 structure tests for silv_daily_count_adjustment still expect the MOD-028 columns and a unique key on run_id plus the nine-column cell. The approved MOD-031 design adds local_group_id, contact_country_id and contact_region to the table and to its key.",
+      "steps_to_reproduce": "run_suite: test_MOD021 TC-021-015 and TC-021-017 fail. Inspect sys.columns and sys.index_columns for Layercake.silv_daily_count_adjustment.",
+      "expected": "DES-001 / MP-001 MOD-031: silv_daily_count_adjustment gains local_group_id and contact_country_id (int NOT NULL) and contact_region (varchar(12) NOT NULL), and its key is widened by them, giving 23 columns (TC-031-001).",
+      "actual": "The built table matches the design. It has 23 columns, and UQ_Layercake_silv_daily_count_adjustment_run_id_cell is keyed on run_id, date, region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region. TC-021-015 fails on the column list. TC-021-017 finds 0 unique indexes keyed exactly on the old 10 columns.",
+      "suspected_cause": "design",
+      "status": "open"
+    },
+    {
+      "id": "DEF-012",
+      "test_condition_ids": [
+        "TC-016-014"
+      ],
+      "requirement_ids": [
+        "REQ-001",
+        "REQ-026"
+      ],
+      "severity": "minor",
+      "summary": "MOD-016's Phase 1 column-list test still expects silv_daily_count_detail (18 columns) and fact_daily_member_count_detail (16 columns) at the MOD-028 grain. The approved MOD-031 design (AMD-008, RULE-175/RULE-176) adds local_group_id, contact_country_id and contact_region to the detail table, and the first two to the fact.",
+      "steps_to_reproduce": "run_suite: test_MOD016 TC-016-014 fails. SELECT column_id, name FROM sys.columns WHERE object_id = OBJECT_ID('Layercake.silv_daily_count_detail') (and the same for fact_daily_member_count_detail).",
+      "expected": "DES-001 after MOD-031: silv_daily_count_detail has 21 columns and fact_daily_member_count_detail has 18. Mike's 'Member region by local group' answer allows the finer grain and new columns. silv_annual_rate_base and fact_annual_rate_base are not changed until MOD-032.",
+      "actual": "silv_daily_count_detail keeps its 18 columns in order and then has local_group_id, contact_country_id and contact_region (19 to 21). The fact gains local_group_id and contact_country_id (17 and 18). The annual rate base tables are unchanged (11 and 12 columns). The test fails only on the detail and fact lists. MP-001 MOD-031 does not list MOD-016 among the suites to amend, so this condition needs adding to that list.",
+      "suspected_cause": "design",
+      "status": "open"
+    },
+    {
+      "id": "DEF-013",
+      "test_condition_ids": [
+        "TC-018-020"
+      ],
+      "requirement_ids": [
+        "REQ-017",
+        "REQ-018"
+      ],
+      "severity": "minor",
+      "summary": "MOD-018's TC-018-020 seeds the existing silv_member_profile row without the new MOD-031 columns (local_group_id, contact_country_id). The changed profile load (DES-001: a difference in either is a change) therefore sees a local group change on top of the retirement date change, and logs the 'member_profile' pending row from 2020-10-01 instead of 2024-03-01.",
+      "steps_to_reproduce": "run_suite: test_MOD018 TC-018-020 fails at the pending-row assertion. Reproduce with test_MOD018's SetUp fakes and TC-018-020's data, adding local_group_id 0 and contact_country_id 0 to the seeded silv_member_profile row (and contact_region to the state range). Run usp_load_silv_member_base, usp_load_silv_member_profile and usp_load_silv_daily_count. etl_daily_count_pending_rebuild then shows member_profile 2024-03-01 applied.",
+      "expected": "TC-018-020 (as amended under ASM-010): after the base, profile and plain daily count runs, the 'member_profile' pending row has affected_from 2024-03-01 and is applied, and no open row remains. DES-001 usp_load_silv_member_profile: local_group_id and contact_country_id are copied, and a difference in either counts as a change. A real Phase 1 profile row has the placeholder values after the MOD-031 migration (local_group_id 0, contact_country_id = country_id).",
+      "actual": "Pending row affected_from 2020-10-01, is_applied 1. The faked profile row has NULL local_group_id and contact_country_id. The base gives 0 and 0, so the profile load treats the contact's whole history as changed. Checked with run_sql: the same setup with the profile row seeded as (T5, 0, 0, '2024-03-01', local_group_id 0, contact_country_id 0) gives pending (member_profile, 2024-03-01, applied 1) and detail (2024-06-01 election 1 1) and (2025-02-01 election 2 1). Every assertion of TC-018-020 then holds. MP-001 MOD-031 does not list MOD-018 among the suites to amend.",
+      "suspected_cause": "design",
+      "status": "open"
+    },
+    {
+      "id": "DEF-014",
+      "test_condition_ids": [
+        "TC-028-019",
+        "TC-028-020",
+        "TC-028-021"
+      ],
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-024",
+        "REQ-026"
+      ],
+      "severity": "minor",
+      "summary": "MOD-028's restatement tests simulate the MOD-028 migration state by re-inserting detail, cell-count (and fact) rows without the MOD-031 columns. Under the approved MOD-031 grain, the restating run therefore sees those stored cells as different from what it derives, and writes adjustment rows beyond the expected ones.",
+      "steps_to_reproduce": "run_suite: test_MOD028 TC-028-019, -020 and -021 fail. Reproduce TC-028-020: EXEC test_MOD028.SetUp. Load the test's data and run 1. Rebuild the simulated -2 state with local_group_id 0, contact_country_id = country_id and contact_region = region in silv_daily_count_detail and etl_daily_count_cell_contacts. Write the marker, add RN:R3:2025 and run 2. SELECT the adjustment rows of run 2: one row, as expected.",
+      "expected": "The state a migration leaves carries every NOT NULL grain column. After MOD-031, stored rows have local_group_id 0, contact_country_id = country_id and contact_region = region (MP-001 MOD-031 placeholders). With that, the MOD-028 restating run writes only the real change at the segment grain with -2 and removes the 'detail_grain_restatement' marker (TC-028-019: no new adjustment row; TC-028-020: one row; TC-028-021: summed +1 for D6).",
+      "actual": "The restating run writes extra adjustment rows for the NULL-grain cells, so the 'adjustment history' and 'adjustment rows of the restating run' assertions fail. Checked with run_sql for TC-028-020: the same data with the simulated rows carrying local_group_id 0, contact_country_id = country_id and contact_region = region gives exactly one adjustment row, (2025-01-10, UK, 1, 1, election, 1, -2, -2, -2, local group 0, 1, UK) paid_count_event +1, renewal +1, and no marker remains, as the test expects. TC-028-019 and -021 use the same simulated state.",
+      "suspected_cause": "design",
+      "status": "open"
+    },
+    {
+      "id": "DEF-015",
+      "test_condition_ids": [
+        "TC-028-001",
+        "TC-028-002",
+        "TC-028-003"
+      ],
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020",
+        "REQ-024",
+        "REQ-025",
+        "REQ-026"
+      ],
+      "severity": "minor",
+      "summary": "The MOD-028 structure tests still expect the eight-column grain: detail and fact column lists, column counts of cell contacts, adjustment history, review view and detail function, and the eight-column fact clustered index. The approved MOD-031 design widens all of them by the local group columns.",
+      "steps_to_reproduce": "run_suite: test_MOD028 TC-028-001, -002 and -003 fail. Inspect sys.columns and sys.index_columns for the objects named.",
+      "expected": "DES-001 / MP-001 MOD-031 (and TC-031-001/002): silv_daily_count_detail 21 columns, etl_daily_count_cell_contacts 15, silv_daily_count_adjustment 23, fact 18, fn_silv_daily_count_detail_as_known_at 19, vw_silv_daily_count_adjustment_review 17. The fact's unique clustered index is on the ten grain columns.",
+      "actual": "The build matches the design: detail 21, cell contacts 15, adjustment 23, fact 18, function 19 and view 17 columns. cx_fact_daily_member_count_detail is keyed on date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id. The three segment ids are still int NOT NULL, and id is still a bigint identity nonclustered PK. The tests fail only on the counts, lists and index that MOD-031 widens.",
+      "suspected_cause": "design",
+      "status": "open"
+    }
+  ]
+}

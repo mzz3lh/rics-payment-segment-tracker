@@ -1,0 +1,289 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-27T10:36:40Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-031-1",
+    "source_artefacts": [
+      "CN-MOD-031",
+      "TCS-MOD-031",
+      "tests/tsqlt/test_MOD031.sql"
+    ]
+  },
+  "module_id": "MOD-031",
+  "loop_number": 1,
+  "run": {
+    "environment": "test",
+    "commit": "c5b77025e8271a97b00eeee95e49459334ff622d",
+    "started_at": "2026-11-27T10:23:03Z",
+    "finished_at": "2026-11-27T10:32:30Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-031-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-013",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-014",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-015",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-016",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-017",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-018",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-019",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-020",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-021",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-019",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-020",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-024",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-025",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-026",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-027",
+      "status": "met"
+    }
+  ],
+  "regression": {
+    "ran": 820,
+    "failed": [
+      {
+        "test": "[test_MOD016].[test TC-016-014 the daily and annual Phase 1 tables keep their column lists]",
+        "outcome": "fail",
+        "message": "Unexpected/missing resultset rows!  |_m_|table_name                    |ordinal|column_name            |  +---+------------------------------+-------+-----------------------+  |=  |silv_annual_rate_base         |1      |campaign_year          |  |=  |silv_"
+      },
+      {
+        "test": "[test_MOD018].[test TC-018-020 derived date reaches loaded daily history on the next plain run]",
+        "outcome": "fail",
+        "message": "Unexpected/missing resultset rows!  |_m_|affected_from|is_applied|  +---+-------------+----------+  |<  |2024-03-01   |1         |  |>  |2020-10-01   |1         |"
+      },
+      {
+        "test": "[test_MOD021].[test TC-021-015 adjustment table has the designed columns, types and nullability]",
+        "outcome": "fail",
+        "message": "Unexpected/missing resultset rows!  |_m_|column_name                   |type_text       |is_nullable|is_identity|  +---+------------------------------+----------------+-----------+-----------+  |=  |country_id                    |int             |0        "
+      },
+      {
+        "test": "[test_MOD021].[test TC-021-017 adjustment table is unique on run_id and the nine cell columns]",
+        "outcome": "fail",
+        "message": "Expected exactly one unfiltered unique index or constraint keyed on run_id, [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id. Expected: <1> but was: <0>"
+      },
+      {
+        "test": "[test_MOD022].[test TC-022-019 the first run after deployment records the drift it corrects as adjustments]",
+        "outcome": "fail",
+        "message": "Unexpected/missing resultset rows!  |_m_|run_id                              |date      |region|country_id|gender_id|grade   |membership_status_id|payment_method_id|payer_type_id|concession_type_id|active_count_change|paid_count_change|paid_count_event_cha"
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-004 a contact moving country updates its old cells in place and inserts its new cells]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000006303'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-012 fact id is a bigint identity and still the nonclustered primary key with the grain index unchanged]",
+        "outcome": "fail",
+        "message": "Unexpected/missing resultset rows!  |_m_|column_name         |type_name|is_nullable|is_identity|  +---+--------------------+---------+-----------+-----------+  |=  |membership_grade_id |int      |False      |False      |  |=  |membership_status_id|int     "
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-008 fact rows dated before or after the silver span are deleted]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________00000000630C'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-006 cell E emptying in the daily run deletes its fact row and other rows on its date keep their id]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000006322'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-002 changed cells are updated in place and keep their id while unchanged cells are untouched]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000006323'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-001 first load of an empty fact inserts one row per gold cell with the Phase 1 derivation]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000006324'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-003 a new silver cell is inserted and the existing cell on its date keeps its id]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000006325'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-009 a change in any one of the seven measures counts as a changed cell]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000006326'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-010 a rerun on unchanged silver changes no fact row and logs 0 inserted updated and deleted]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000006327'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-007 a fact row added by hand is deleted by the next daily run and no other row changes]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000006329'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027].[test TC-027-005 a removed contact deletes the cell it held alone and updates the cell it shared]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000006329'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027_dev].[test rows_deleted counts the span trim and the in-window deletes together]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________00000000634D'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027_dev].[test counts add up across one-day windows and each window logs its synced cells]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________00000000634E'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027_dev].[test an overflow in a later window keeps the committed window and logs Failed with its counts]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________000000006350'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD028].[test TC-028-021 a restating run that fails part way keeps the marker and the next run finishes with no cleanup]",
+        "outcome": "fail",
+        "message": "adjustments of the failed and the completing run, summed per cell  Unexpected/missing resultset rows!  |_m_|date      |region|country_id|gender_id|grade   |membership_status_id|payment_method_id|payer_type_id|concession_type_id|active_count_change|paid_cou"
+      },
+      {
+        "test": "[test_MOD028].[test TC-028-020 a real change found by the restating run is recorded at the old grain with -2]",
+        "outcome": "fail",
+        "message": "adjustment rows of the restating run  Unexpected/missing resultset rows!  |_m_|date      |region|country_id|gender_id|grade   |membership_status_id|payment_method_id|payer_type_id|concession_type_id|active_count_change|paid_count_change|paid_count_event_ch"
+      },
+      {
+        "test": "[test_MOD028].[test TC-028-019 the first run after deployment restates the -2 cells at the segment grain writing no adjustment]",
+        "outcome": "fail",
+        "message": "adjustment history: only the pre-deployment row, unchanged  Unexpected/missing resultset rows!  |_m_|run_id                              |load_id|written_at                 |date      |region|country_id|gender_id|grade   |membership_status_id|payment_metho"
+      },
+      {
+        "test": "[test_MOD028].[test TC-028-001 detail and fact keep their columns and gain three not null int segment ids]",
+        "outcome": "fail",
+        "message": "silv_daily_count_detail columns  Unexpected/missing resultset rows!  |_m_|column_name            |type_name|is_nullable|  +---+-----------------------+---------+-----------+  |=  |country_id             |int      |0          |  |=  |date                   "
+      },
+      {
+        "test": "[test_MOD028].[test TC-028-003 fact unique clustered index covers the eight grain columns with no foreign key on the new ids and id bigint]",
+        "outcome": "fail",
+        "message": "unique clustered index key columns  Unexpected/missing resultset rows!  |_m_|column_name         |  +---+--------------------+  |=  |country_id          |  |=  |date_id             |  |=  |gender_id           |  |=  |membership_grade_id |  |=  |membership_"
+      },
+      {
+        "test": "[test_MOD028].[test TC-028-002 adjustment history cell counts review view and detail function gain the three segment ids]",
+        "outcome": "fail",
+        "message": "Unexpected/missing resultset rows!  |_m_|object_name                           |column_count|segment_int_columns|segment_not_null_columns|  +---+--------------------------------------+------------+-------------------+------------------------+  |<  |etl_dai"
+      },
+      {
+        "test": "[test_MOD028_dev].[test MOD-027 rows_deleted counts the span trim and the in-window deletes together at the segment grain]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________0000000065C5'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD028_dev].[test MOD-027 an overflow in a later window keeps the committed window and logs Failed at the segment grain]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________0000000065E5'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD028_dev].[test gold sums regions within a segment cell and keeps segment cells apart]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________0000000065E5'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD028_dev].[test MOD-027 counts add up across one-day windows and each window logs its synced cells at the segment grain]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________0000000065E5'; column does not allow nulls. INSERT fai"
+      }
+    ]
+  },
+  "verdict": "fail",
+  "defect_report_ref": "DR-MOD-031-1"
+}

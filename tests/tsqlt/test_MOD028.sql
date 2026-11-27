@@ -123,6 +123,7 @@ BEGIN
                  (N'region', N'varchar', 0), (N'country_id', N'int', 0), (N'gender_id', N'int', 0),
                  (N'grade', N'varchar', 0), (N'membership_status_id', N'int', 0),
                  (N'payment_method_id', N'int', 0), (N'payer_type_id', N'int', 0), (N'concession_type_id', N'int', 0),
+                 (N'local_group_id', N'int', 0), (N'contact_country_id', N'int', 0), (N'contact_region', N'varchar', 0),
                  (N'active_count', N'int', 0), (N'paid_count', N'int', 0), (N'paid_count_event', N'int', 0),
                  (N'event_join_count', N'int', 0), (N'event_renewal_count', N'int', 0),
                  (N'event_readmission_count', N'int', 0), (N'event_lapse_count', N'int', 0)) AS v(column_name, type_name, is_nullable);
@@ -141,6 +142,7 @@ BEGIN
     FROM (VALUES (N'id', N'bigint', 0), (N'date_id', N'int', 0), (N'country_id', N'int', 0), (N'gender_id', N'int', 0),
                  (N'membership_grade_id', N'int', 0), (N'membership_status_id', N'int', 0),
                  (N'payment_method_id', N'int', 0), (N'payer_type_id', N'int', 0), (N'concession_type_id', N'int', 0),
+                 (N'local_group_id', N'int', 0), (N'contact_country_id', N'int', 0),
                  (N'ActiveMembers', N'int', 0), (N'PaidMembers', N'int', 0), (N'PaidMembersEvent', N'int', 0),
                  (N'JoinEvents', N'int', 0), (N'RenewalEvents', N'int', 0), (N'ReadmissionEvents', N'int', 0),
                  (N'LapseEvents', N'int', 0)) AS v(column_name, type_name, is_nullable);
@@ -182,10 +184,10 @@ BEGIN
 
     SELECT v.object_name, v.column_count, v.segment_int_columns, v.segment_not_null_columns
     INTO #Expected
-    FROM (VALUES (N'silv_daily_count_adjustment', 20, 3, 3),
-                 (N'etl_daily_count_cell_contacts', 12, 3, 3),
-                 (N'vw_silv_daily_count_adjustment_review', 14, 3, NULL),
-                 (N'fn_silv_daily_count_detail_as_known_at', 16, 3, NULL)) AS v(object_name, column_count, segment_int_columns, segment_not_null_columns);
+    FROM (VALUES (N'silv_daily_count_adjustment', 23, 3, 3),
+                 (N'etl_daily_count_cell_contacts', 15, 3, 3),
+                 (N'vw_silv_daily_count_adjustment_review', 17, 3, NULL),
+                 (N'fn_silv_daily_count_detail_as_known_at', 19, 3, NULL)) AS v(object_name, column_count, segment_int_columns, segment_not_null_columns);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 END;
@@ -212,7 +214,8 @@ BEGIN
     SELECT v.column_name
     INTO #Expected
     FROM (VALUES (N'date_id'), (N'country_id'), (N'gender_id'), (N'membership_grade_id'), (N'membership_status_id'),
-                 (N'payment_method_id'), (N'payer_type_id'), (N'concession_type_id')) AS v(column_name);
+                 (N'payment_method_id'), (N'payer_type_id'), (N'concession_type_id'),
+                 (N'local_group_id'), (N'contact_country_id')) AS v(column_name);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual', 'unique clustered index key columns';
 
@@ -1183,12 +1186,12 @@ BEGIN
     VALUES ('2025-01-09', 2025, 'Q2'), ('2025-01-10', 2025, 'Q2');
     INSERT INTO Layercake.dim_date (id, [date], campaign_year, campaign_quarter)
     VALUES (1, '2025-01-09', 2025, 'Q2'), (2, '2025-01-10', 2025, 'Q2');
-    INSERT INTO Layercake.silv_member_state_ranges (id, contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq)
-    VALUES (1, N'R1', '2015-01-01', NULL, 2015, 'election', 'UK', 1),
-           (2, N'R2', '2015-01-01', NULL, 2015, 'election', 'UK', 1),
-           (3, N'R3', '2015-01-01', NULL, 2015, 'election', 'UK', 1);
-    INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date)
-    VALUES (N'R1', 1, 1, NULL), (N'R2', 1, 1, NULL), (N'R3', 1, 1, NULL);
+    INSERT INTO Layercake.silv_member_state_ranges (id, contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq, contact_region)
+    VALUES (1, N'R1', '2015-01-01', NULL, 2015, 'election', 'UK', 1, 'UK'),
+           (2, N'R2', '2015-01-01', NULL, 2015, 'election', 'UK', 1, 'UK'),
+           (3, N'R3', '2015-01-01', NULL, 2015, 'election', 'UK', 1, 'UK');
+    INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date, local_group_id, contact_country_id)
+    VALUES (N'R1', 1, 1, NULL, 0, 1), (N'R2', 1, 1, NULL, 0, 1), (N'R3', 1, 1, NULL, 0, 1);
     INSERT INTO Layercake.silv_payment_events (contact_no, campaign_year, payment_date, renewal_date_adj, invoice_position)
     VALUES (N'R2', 2025, '2024-10-20', '2024-10-20', N'Fully Paid');
     INSERT INTO Layercake.silv_membership_events
@@ -1228,30 +1231,34 @@ BEGIN
     DELETE FROM Layercake.etl_daily_count_cell_contacts;
     DELETE FROM Layercake.fact_daily_member_count_detail;
 
+    -- Stored cells carry the MOD-031 placeholders (local_group_id 0, contact_country_id = country_id, contact_region = region);
+    -- the pre-deployment adjustment row carries local_group_id -2 (RULE-179), contact_country_id = country_id, contact_region = region.
     EXEC sp_executesql
         N'INSERT INTO Layercake.silv_daily_count_detail
               ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-               payment_method_id, payer_type_id, concession_type_id,
+               payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
                active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-          SELECT [date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, -2, -2, -2,
+          SELECT [date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, -2, -2, -2, 0, country_id, region,
                  active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count
           FROM #OldDetail;
           INSERT INTO Layercake.etl_daily_count_cell_contacts
-              ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, contact_count, run_id, updated_at)
-          SELECT [date], region, country_id, gender_id, grade, membership_status_id, -2, -2, -2, contact_count, @run, SYSDATETIME()
+              ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+               local_group_id, contact_country_id, contact_region, contact_count, run_id, updated_at)
+          SELECT [date], region, country_id, gender_id, grade, membership_status_id, -2, -2, -2, 0, country_id, region, contact_count, @run, SYSDATETIME()
           FROM #OldCells;
           INSERT INTO Layercake.fact_daily_member_count_detail
               (date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+               local_group_id, contact_country_id,
                ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-          SELECT date_id, country_id, gender_id, membership_grade_id, membership_status_id, -2, -2, -2,
+          SELECT date_id, country_id, gender_id, membership_grade_id, membership_status_id, -2, -2, -2, 0, country_id,
                  ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents
           FROM #OldFact;
           INSERT INTO Layercake.silv_daily_count_adjustment
               (run_id, load_id, written_at, [date], region, country_id, gender_id, grade, membership_status_id,
-               payment_method_id, payer_type_id, concession_type_id,
+               payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
                active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
                event_renewal_count_change, event_readmission_count_change, event_lapse_count_change)
-          VALUES (@pre, 7, ''2025-01-10T07:00:00'', ''2025-01-10'', ''UK'', 1, 1, ''election'', 1, -2, -2, -2, 1, 0, 0, 0, 0, 0, 0);',
+          VALUES (@pre, 7, ''2025-01-10T07:00:00'', ''2025-01-10'', ''UK'', 1, 1, ''election'', 1, -2, -2, -2, -2, 1, ''UK'', 1, 0, 0, 0, 0, 0, 0);',
         N'@run uniqueidentifier, @pre uniqueidentifier', @run = @r1, @pre = @r0;
 
     DELETE FROM Layercake.etl_daily_count_applied_contact;
@@ -1278,6 +1285,7 @@ BEGIN
     SELECT @r0 AS run_id, CAST(7 AS bigint) AS load_id, CAST('2025-01-10T07:00:00' AS datetime2(3)) AS written_at, CAST('2025-01-10' AS date) AS [date],
            CAST('UK' AS varchar(12)) AS region, 1 AS country_id, 1 AS gender_id, CAST('election' AS varchar(12)) AS grade, 1 AS membership_status_id,
            -2 AS payment_method_id, -2 AS payer_type_id, -2 AS concession_type_id,
+           -2 AS local_group_id, 1 AS contact_country_id, CAST('UK' AS varchar(12)) AS contact_region,
            1 AS active_count_change, 0 AS paid_count_change, 0 AS paid_count_event_change, 0 AS event_join_count_change,
            0 AS event_renewal_count_change, 0 AS event_readmission_count_change, 0 AS event_lapse_count_change
     INTO #ExpectedAdj;
@@ -1285,7 +1293,7 @@ BEGIN
     SELECT TOP (0) * INTO #ActualAdj FROM #ExpectedAdj;
     INSERT INTO #ActualAdj
     EXEC (N'SELECT run_id, load_id, written_at, [date], region, country_id, gender_id, grade, membership_status_id,
-                  payment_method_id, payer_type_id, concession_type_id,
+                  payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
                   active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
                   event_renewal_count_change, event_readmission_count_change, event_lapse_count_change
            FROM Layercake.silv_daily_count_adjustment;');
@@ -1294,20 +1302,23 @@ BEGIN
 
     SELECT CAST(v.[date] AS date) AS [date], CAST(v.region AS varchar(12)) AS region, v.country_id, v.gender_id, CAST(v.grade AS varchar(12)) AS grade, v.membership_status_id,
            v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.local_group_id, v.contact_country_id, CAST(v.contact_region AS varchar(12)) AS contact_region,
            v.active_count, v.paid_count, v.paid_count_event, v.event_join_count, v.event_renewal_count, v.event_readmission_count, v.event_lapse_count
     INTO #Expected
-    FROM (VALUES ('2025-01-09', 'UK', 1, 1, 'election', 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
-                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0))
+    FROM (VALUES ('2025-01-09', 'UK', 1, 1, 'election', 1, 1, 1, 1, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0),
+                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 2, 1, 1, 0, 1, 'UK', 1, 1, 1, 0, 0, 0, 0),
+                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 1, 1, 1, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 2, 1, 1, 0, 1, 'UK', 1, 1, 1, 0, 0, 0, 0),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0))
          AS v([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+              local_group_id, contact_country_id, contact_region,
               active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count);
 
     SELECT TOP (0) * INTO #Actual FROM #Expected;
     INSERT INTO #Actual
     EXEC (N'SELECT [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+                  local_group_id, contact_country_id, contact_region,
                   active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count
            FROM Layercake.silv_daily_count_detail;');
 
@@ -1315,38 +1326,44 @@ BEGIN
     EXEC tSQLt.AssertEqualsTable '#DailyBefore', 'Layercake.silv_daily_count', 'silv_daily_count unchanged';
 
     SELECT CAST(v.[date] AS date) AS [date], CAST(v.region AS varchar(12)) AS region, v.country_id, v.gender_id, CAST(v.grade AS varchar(12)) AS grade, v.membership_status_id,
-           v.payment_method_id, v.payer_type_id, v.concession_type_id, v.contact_count
+           v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.local_group_id, v.contact_country_id, CAST(v.contact_region AS varchar(12)) AS contact_region, v.contact_count
     INTO #ExpectedCells
-    FROM (VALUES ('2025-01-09', 'UK', 1, 1, 'election', 1, 1, 1, 1, 1),
-                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 2, 1, 1, 1),
-                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 1, 1, 1, 1),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 2, 1, 1, 1),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1))
-         AS v([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, contact_count);
+    FROM (VALUES ('2025-01-09', 'UK', 1, 1, 'election', 1, 1, 1, 1, 0, 1, 'UK', 1),
+                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 2, 1, 1, 0, 1, 'UK', 1),
+                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 1),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 1, 1, 1, 0, 1, 'UK', 1),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 2, 1, 1, 0, 1, 'UK', 1),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 1))
+         AS v([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+              local_group_id, contact_country_id, contact_region, contact_count);
 
     SELECT TOP (0) * INTO #ActualCells FROM #ExpectedCells;
     INSERT INTO #ActualCells
-    EXEC (N'SELECT [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, contact_count
+    EXEC (N'SELECT [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+                  local_group_id, contact_country_id, contact_region, contact_count
            FROM Layercake.etl_daily_count_cell_contacts;');
 
     EXEC tSQLt.AssertEqualsTable '#ExpectedCells', '#ActualCells', 'cell counts restated';
 
     SELECT v.date_id, v.country_id, v.gender_id, v.membership_grade_id, v.membership_status_id, v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.local_group_id, v.contact_country_id,
            v.ActiveMembers, v.PaidMembers, v.PaidMembersEvent, v.JoinEvents, v.RenewalEvents, v.ReadmissionEvents, v.LapseEvents
     INTO #ExpectedFact
-    FROM (VALUES (1, 1, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0),
-                 (1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
-                 (1, 1, 1, 2, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
-                 (2, 1, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0),
-                 (2, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
-                 (2, 1, 1, 2, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0))
+    FROM (VALUES (1, 1, 1, 2, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0),
+                 (1, 1, 1, 2, 1, 2, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0),
+                 (1, 1, 1, 2, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0),
+                 (2, 1, 1, 2, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0),
+                 (2, 1, 1, 2, 1, 2, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0),
+                 (2, 1, 1, 2, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0))
          AS v(date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+              local_group_id, contact_country_id,
               ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents);
 
     SELECT TOP (0) * INTO #ActualFact FROM #ExpectedFact;
     INSERT INTO #ActualFact
     EXEC (N'SELECT date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+                  local_group_id, contact_country_id,
                   ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents
            FROM Layercake.fact_daily_member_count_detail;');
 
@@ -1370,12 +1387,12 @@ BEGIN
     VALUES ('2025-01-09', 2025, 'Q2'), ('2025-01-10', 2025, 'Q2');
     INSERT INTO Layercake.dim_date (id, [date], campaign_year, campaign_quarter)
     VALUES (1, '2025-01-09', 2025, 'Q2'), (2, '2025-01-10', 2025, 'Q2');
-    INSERT INTO Layercake.silv_member_state_ranges (id, contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq)
-    VALUES (1, N'R1', '2015-01-01', NULL, 2015, 'election', 'UK', 1),
-           (2, N'R2', '2015-01-01', NULL, 2015, 'election', 'UK', 1),
-           (3, N'R3', '2015-01-01', NULL, 2015, 'election', 'UK', 1);
-    INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date)
-    VALUES (N'R1', 1, 1, NULL), (N'R2', 1, 1, NULL), (N'R3', 1, 1, NULL);
+    INSERT INTO Layercake.silv_member_state_ranges (id, contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq, contact_region)
+    VALUES (1, N'R1', '2015-01-01', NULL, 2015, 'election', 'UK', 1, 'UK'),
+           (2, N'R2', '2015-01-01', NULL, 2015, 'election', 'UK', 1, 'UK'),
+           (3, N'R3', '2015-01-01', NULL, 2015, 'election', 'UK', 1, 'UK');
+    INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date, local_group_id, contact_country_id)
+    VALUES (N'R1', 1, 1, NULL, 0, 1), (N'R2', 1, 1, NULL, 0, 1), (N'R3', 1, 1, NULL, 0, 1);
     INSERT INTO Layercake.silv_payment_events (contact_no, campaign_year, payment_date, renewal_date_adj, invoice_position)
     VALUES (N'R2', 2025, '2024-10-20', '2024-10-20', N'Fully Paid');
     INSERT INTO Layercake.silv_membership_events
@@ -1406,17 +1423,19 @@ BEGIN
     DELETE FROM Layercake.silv_daily_count_detail;
     DELETE FROM Layercake.etl_daily_count_cell_contacts;
 
+    -- Stored cells carry the MOD-031 placeholders: local_group_id 0, contact_country_id = country_id, contact_region = region.
     EXEC sp_executesql
         N'INSERT INTO Layercake.silv_daily_count_detail
               ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-               payment_method_id, payer_type_id, concession_type_id,
+               payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
                active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-          SELECT [date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, -2, -2, -2,
+          SELECT [date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, -2, -2, -2, 0, country_id, region,
                  active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count
           FROM #OldDetail;
           INSERT INTO Layercake.etl_daily_count_cell_contacts
-              ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, contact_count, run_id, updated_at)
-          SELECT [date], region, country_id, gender_id, grade, membership_status_id, -2, -2, -2, contact_count, @run, SYSDATETIME()
+              ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+               local_group_id, contact_country_id, contact_region, contact_count, run_id, updated_at)
+          SELECT [date], region, country_id, gender_id, grade, membership_status_id, -2, -2, -2, 0, country_id, region, contact_count, @run, SYSDATETIME()
           FROM #OldCells;',
         N'@run uniqueidentifier', @run = @r1;
 
@@ -1439,11 +1458,13 @@ BEGIN
 
     SELECT CAST(v.[date] AS date) AS [date], CAST(v.region AS varchar(12)) AS region, v.country_id, v.gender_id, CAST(v.grade AS varchar(12)) AS grade, v.membership_status_id,
            v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.local_group_id, v.contact_country_id, CAST(v.contact_region AS varchar(12)) AS contact_region,
            v.active_count_change, v.paid_count_change, v.paid_count_event_change, v.event_join_count_change,
            v.event_renewal_count_change, v.event_readmission_count_change, v.event_lapse_count_change
     INTO #ExpectedAdj
-    FROM (VALUES ('2025-01-10', 'UK', 1, 1, 'election', 1, -2, -2, -2, 0, 0, 1, 0, 1, 0, 0))
+    FROM (VALUES ('2025-01-10', 'UK', 1, 1, 'election', 1, -2, -2, -2, 0, 1, 'UK', 0, 0, 1, 0, 1, 0, 0))
          AS v([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+              local_group_id, contact_country_id, contact_region,
               active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
               event_renewal_count_change, event_readmission_count_change, event_lapse_count_change);
 
@@ -1451,6 +1472,7 @@ BEGIN
     INSERT INTO #ActualAdj
     EXEC sp_executesql
         N'SELECT [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+                 local_group_id, contact_country_id, contact_region,
                  active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
                  event_renewal_count_change, event_readmission_count_change, event_lapse_count_change
           FROM Layercake.silv_daily_count_adjustment
@@ -1461,20 +1483,23 @@ BEGIN
 
     SELECT CAST(v.[date] AS date) AS [date], CAST(v.region AS varchar(12)) AS region, v.country_id, v.gender_id, CAST(v.grade AS varchar(12)) AS grade, v.membership_status_id,
            v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.local_group_id, v.contact_country_id, CAST(v.contact_region AS varchar(12)) AS contact_region,
            v.active_count, v.paid_count, v.paid_count_event, v.event_join_count, v.event_renewal_count, v.event_readmission_count, v.event_lapse_count
     INTO #Expected
-    FROM (VALUES ('2025-01-09', 'UK', 1, 1, 'election', 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
-                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0))
+    FROM (VALUES ('2025-01-09', 'UK', 1, 1, 'election', 1, 1, 1, 1, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0),
+                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 2, 1, 1, 0, 1, 'UK', 1, 1, 1, 0, 0, 0, 0),
+                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 1, 1, 1, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 2, 1, 1, 0, 1, 'UK', 1, 1, 1, 0, 0, 0, 0),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 1, 0, 1, 0, 1, 0, 0))
          AS v([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+              local_group_id, contact_country_id, contact_region,
               active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count);
 
     SELECT TOP (0) * INTO #Actual FROM #Expected;
     INSERT INTO #Actual
     EXEC (N'SELECT [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+                  local_group_id, contact_country_id, contact_region,
                   active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count
            FROM Layercake.silv_daily_count_detail;');
 
@@ -1486,6 +1511,7 @@ END;
 GO
 
 --[@tSQLt:NoTransaction](DEFAULT)
+--[@tSQLt:NoTransaction](DEFAULT)
 CREATE PROCEDURE test_MOD028.[test TC-028-021 a restating run that fails part way keeps the marker and the next run finishes with no cleanup]
 AS
 BEGIN
@@ -1496,12 +1522,12 @@ BEGIN
     VALUES ('2025-01-09', 2025, 'Q2'), ('2025-01-10', 2025, 'Q2');
     INSERT INTO Layercake.dim_date (id, [date], campaign_year, campaign_quarter)
     VALUES (1, '2025-01-09', 2025, 'Q2'), (2, '2025-01-10', 2025, 'Q2');
-    INSERT INTO Layercake.silv_member_state_ranges (id, contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq)
-    VALUES (1, N'R1', '2015-01-01', NULL, 2015, 'election', 'UK', 1),
-           (2, N'R2', '2015-01-01', NULL, 2015, 'election', 'UK', 1),
-           (3, N'R3', '2015-01-01', NULL, 2015, 'election', 'UK', 1);
-    INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date)
-    VALUES (N'R1', 1, 1, NULL), (N'R2', 1, 1, NULL), (N'R3', 1, 1, NULL);
+    INSERT INTO Layercake.silv_member_state_ranges (id, contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq, contact_region)
+    VALUES (1, N'R1', '2015-01-01', NULL, 2015, 'election', 'UK', 1, 'UK'),
+           (2, N'R2', '2015-01-01', NULL, 2015, 'election', 'UK', 1, 'UK'),
+           (3, N'R3', '2015-01-01', NULL, 2015, 'election', 'UK', 1, 'UK');
+    INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date, local_group_id, contact_country_id)
+    VALUES (N'R1', 1, 1, NULL, 0, 1), (N'R2', 1, 1, NULL, 0, 1), (N'R3', 1, 1, NULL, 0, 1);
     INSERT INTO Layercake.silv_payment_events (contact_no, campaign_year, payment_date, renewal_date_adj, invoice_position)
     VALUES (N'R2', 2025, '2024-10-20', '2024-10-20', N'Fully Paid');
     INSERT INTO Layercake.silv_membership_events
@@ -1532,17 +1558,19 @@ BEGIN
     DELETE FROM Layercake.silv_daily_count_detail;
     DELETE FROM Layercake.etl_daily_count_cell_contacts;
 
+    -- Stored cells carry the MOD-031 placeholders: local_group_id 0, contact_country_id = country_id, contact_region = region.
     EXEC sp_executesql
         N'INSERT INTO Layercake.silv_daily_count_detail
               ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-               payment_method_id, payer_type_id, concession_type_id,
+               payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
                active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-          SELECT [date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, -2, -2, -2,
+          SELECT [date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id, -2, -2, -2, 0, country_id, region,
                  active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count
           FROM #OldDetail;
           INSERT INTO Layercake.etl_daily_count_cell_contacts
-              ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, contact_count, run_id, updated_at)
-          SELECT [date], region, country_id, gender_id, grade, membership_status_id, -2, -2, -2, contact_count, @run, SYSDATETIME()
+              ([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+               local_group_id, contact_country_id, contact_region, contact_count, run_id, updated_at)
+          SELECT [date], region, country_id, gender_id, grade, membership_status_id, -2, -2, -2, 0, country_id, region, contact_count, @run, SYSDATETIME()
           FROM #OldCells;',
         N'@run uniqueidentifier', @run = @r1;
 
@@ -1557,9 +1585,10 @@ BEGIN
     -- New contact D6 from 2025-01-10 whose region is missing: the 2025-01-10 batch cannot be written.
     ALTER TABLE Layercake.silv_daily_count_detail ALTER COLUMN region varchar(12) NOT NULL;
     ALTER TABLE Layercake.etl_daily_count_cell_contacts ALTER COLUMN region varchar(12) NOT NULL;
-    INSERT INTO Layercake.silv_member_state_ranges (id, contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq)
-    VALUES (10, N'D6', '2025-01-10', NULL, 2025, 'election', NULL, 1);
-    INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date) VALUES (N'D6', 7, 1, NULL);
+    INSERT INTO Layercake.silv_member_state_ranges (id, contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq, contact_region)
+    VALUES (10, N'D6', '2025-01-10', NULL, 2025, 'election', NULL, 1, NULL);
+    INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date, local_group_id, contact_country_id)
+    VALUES (N'D6', 7, 1, NULL, 0, 7);
 
     BEGIN TRY
         EXEC Layercake.usp_load_silv_daily_count @run_id = @r2, @DailyCountBatchDays = 1;
@@ -1574,7 +1603,7 @@ BEGIN
     EXEC tSQLt.AssertEqualsString 'Failed', @status2, 'status of the failed restating run';
     EXEC tSQLt.AssertEquals 1, @marker, 'marker kept after the failure';
 
-    UPDATE Layercake.silv_member_state_ranges SET region = 'UK' WHERE contact_no = N'D6';
+    UPDATE Layercake.silv_member_state_ranges SET region = 'UK', contact_region = 'UK' WHERE contact_no = N'D6';
 
     EXEC Layercake.usp_load_silv_daily_count @run_id = @r3;
 
@@ -1585,11 +1614,13 @@ BEGIN
 
     SELECT CAST(v.[date] AS date) AS [date], CAST(v.region AS varchar(12)) AS region, v.country_id, v.gender_id, CAST(v.grade AS varchar(12)) AS grade, v.membership_status_id,
            v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.local_group_id, v.contact_country_id, CAST(v.contact_region AS varchar(12)) AS contact_region,
            v.active_count_change, v.paid_count_change, v.paid_count_event_change, v.event_join_count_change,
            v.event_renewal_count_change, v.event_readmission_count_change, v.event_lapse_count_change
     INTO #ExpectedAdj
-    FROM (VALUES ('2025-01-10', 'UK', 7, 1, 'election', 1, -2, -2, -2, 1, 0, 0, 0, 0, 0, 0))
+    FROM (VALUES ('2025-01-10', 'UK', 7, 1, 'election', 1, -2, -2, -2, 0, 7, 'UK', 1, 0, 0, 0, 0, 0, 0))
          AS v([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+              local_group_id, contact_country_id, contact_region,
               active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
               event_renewal_count_change, event_readmission_count_change, event_lapse_count_change);
 
@@ -1597,32 +1628,37 @@ BEGIN
     INSERT INTO #ActualAdj
     EXEC sp_executesql
         N'SELECT [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+                 local_group_id, contact_country_id, contact_region,
                  SUM(active_count_change), SUM(paid_count_change), SUM(paid_count_event_change), SUM(event_join_count_change),
                  SUM(event_renewal_count_change), SUM(event_readmission_count_change), SUM(event_lapse_count_change)
           FROM Layercake.silv_daily_count_adjustment
           WHERE run_id IN (@run2, @run3)
-          GROUP BY [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id;',
+          GROUP BY [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+                   local_group_id, contact_country_id, contact_region;',
         N'@run2 uniqueidentifier, @run3 uniqueidentifier', @run2 = @r2, @run3 = @r3;
 
     EXEC tSQLt.AssertEqualsTable '#ExpectedAdj', '#ActualAdj', 'adjustments of the failed and the completing run, summed per cell';
 
     SELECT CAST(v.[date] AS date) AS [date], CAST(v.region AS varchar(12)) AS region, v.country_id, v.gender_id, CAST(v.grade AS varchar(12)) AS grade, v.membership_status_id,
            v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.local_group_id, v.contact_country_id, CAST(v.contact_region AS varchar(12)) AS contact_region,
            v.active_count, v.paid_count, v.paid_count_event, v.event_join_count, v.event_renewal_count, v.event_readmission_count, v.event_lapse_count
     INTO #Expected
-    FROM (VALUES ('2025-01-09', 'UK', 1, 1, 'election', 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
-                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
-                 ('2025-01-10', 'UK', 7, 1, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0))
+    FROM (VALUES ('2025-01-09', 'UK', 1, 1, 'election', 1, 1, 1, 1, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0),
+                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 2, 1, 1, 0, 1, 'UK', 1, 1, 1, 0, 0, 0, 0),
+                 ('2025-01-09', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 1, 1, 1, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 2, 1, 1, 0, 1, 'UK', 1, 1, 1, 0, 0, 0, 0),
+                 ('2025-01-10', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 1, 0, 0, 0, 0, 0, 0),
+                 ('2025-01-10', 'UK', 7, 1, 'election', 1, 0, 0, 0, 0, 7, 'UK', 1, 0, 0, 0, 0, 0, 0))
          AS v([date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+              local_group_id, contact_country_id, contact_region,
               active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count);
 
     SELECT TOP (0) * INTO #Actual FROM #Expected;
     INSERT INTO #Actual
     EXEC (N'SELECT [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id,
+                  local_group_id, contact_country_id, contact_region,
                   active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count
            FROM Layercake.silv_daily_count_detail;');
 

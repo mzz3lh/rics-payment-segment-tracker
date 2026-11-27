@@ -38,6 +38,11 @@
 --      = backdated, recorded < effective = moved forward; reported as
 --      ENROLMENT_ / ELECTION_BEFORE_FIRST_PAID. The rule and its bound
 --      are in usp_load_silv_member_base.
+--    * RPST MOD-031 (REQ-027, RULE-172, RULE-175): local_group_id and
+--      contact_country_id added by change script. country_id now holds
+--      the member's country BY LOCAL GROUP (the usable local group's
+--      country, else the own country), and contact_country_id the own
+--      country, both from Layercake.vw_silv_contact_local_group.
 --
 --  Owned by 12_modules_silver.sql (usp_load_silv_member_base). It is a
 --  full re-derive each run - truncate + insert inside one transaction -
@@ -80,8 +85,10 @@ create table Layercake.silv_member_base
     retirement_date          date null,             -- drives Practising / Retired
     source_enr_id            uniqueidentifier null, -- lineage: row that supplied the earliest qualifying date
     rpq_variant_id           int  not null,         -- -> silv_ref_rpq_variant (0 = N/A)
-    country_id               int  not null,         -- -> silv_ref_country (0 = N/A)
-    gender_id                int  not null          -- -> silv_ref_gender (0 = N/A)
+    country_id               int  not null,         -- -> silv_ref_country: country BY LOCAL GROUP (MOD-031; 0 = N/A)
+    gender_id                int  not null,         -- -> silv_ref_gender (0 = N/A)
+    local_group_id           int  not null,         -- -> silv_ref_local_group (0 = Unknown: no usable local group) (MOD-031)
+    contact_country_id       int  not null          -- -> silv_ref_country: the member's OWN country (0 = N/A) (MOD-031)
 );
 
 -- non-unique by design - see the note above

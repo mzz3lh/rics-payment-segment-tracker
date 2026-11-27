@@ -1,0 +1,1 @@
+ALTER TABLE Layercake.etl_daily_count_applied_contact DROP COLUMN local_group_id, contact_country_id;

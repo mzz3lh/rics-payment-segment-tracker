@@ -1,0 +1,232 @@
+{
+  "meta": {
+    "artefact_type": "change_note",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "CN-MOD-031",
+    "version": 2,
+    "produced_by": "developer",
+    "produced_at": "2026-11-27T12:36:34Z",
+    "status": "for_review",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/DES-001.json",
+      "docs/design/MP-001.json",
+      "docs/test/TCS-MOD-031.json",
+      "tests/tsqlt/test_MOD031.sql"
+    ]
+  },
+  "module_id": "MOD-031",
+  "branch": "agent/developer/MOD-031-member-base-profile-and-daily-counts-by",
+  "commit": "a8f002b944a271c94270a4afe9e5c85e01e265ed",
+  "requirement_ids": [
+    "REQ-027",
+    "REQ-019",
+    "REQ-020",
+    "REQ-024",
+    "REQ-025",
+    "REQ-026"
+  ],
+  "objects_changed": [
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_member_base.sql",
+      "object": "Layercake.silv_member_base",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_member_base.sql",
+      "object": "Layercake.usp_load_silv_member_base",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_member_profile.sql",
+      "object": "Layercake.silv_member_profile",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_member_profile.sql",
+      "object": "Layercake.usp_load_silv_member_profile",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_member_state_ranges.sql",
+      "object": "Layercake.silv_member_state_ranges",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_member_state_ranges.sql",
+      "object": "Layercake.usp_load_silv_member_state_ranges",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_daily_count_detail.sql",
+      "object": "Layercake.silv_daily_count_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-024",
+        "REQ-026",
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_cell_contacts.sql",
+      "object": "Layercake.etl_daily_count_cell_contacts",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-024",
+        "REQ-026",
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.silv_daily_count_adjustment.sql",
+      "object": "Layercake.silv_daily_count_adjustment",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020",
+        "REQ-026",
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_applied_contact.sql",
+      "object": "Layercake.etl_daily_count_applied_contact",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-024",
+        "REQ-026",
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.etl_daily_count_applied_state_range.sql",
+      "object": "Layercake.etl_daily_count_applied_state_range",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-024",
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Functions/Layercake.fn_silv_daily_count_detail_as_known_at.sql",
+      "object": "Layercake.fn_silv_daily_count_detail_as_known_at",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-020",
+        "REQ-026",
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Views/Layercake.vw_silv_daily_count_adjustment_review.sql",
+      "object": "Layercake.vw_silv_daily_count_adjustment_review",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-020",
+        "REQ-026",
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_silv_daily_count.sql",
+      "object": "Layercake.usp_load_silv_daily_count",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-024",
+        "REQ-026",
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Tables/Layercake.fact_daily_member_count_detail.sql",
+      "object": "Layercake.fact_daily_member_count_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-025",
+        "REQ-026",
+        "REQ-027"
+      ]
+    },
+    {
+      "path": "src/sql/Layercake/Procedures/Layercake.usp_load_fact_daily_member_count_detail.sql",
+      "object": "Layercake.usp_load_fact_daily_member_count_detail",
+      "change": "added",
+      "requirement_ids": [
+        "REQ-025",
+        "REQ-026",
+        "REQ-027"
+      ]
+    }
+  ],
+  "unit_tests": [
+    "[test_MOD031_dev].[test a change to the own country region alone is recomputed on the normal path]",
+    "[test_MOD031_dev].[test a contact with no live brnz_contact row keeps the Phase 1 region from its event]",
+    "[test_MOD031_dev].[test a local group move on the normal path logs the detail and main cells it inserts and deletes]",
+    "[test_MOD031_dev].[test a member with no known own country gets N/K unless a usable group gives its region]",
+    "[test_MOD031_dev].[test an own country region too long for the state ranges fails the load naming the value]",
+    "[test_MOD031_dev].[test gold takes the silver country for a local group that is no longer reportable]",
+    "[test_MOD031_dev].[test the detail as-known-at function undoes later changes cell by cell on the local group columns]",
+    "[test_MOD031_dev].[test the profile load updates a row whose local group alone changed and logs it]"
+  ],
+  "migrations": [
+    {
+      "id": "MIG-0033",
+      "up_script": "src/sql/deploy/MIG-0033_MOD-031_member-base-profile-and-daily-counts-by.up.sql",
+      "down_script": "src/sql/deploy/MIG-0033_MOD-031_member-base-profile-and-daily-counts-by.down.sql",
+      "rollback_test": {
+        "commit": "a8f002b944a271c94270a4afe9e5c85e01e265ed",
+        "run_at": "2026-11-27T12:36:25.788901+00:00",
+        "result": "pass",
+        "steps": [
+          {
+            "step": "up applies and records 'up'",
+            "ok": true
+          },
+          {
+            "step": "second up changes nothing",
+            "ok": true
+          },
+          {
+            "step": "down restores the pre-migration schema",
+            "ok": true
+          },
+          {
+            "step": "down records 'down'",
+            "ok": true
+          },
+          {
+            "step": "second down changes nothing",
+            "ok": true
+          },
+          {
+            "step": "re-apply after rollback matches first apply",
+            "ok": true
+          }
+        ],
+        "database": "RPST_Dev"
+      }
+    }
+  ],
+  "notes": "Rework for DEF-016 (DR-MOD-031-2). Cause: the seven MOD-027/MOD-028 Developer unit tests named in the defect still seeded Layercake.silv_daily_count_detail and Layercake.fact_daily_member_count_detail at the pre-MOD-031 grain, so the gold load's #det_stage rejected the NULL local_group_id. Fix (test-only, as docs/answers.md 'MOD-031 regression: older tests at the old grain' allows): in tests/tsqlt/test_MOD027_dev.sql (3 tests) and tests/tsqlt/test_MOD028_dev.sql (4 tests) the seeded silver rows now also carry local_group_id 0, contact_country_id = country_id and contact_region = region, and the seeded fact rows carry local_group_id 0 and contact_country_id = country_id. Test names, data, expectations and the other tests in both files are unchanged. No SetUp change was needed: the gold load's left join to Layercake.silv_ref_local_group finds the seeded row 0 not reportable (is_reportable 0), so country_id stays the silver one. No MOD-031 object changed. run_tests: 40 passed, 0 failed. Round-trip of MIG-0033 passes and check passes.\n\nRework after DR-MOD-031-2 (DEF-016). Test-first: the first run had 21 of 21 of the Tester's tests passing; the final run passed 21 of 21 and 8 unit test(s), in 2 run(s)."
+}

@@ -823,21 +823,24 @@ BEGIN
     INSERT INTO Layercake.brnz_subs_status ([Contact No.], [Campaign Year], [Member Invoice Position], [Renewal Date], [Renewal Date Adj], _is_deleted, retired_concession)
     VALUES (N'T5', 2024, 'Fully Paid', '2023-10-20', '2023-10-20', 0, 'No Conc.'),
            (N'T5', 2025, 'Full Concession', '2025-01-15', '2025-01-15', 0, 'Retired Conc.');
-    INSERT INTO Layercake.silv_member_state_ranges (id, contact_no, valid_from, valid_to, campaign_year_from, grade, region, state_seq)
-    VALUES (1, N'T5', '2015-01-01', NULL, 2015, 'election', 'UK', 1);
+    -- MOD-031 placeholder: contact_region = region
+    INSERT INTO Layercake.silv_member_state_ranges (id, contact_no, valid_from, valid_to, campaign_year_from, grade, region, contact_region, state_seq)
+    VALUES (1, N'T5', '2015-01-01', NULL, 2015, 'election', 'UK', 'UK', 1);
     INSERT INTO Layercake.ref_date_spine ([date], campaign_year, campaign_quarter)
     VALUES ('2024-06-01', 2024, 'Q3'), ('2025-02-01', 2025, 'Q2');
 
-    -- as Phase 1 left it: profile on apuk 2024-03-01, both days loaded and counted Retired
-    INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date)
-    VALUES (N'T5', 0, 0, '2024-03-01');
+    -- as Phase 1 left it (with MOD-031 placeholders local_group_id 0, contact_country_id = country_id):
+    -- profile on apuk 2024-03-01, both days loaded and counted Retired
+    INSERT INTO Layercake.silv_member_profile (contact_no, country_id, gender_id, retirement_date, local_group_id, contact_country_id)
+    VALUES (N'T5', 0, 0, '2024-03-01', 0, 0);
     INSERT INTO Layercake.etl_daily_count_loaded ([date], run_id, batch_from, batch_to)
     VALUES ('2024-06-01', NULL, '2024-06-01', '2024-06-01'), ('2025-02-01', NULL, '2025-02-01', '2025-02-01');
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
+         local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2024-06-01', 2024, 'Q3', 'UK', 0, 0, 'election', 2, 1, 0, 0, 0, 0, 0, 0),
-           ('2025-02-01', 2025, 'Q2', 'UK', 0, 0, 'election', 2, 1, 0, 0, 0, 0, 0, 0);
+    VALUES ('2024-06-01', 2024, 'Q3', 'UK', 0, 0, 'election', 2, 0, 0, 'UK', 1, 0, 0, 0, 0, 0, 0),
+           ('2025-02-01', 2025, 'Q2', 'UK', 0, 0, 'election', 2, 0, 0, 'UK', 1, 0, 0, 0, 0, 0, 0);
 
     -- one plain run: no @RebuildFrom, no @FullRebuild
     EXEC Layercake.usp_load_silv_member_base;

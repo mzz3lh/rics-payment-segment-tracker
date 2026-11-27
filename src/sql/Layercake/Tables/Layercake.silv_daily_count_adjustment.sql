@@ -22,12 +22,20 @@ CREATE TABLE Layercake.silv_daily_count_adjustment
     payment_method_id              int              NOT NULL,
     payer_type_id                  int              NOT NULL,
     concession_type_id             int              NOT NULL,
+    -- MOD-031 (REQ-027, RULE-176, RULE-179): the cell's local group, own country and its region,
+    -- added by change script. Rows written before deployment hold -2 Not applicable in
+    -- local_group_id and their own country_id and region; the restating run writes its rows at
+    -- the own-country grain with -2.
+    local_group_id                 int              NOT NULL,
+    contact_country_id             int              NOT NULL,
+    contact_region                 varchar(12)      NOT NULL,
     CONSTRAINT PK_Layercake_silv_daily_count_adjustment PRIMARY KEY CLUSTERED (adjustment_id),
-    -- One row per run and cell (REQ-019). The name lists the cell as 'cell': the nine grain
+    -- One row per run and cell (REQ-019). The name lists the cell as 'cell': the twelve grain
     -- columns would take it past SQL Server's 128-character limit.
     CONSTRAINT UQ_Layercake_silv_daily_count_adjustment_run_id_cell
         UNIQUE (run_id, [date], region, country_id, gender_id, grade, membership_status_id,
-                payment_method_id, payer_type_id, concession_type_id),
+                payment_method_id, payer_type_id, concession_type_id,
+                local_group_id, contact_country_id, contact_region),
     -- A row records a change: an unchanged cell writes no row, so the review view never shows a 0 change.
     CONSTRAINT CK_Layercake_silv_daily_count_adjustment_any_change CHECK (
         active_count_change <> 0
@@ -44,5 +52,6 @@ CREATE INDEX IX_silv_daily_count_adjustment_date_written_at
     ON Layercake.silv_daily_count_adjustment ([date], written_at)
     INCLUDE (region, country_id, gender_id, grade, membership_status_id,
              payment_method_id, payer_type_id, concession_type_id,
+             local_group_id, contact_country_id, contact_region,
              active_count_change, paid_count_change, paid_count_event_change, event_join_count_change,
              event_renewal_count_change, event_readmission_count_change, event_lapse_count_change);

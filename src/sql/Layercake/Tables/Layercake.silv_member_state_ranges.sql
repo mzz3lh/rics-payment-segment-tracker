@@ -13,6 +13,11 @@
 --  the remaining columns INCLUDEd so the stage-vs-target EXCEPT
 --  comparisons in usp_load_silver read only this index (05 widens it
 --  in place on existing deploys; here it is created wide from the start).
+--
+--  RPST MOD-031 (REQ-027, RULE-173, RULE-175): region carries the
+--  member's world region BY LOCAL GROUP; contact_region, added by change
+--  script, the own country's world region. Both 'N/K' where the value
+--  comes from an unknown own country (country 0).
 ----------------------------------------------------
 create table Layercake.silv_member_state_ranges
 (
@@ -22,10 +27,11 @@ create table Layercake.silv_member_state_ranges
     valid_to           date null,
     campaign_year_from int not null,
     grade              varchar(12) not null,   -- enrolment, election, lapse
-    region             varchar(12) not null,
-    state_seq          int null                -- same-day event ordering
+    region             varchar(12) not null,   -- world region by local group
+    state_seq          int null,               -- same-day event ordering
+    contact_region     varchar(12) not null    -- world region of the own country
 );
 
 create unique nonclustered index ix_contact_no_valid_from_to_grade
     on Layercake.silv_member_state_ranges (contact_no, valid_from, valid_to, grade)
-    include (campaign_year_from, region);
+    include (campaign_year_from, region, contact_region);

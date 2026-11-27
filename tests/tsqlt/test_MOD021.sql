@@ -640,6 +640,9 @@ BEGIN
                  ('payment_method_id', 'int', 0, 0),
                  ('payer_type_id', 'int', 0, 0),
                  ('concession_type_id', 'int', 0, 0),
+                 ('local_group_id', 'int', 0, 0),
+                 ('contact_country_id', 'int', 0, 0),
+                 ('contact_region', 'varchar(12)', 0, 0),
                  ('active_count_change', 'int', 0, 0),
                  ('paid_count_change', 'int', 0, 0),
                  ('paid_count_event_change', 'int', 0, 0),
@@ -687,7 +690,7 @@ BEGIN
     VALUES ('D4000000-0000-0000-0000-000000000001', 401, '2026-11-05T06:00:00.000', '2025-02-02', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 0, 0, 0);
 END;
 GO
-CREATE PROCEDURE test_MOD021.[test TC-021-017 adjustment table is unique on run_id and the nine cell columns]
+CREATE PROCEDURE test_MOD021.[test TC-021-017 adjustment table is unique on run_id and the twelve cell columns]
 AS
 BEGIN
     SELECT i.index_id
@@ -697,16 +700,17 @@ BEGIN
       AND i.is_unique = 1
       AND i.has_filter = 0
       AND (SELECT COUNT(*) FROM sys.index_columns AS ic
-           WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id AND ic.is_included_column = 0) = 10
+           WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id AND ic.is_included_column = 0) = 13
       AND (SELECT COUNT(*) FROM sys.index_columns AS ic
            JOIN sys.columns AS c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
            WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id AND ic.is_included_column = 0
              AND c.name IN ('run_id', 'date', 'region', 'country_id', 'gender_id', 'grade', 'membership_status_id',
-                            'payment_method_id', 'payer_type_id', 'concession_type_id')) = 10;
+                            'payment_method_id', 'payer_type_id', 'concession_type_id',
+                            'local_group_id', 'contact_country_id', 'contact_region')) = 13;
 
     DECLARE @matching int;
     SELECT @matching = COUNT(*) FROM #Actual;
 
-    EXEC tSQLt.AssertEquals 1, @matching, 'Expected exactly one unfiltered unique index or constraint keyed on run_id, [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id.';
+    EXEC tSQLt.AssertEquals 1, @matching, 'Expected exactly one unfiltered unique index or constraint keyed on run_id, [date], region, country_id, gender_id, grade, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region.';
 END;
 GO

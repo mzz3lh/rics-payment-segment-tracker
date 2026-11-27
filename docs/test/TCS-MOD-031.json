@@ -1,0 +1,338 @@
+{
+  "meta": {
+    "artefact_type": "test_conditions",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "artefact_id": "TCS-MOD-031",
+    "version": 2,
+    "produced_by": "tester",
+    "produced_at": "2026-11-27T10:13:45Z",
+    "status": "approved",
+    "source_artefacts": [
+      "docs/specs/SPEC-001.json",
+      "docs/design/MP-001.json",
+      "docs/design/DES-001.json"
+    ],
+    "approval": {
+      "approved_by": "Mike",
+      "approved_at": "2026-11-27T10:18:58Z",
+      "gate": "test_design_review"
+    }
+  },
+  "module_id": "MOD-031",
+  "designed_from": [
+    "docs/specs/SPEC-001.json",
+    "docs/design/MP-001.json",
+    "docs/design/DES-001.json"
+  ],
+  "conditions": [
+    {
+      "id": "TC-031-001",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-019",
+        "REQ-024",
+        "REQ-025",
+        "REQ-026"
+      ],
+      "acceptance_criterion_id": "AC-027-02",
+      "category": "happy_path",
+      "description": "Structure (RULE-175, RULE-176): the member tables, the snapshot tables, the daily count detail, cell counts, adjustment history and the gold daily fact gain exactly the MOD-031 columns, with the designed types and nullability; silv_daily_count keeps its columns.",
+      "preconditions": "Common SetUp (every test): fakes of etl_run_log and etl_progress_log (identity, defaults); brnz_contact, brnz_rics_record, brnz_cust_trans, brnz_contact_test_record, brnz_enrolment, brnz_route, brnz_subs_status, ref_enrolment_exception, silv_ref_rpq_variant, silv_ref_lapse_reason, silv_ref_gender (1, 2), silv_ref_country (1 United Kingdom UK&I/UK&I, 2 United Arab Emirates MEA/MEA, 3 India APAC/APAC), silv_ref_local_group (the nine rows MOD-030 gives: -2 Not applicable, 0 Unknown, 1 Gulf (country 2, MEA, MEA, reportable, dim_country_id 2), 2 London (1, UK&I, reportable, 1), 3 Gulf India (3, MEA, MEA, reportable, 1000001), 4 No Country, 5 No Region, 6 Closed Gulf (statecode 1), 7 Half Region (blank market region held NULL), 4 to 7 not reportable), silv_ref_membership_grade and dim_membership_grade (0 N/A, 1 Candidate, 2 Qualified), silv_ref_membership_status (0 N/A, 1 Practising, 2 Retired), ref_date_spine, ref_campaign_year_config (CY2021 to CY2027), silv_member_base, silv_member_profile, silv_member_state_ranges, silv_membership_events, silv_payment_events, silv_member_year_attributes, silv_daily_count_detail, silv_daily_count, silv_daily_count_adjustment, etl_daily_count_loaded, pending_rebuild, input_basis, the five etl_daily_count_applied_* tables, etl_daily_count_cell_contacts, fact_daily_member_count_detail, dim_date and dim_country (the three country rows plus 1000001 India MEA/MEA). Members are added through brnz_contact, brnz_rics_record, brnz_cust_trans and a Join (Direct Entry) event dated 2015-01-01, which opens an open election range; the loads run in the Phase 1 order (member base, state ranges, profile, daily count, gold). Here the real tables are read through tSQLt.Private_RenamedObjectLog and sys.columns, filtered to schema Layercake by OBJECT_SCHEMA_NAME(ObjectId) (OriginalName holds the bare table name).",
+      "expected": "New columns: silv_member_base and silv_member_profile local_group_id, contact_country_id int NOT NULL; etl_daily_count_applied_contact the same two int NULL; silv_member_state_ranges and etl_daily_count_applied_state_range contact_region varchar(12) NOT NULL; silv_daily_count_detail, etl_daily_count_cell_contacts and silv_daily_count_adjustment local_group_id and contact_country_id int and contact_region varchar(12), all NOT NULL; fact_daily_member_count_detail local_group_id and contact_country_id int NOT NULL. Column counts: base 23, profile 6, applied_contact 9, state ranges 9, applied_state_range 7, detail 21, cell contacts 15, adjustment 23, fact 18, silv_daily_count 12 (unchanged).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-001 member and daily count tables gain local_group_id contact_country_id and contact_region]"
+    },
+    {
+      "id": "TC-031-002",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-020",
+        "REQ-025"
+      ],
+      "acceptance_criterion_id": "AC-027-02",
+      "category": "happy_path",
+      "description": "Structure (RULE-176): the gold daily fact's unique clustered index covers exactly the ten grain columns; fn_silv_daily_count_detail_as_known_at and vw_silv_daily_count_adjustment_review gain local_group_id, contact_country_id and contact_region; fn_silv_daily_count_as_known_at keeps its grain.",
+      "preconditions": "Common SetUp (TC-031-001). The real fact is read through the renamed-object log, filtered to schema Layercake by OBJECT_SCHEMA_NAME(ObjectId) (OriginalName holds the bare table name); the function and view through OBJECT_ID.",
+      "expected": "Index key columns exactly date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id. Detail function and review view: local_group_id int, contact_country_id int, contact_region varchar(12); column counts 19 and 17. fn_silv_daily_count_as_known_at 10 columns.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-002 fact clustered key has the ten grain columns and the review objects gain three columns]"
+    },
+    {
+      "id": "TC-031-003",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-025"
+      ],
+      "acceptance_criterion_id": "AC-027-02",
+      "category": "happy_path",
+      "description": "G1 (own country United Kingdom, local group Gulf) and G2 (India, Gulf India) take their usable group's country and regions in every field, keep their own country in contact_country_id and contact_region, and gold reaches the group's regions through country_id (the Gulf India row wins over India's APAC) and the own regions through contact_country_id.",
+      "preconditions": "Common SetUp. Spine and dim_date 2025-01-10 (id 1, CY2025 Q2). G1 and G2 gender 1, no payments and no attributes rows. One chain run (member base, state ranges, profile, daily count, gold).",
+      "expected": "silv_member_base and silv_member_profile (country_id, local_group_id, contact_country_id): G1 (2, 1, 1), G2 (3, 3, 3). State ranges from 2015-01-01 open, election: G1 region MEA, contact_region UK&I; G2 MEA, APAC. Detail exactly: (2025-01-10, MEA, 2, 1, election, 1, 0, 0, 0, local group 1, 1, UK&I) and (MEA, 3, 1, election, 1, 0, 0, 0, 3, 3, APAC), each active 1, other measures 0. silv_daily_count (2025-01-10, MEA, election) active 2. Fact (date_id, local group, through country_id, through contact_country_id): (1, 1, MEA/MEA, UK&I/UK&I) and (1, 3, MEA/MEA, APAC/APAC), grade 2, status 1, ActiveMembers 1. Gold logs 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-003 G1 in Gulf and G2 in Gulf India take the group country and region and keep their own country]"
+    },
+    {
+      "id": "TC-031-004",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-025"
+      ],
+      "acceptance_criterion_id": "AC-027-03",
+      "category": "nulls",
+      "description": "N1 (India, rics_localgroupid NULL) and N2 (India, a local group CE.vwLocalGroup does not hold) get local_group_id 0 and keep India and APAC in every field.",
+      "preconditions": "assumes Q-062 (answered by Q-066): no usable local group means local group 0 and the own country everywhere. Common SetUp. Spine and dim_date 2025-01-10 (id 1). N1 and N2 gender 1. One chain run.",
+      "expected": "Base and profile N1 and N2 (3, 0, 3). State ranges APAC / APAC. Detail exactly one cell (2025-01-10, APAC, 3, 1, election, 1, 0, 0, 0, 0, 3, APAC) active 2. silv_daily_count (APAC, election) active 2. Fact exactly (1, local group 0, APAC/APAC, APAC/APAC) ActiveMembers 2. Gold 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-004 N1 with no local group and N2 with a group CE does not hold keep India and APAC]"
+    },
+    {
+      "id": "TC-031-005",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-025"
+      ],
+      "acceptance_criterion_id": "AC-027-04",
+      "category": "negative",
+      "description": "N3 to N6 (United Kingdom; in No Country, No Region, Closed Gulf and Half Region) are never given their group's region, country or id: whole-member fallback, no field-by-field mixing (RULE-171 to RULE-173 as amended by AMD-009).",
+      "preconditions": "assumes Q-063 (answered by Q-066). Common SetUp (the four groups are in silv_ref_local_group with is_reportable 0, as MOD-030 sets them). Spine and dim_date 2025-01-10 (id 1). N3 to N6 gender 1. One chain run.",
+      "expected": "Base and profile each (1, 0, 1). State ranges UK&I / UK&I. Detail exactly one cell (2025-01-10, UK&I, 1, 1, election, 1, 0, 0, 0, 0, 1, UK&I) active 4, so no cell with MEA, country 2 or local group 4 to 7. silv_daily_count (UK&I, election) active 4. Fact exactly (1, 0, UK&I/UK&I, UK&I/UK&I) ActiveMembers 4. Gold 'Success'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-005 N3 to N6 in unusable groups keep the United Kingdom and UK&I in every field]"
+    },
+    {
+      "id": "TC-031-006",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-024",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-027-04",
+      "category": "negative",
+      "description": "A group that stops being usable (Gulf made inactive) gives its members nothing any more: on the next run G1 moves wholly back to its own country and region on every loaded date, on the normal path (RULE-178).",
+      "preconditions": "Common SetUp. Spine and dim_date 2020-10-01 (id 1, CY2021 Q1) and 2025-01-10 (id 2, CY2025 Q2). G1 (UK, Gulf). Run 1. Gulf's list row then set as MOD-030's load leaves an inactive group (statecode 1, is_reportable 0, dim_country_id NULL). Run 2.",
+      "expected": "Run 2 logs contacts_recomputed 1 and full_recompute_path 0. Base and profile G1 (1, 0, 1). Detail exactly (UK&I, 1, 1, election, 1, 0, 0, 0, 0, 1, UK&I) active 1 on both dates. silv_daily_count UK&I 1 on both dates. Run 2's adjustment rows exactly, on each date: (MEA, 2, ..., local group 1, 1, UK&I) active -1 and (UK&I, 1, ..., 0, 1, UK&I) active +1. Fact exactly date_ids 1 and 2, local group 0, UK&I/UK&I through both country columns, ActiveMembers 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-006 Gulf made inactive moves G1 wholly back to its own country on the normal path]"
+    },
+    {
+      "id": "TC-031-007",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-07",
+      "category": "happy_path",
+      "description": "A full rebuild (@FullRebuild = 1) of the daily count, then the gold load, keeps G1 under Gulf / MEA on every loaded date, including 2020-10-01 in the closed Campaign Year 2021, and writes no adjustment row.",
+      "preconditions": "Common SetUp. Spine and dim_date 2020-10-01 (1, CY2021 Q1), 2021-01-15 (2, CY2021 Q2), 2025-01-10 (3, CY2025 Q2). G1 (UK, Gulf). Chain run 1, then usp_load_silv_daily_count @FullRebuild = 1 and the gold load (run 2). AC-027-07 names usp_load_silver; the daily count it calls is run directly.",
+      "expected": "Run 2 logs full_recompute_path 1 and writes 0 adjustment rows. Detail exactly (MEA, 2, 1, election, 1, 0, 0, 0, 1, 1, UK&I) active 1 on all three dates. silv_daily_count MEA active 1 on all three dates. Fact exactly date_ids 1, 2 and 3, local group 1, MEA/MEA through country_id and UK&I/UK&I through contact_country_id, ActiveMembers 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-007 a full rebuild keeps G1 under Gulf MEA on every loaded date including 2020-10-01]"
+    },
+    {
+      "id": "TC-031-008",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-027-07",
+      "category": "boundary",
+      "description": "@RebuildFrom = '2021-01-01' after G1 joins Gulf still corrects 2020-10-01, before the rebuild date, because the changed contact's earliest affected date is 2020-10-01 and @RebuildFrom can only move the start earlier (RULE-174).",
+      "preconditions": "Common SetUp. Spine as TC-031-007. G1 (UK) with no local group; chain run 1. G1's brnz_contact rics_localgroupid set to Gulf; member loads, usp_load_silv_daily_count @RebuildFrom = '2021-01-01' and the gold load (run 2).",
+      "expected": "Run 2 logs full_recompute_path 1. Detail exactly (MEA, 2, ..., 1, 1, UK&I) active 1 on 2020-10-01, 2021-01-15 and 2025-01-10. silv_daily_count MEA on all three. Run 2's adjustment rows exactly, on each date: (UK&I, 1, ..., 0, 1, UK&I) active -1 and (MEA, 2, ..., 1, 1, UK&I) active +1. Fact as TC-031-007.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-008 a rebuild from 2021-01-01 moves G1 into Gulf on every loaded date including 2020-10-01]"
+    },
+    {
+      "id": "TC-031-009",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-024",
+        "REQ-019",
+        "REQ-025"
+      ],
+      "acceptance_criterion_id": "AC-027-09",
+      "category": "happy_path",
+      "description": "Gulf's two region values change from MEA to GCC: the next run counts G1 under GCC on every loaded date in silver and gold on the normal path, its own-country region stays UK&I, the adjustment rows are the moves, and a later full rebuild changes nothing.",
+      "preconditions": "Common SetUp. Spine and dim_date 2020-10-01 (1) and 2025-01-10 (2). G1 (UK, Gulf). Run 1. The list and dimension then hold what MOD-030's loads give: Gulf region_name and market_reporting_region 'GCC', dim_country_id 1000002, and dim_country row 1000002 (United Arab Emirates, GCC, GCC). Run 2; snapshots; usp_load_silv_daily_count @FullRebuild = 1 and gold (run 3). The daily count and gold loads usp_run_daily_load calls are run directly.",
+      "expected": "Run 2 logs contacts_recomputed 1 and full_recompute_path 0. Detail exactly (GCC, 2, 1, election, 1, 0, 0, 0, 1, 1, UK&I) active 1 on both dates; silv_daily_count GCC 1 on both. Run 2's adjustment rows exactly, on each date: MEA cell active -1 and GCC cell active +1 (country 2, local group 1, contact country 1, UK&I). Fact rows reach GCC/GCC through country_id and UK&I/UK&I through contact_country_id. Run 3 writes 0 adjustment rows and leaves detail, silv_daily_count and the fact identical.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-009 Gulf regions changed to GCC move G1 to GCC on the normal path and match a full rebuild]"
+    },
+    {
+      "id": "TC-031-010",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-024",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-027-09",
+      "category": "happy_path",
+      "description": "A change of local group alone (G1 from Gulf to London) makes G1 a changed contact on the normal path: its whole history moves to London / UK&I, the moves are written as adjustments that cancel out over region, country and local group, and the result equals a full rebuild (RULE-178, Q-064).",
+      "preconditions": "Common SetUp. Spine and dim_date 2020-10-01 (1) and 2025-01-10 (2). G1 (UK, Gulf). Run 1. G1's rics_localgroupid set to London. Run 2; snapshots; @FullRebuild = 1 (run 3). AC-027-08 (MOD-032) carries the end-to-end case; this covers the daily count part MOD-031 owns.",
+      "expected": "Run 2 logs contacts_recomputed 1 and full_recompute_path 0. Base and profile G1 (1, 2, 1). Detail exactly (UK&I, 1, 1, election, 1, 0, 0, 0, 2, 1, UK&I) active 1 on both dates. Run 2's adjustment rows exactly, on each date: (MEA, 2, ..., 1, 1, UK&I) active -1 and (UK&I, 1, ..., 2, 1, UK&I) active +1. Run 3 writes 0 adjustment rows and leaves detail and silv_daily_count identical.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-010 G1 moving from Gulf to London alone is recomputed on the normal path and matches a full rebuild]"
+    },
+    {
+      "id": "TC-031-011",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-024",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-027-03",
+      "category": "nulls",
+      "description": "L1 (UK, London) loses its local group (rics_localgroupid becomes NULL). Region, country and own country stay the same; only local_group_id changes, from London to 0. The profile and the daily count still see the change (the fingerprint covers local_group_id).",
+      "preconditions": "Common SetUp. Spine and dim_date 2020-10-01 (1) and 2025-01-10 (2). L1 (UK, London). Run 1. L1's rics_localgroupid set to NULL. Run 2 (no gold).",
+      "expected": "Run 2 logs contacts_recomputed 1 and full_recompute_path 0. Base and profile L1 (1, 0, 1). Detail exactly (UK&I, 1, 1, election, 1, 0, 0, 0, 0, 1, UK&I) active 1 on both dates. Run 2's adjustment rows exactly, on each date: (UK&I, 1, ..., 2, 1, UK&I) active -1 and (UK&I, 1, ..., 0, 1, UK&I) active +1. silv_daily_count stays UK&I 1 on both dates.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-011 L1 leaving London changes only local_group_id and moves its cells to local group 0]"
+    },
+    {
+      "id": "TC-031-012",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-024",
+        "REQ-019",
+        "REQ-025"
+      ],
+      "acceptance_criterion_id": "AC-027-02",
+      "category": "boundary",
+      "description": "G1 stays in Gulf but its own country changes from the United Kingdom to India. country_id, region and local_group_id keep the group's values, and contact_country_id and contact_region move to India and APAC (RULE-175, RULE-178).",
+      "preconditions": "Common SetUp. Spine and dim_date 2020-10-01 (1) and 2025-01-10 (2). G1 (UK, Gulf). Run 1. G1's rics_countryid set to India. Run 2. The event rows are not reloaded (the events load is MOD-032's).",
+      "expected": "Run 2 logs contacts_recomputed 1 and full_recompute_path 0. Base and profile G1 (2, 1, 3). State range region MEA, contact_region APAC. Detail exactly (MEA, 2, 1, election, 1, 0, 0, 0, 1, 3, APAC) active 1 on both dates. Run 2's adjustment rows exactly, on each date: (MEA, 2, ..., 1, 1, UK&I) active -1 and (MEA, 2, ..., 1, 3, APAC) active +1. silv_daily_count stays MEA 1 on both dates. Fact reaches MEA/MEA through country_id and APAC/APAC through contact_country_id.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-012 a change of own country alone moves contact_country_id and contact_region but not region]"
+    },
+    {
+      "id": "TC-031-013",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-024",
+        "REQ-025"
+      ],
+      "acceptance_criterion_id": "AC-027-09",
+      "category": "idempotency",
+      "description": "A second run on unchanged data, with members in a group (G1, G2) and with none (N1), finds no changed contact, writes no adjustment, changes no silver or gold row and logs gold 0, 0, 0.",
+      "preconditions": "Common SetUp. Spine and dim_date 2025-01-10 (1). G1 (UK, Gulf), G2 (India, Gulf India), N1 (India, none). Run 1; snapshots of profile, state ranges, detail, silv_daily_count, cell counts and fact (every column); run 2.",
+      "expected": "Run 2 logs contacts_recomputed 0 and full_recompute_path 0, writes 0 adjustment rows, and gold logs rows_inserted 0, rows_updated 0, rows_deleted 0. All six tables equal their snapshots.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-013 a rerun on unchanged data recomputes no contact and changes nothing]"
+    },
+    {
+      "id": "TC-031-014",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-025"
+      ],
+      "acceptance_criterion_id": "AC-027-02",
+      "category": "happy_path",
+      "description": "The gold sync works on the ten-column key. After G1 moves from Gulf to London it joins L1's London cell, which is updated in place and keeps its id. G1's Gulf cell is deleted. A hand-added row that matches the London cell in every grain column except local_group_id is deleted too.",
+      "preconditions": "Common SetUp. Spine and dim_date 2025-01-10 (1). G1 (UK, Gulf) and L1 (UK, London), gender 1. Run 1 with gold; fact snapshot with ids. G1 moved to London; member loads and daily count (run 2); hand row (date_id 1, country 1, gender 1, grade 2, status 1, 0, 0, 0, local group 0, contact country 1, ActiveMembers 1) inserted; gold (run 2).",
+      "expected": "Gold run 2 logs 'Success', rows_inserted 0, rows_updated 1, rows_deleted 2. The fact is exactly one row: the id the London cell had in the snapshot, (1, country 1, 1, 2, 1, 0, 0, 0, local group 2, contact country 1), ActiveMembers 2, other measures 0.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-014 gold syncs on the ten-column key keeping ids and deleting a hand row that differs only in local group]"
+    },
+    {
+      "id": "TC-031-015",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-019",
+        "REQ-024"
+      ],
+      "acceptance_criterion_id": "AC-027-13",
+      "category": "happy_path",
+      "description": "The first run after deployment, with no source change, finds the 'local_group_restatement' marker and takes the full path. It restates every loaded date at the local group values and writes no adjustment row. The adjustment rows written before deployment keep every value, with local_group_id -2 resolving to Not applicable. The run removes the marker, gold follows, and a later full rebuild changes nothing (RULE-179, Q-067).",
+      "preconditions": "The migration is not run by tSQLt; its result is simulated as the restatement by local group pattern states it. Common SetUp. Spine and dim_date 2020-10-01 (1) and 2025-01-10 (2). G1 (UK, Gulf) and N1 (India, none). Run 1 with gold. Then, as the migration leaves them: detail, cell counts and fact take region = contact_region, country_id = contact_country_id and local_group_id 0; base and profile take country_id = contact_country_id and local group 0; state ranges take region = contact_region; silv_daily_count is the sum of that detail; the five snapshot tables are emptied; marker ('local_group_restatement', '', 2020-10-01) written. Two pre-deployment adjustment rows are added: (run E..01, load 7, written 2025-01-10 07:00, 2025-01-10, UK&I, 1, 1, election, 1, 0, 0, 0, active +1, local group -2, 1, UK&I) and (E..02, 8, 08:00, 2020-10-01, APAC, 3, ..., paid +1, -2, 3, APAC). Run 2 (chain with gold); then @FullRebuild = 1 (run 3). That the migration itself sets -2 on real pre-deployment rows is checked by the Developer's migration round trip, not here.",
+      "expected": "Run 2 logs full_recompute_path 1. No marker row remains. The adjustment table equals its snapshot from before run 2: exactly the two pre-deployment rows with all their values, both resolving to silv_ref_local_group 'Not applicable'. Detail exactly, on each date, G1 (MEA, 2, 1, election, 1, 0, 0, 0, 1, 1, UK&I) and N1 (APAC, 3, ..., 0, 3, APAC), active 1. silv_daily_count MEA 1 and APAC 1 on each date (G1 under MEA on 2020-10-01). Cell counts are those 4 cells with contact_count 1. Fact exactly G1 (local group 1, MEA/MEA, UK&I/UK&I) and N1 (0, APAC x4) on date_ids 1 and 2. Run 3 writes 0 adjustment rows.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-015 the first run after deployment restates to local group values writing no adjustment rows]"
+    },
+    {
+      "id": "TC-031-016",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-027-13",
+      "category": "happy_path",
+      "description": "The restating run also finds a real change (a Renewal for G1 dated 2025-01-10). It is recorded at the own-country grain: region is the own-country region, country_id is the own country, local_group_id is -2 and the segment ids are the actual ones. The change of basis itself writes nothing.",
+      "preconditions": "Data and simulated deployment as in TC-031-015, without the pre-deployment adjustment rows. Then a Renewal event 'RN:G1:2025' (Standard, 2025-01-10, CY2025 Q2, grade 2, status 1) is added; run 2.",
+      "expected": "No marker row remains. Run 2's adjustment rows are exactly one: (2025-01-10, UK&I, 1, 1, election, 1, 0, 0, 0, local group -2, contact country 1, UK&I) paid_count_event_change +1, event_renewal_count_change +1, other changes 0. Detail exactly: G1 2020-10-01 (MEA, 2, ..., 1, 1, UK&I) 1/0/0/0/0/0/0, G1 2025-01-10 the same cell 1/0/1/0/1/0/0; N1 (APAC, 3, ..., 0, 3, APAC) 1/0/0/0/0/0/0 on each date.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-016 a real change found by the restating run is recorded at the own-country grain with local group -2]"
+    },
+    {
+      "id": "TC-031-017",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-026",
+        "REQ-019"
+      ],
+      "acceptance_criterion_id": "AC-027-13",
+      "category": "boundary",
+      "description": "MOD-028's 'detail_grain_restatement' marker and MOD-031's 'local_group_restatement' marker are both present. One run restates both. The comparison is also summed over the three segment columns, so the only row written is the real change, with -2 in the segment columns and in local_group_id. The run removes both markers.",
+      "preconditions": "Common SetUp. Spine and dim_date 2020-10-01 (1) and 2025-01-10 (2). G1 (UK, Gulf), no attributes. Run 1 with gold. Simulated deployment as TC-031-015, with the segment ids of detail, cell counts and fact also set to -2 and both markers written. Then G1 attributes CY2025 (Card 2, Individual 1, No concession 1) and the Renewal of TC-031-016 are added; run 2 with gold.",
+      "expected": "No row of either marker remains. Run 2's adjustment rows are exactly one: (2025-01-10, UK&I, 1, 1, election, 1, -2, -2, -2, local group -2, 1, UK&I) paid_count_event_change +1, event_renewal_count_change +1. Detail exactly 2020-10-01 (MEA, 2, 1, election, 1, 0, 0, 0, 1, 1, UK&I) 1/0/0/0/0/0/0 and 2025-01-10 (MEA, 2, 1, election, 1, 2, 1, 1, 1, 1, UK&I) 1/0/1/0/1/0/0. Fact exactly the same two cells: (1, local group 1, segments 0/0/0, MEA/MEA, UK&I/UK&I) ActiveMembers 1, and (2, 1, 2/1/1, MEA/MEA, UK&I/UK&I) ActiveMembers 1, PaidMembersEvent 1, RenewalEvents 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-017 both restatement markers together are removed by one run that writes only the real change]"
+    },
+    {
+      "id": "TC-031-018",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-019",
+        "REQ-024"
+      ],
+      "acceptance_criterion_id": "AC-027-13",
+      "category": "negative",
+      "description": "A restating run that fails part way re-raises the error, logs 'Failed' and keeps the marker. The next run, with no cleanup, completes and removes the marker. The two runs' adjustment rows add up to the one real change, at the own-country grain with local group -2.",
+      "preconditions": "Runs without tSQLt's transaction. Common SetUp. Spine 2020-10-01 and 2025-01-10. G1 (UK, Gulf); run 1 (no gold); simulated deployment as TC-031-015; member loads. A new contact D6 is added straight to silver: profile (country 1, gender 1, local group 0, contact country 1) and an open election range from 2025-01-10 with region NULL and contact_region UK&I. The faked detail and cell-count tables get region NOT NULL back. Run 2 with @DailyCountBatchDays = 1 must fail with 515; which batches commit before the failure is the implementation's choice, and the assertions hold either way. D6's region is set to UK&I; run 3.",
+      "expected": "Run 2 raises 515, its log row is 'Failed' and the marker row is still present. Run 3 logs 'Success' and no marker row remains. Runs 2 and 3's adjustments summed per cell are exactly (2025-01-10, UK&I, 1, 1, election, 1, 0, 0, 0, -2, 1, UK&I) active +1. Detail exactly G1 (MEA, 2, ..., 1, 1, UK&I) active 1 on both dates and D6 (2025-01-10, UK&I, 1, 1, election, 1, 0, 0, 0, 0, 1, UK&I) active 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-018 a restating run that fails part way keeps the marker and the next run finishes with no cleanup]"
+    },
+    {
+      "id": "TC-031-019",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-019",
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-027-13",
+      "category": "happy_path",
+      "description": "vw_silv_daily_count_adjustment_review copies local_group_id, contact_country_id and contact_region from each adjustment row. A pre-deployment row shows -2. G1's move from Gulf to London shows as -1 and +1 on two rows.",
+      "preconditions": "Common SetUp. Spine 2025-01-10. G1 (UK, Gulf). A pre-deployment adjustment row (2025-01-10, UK&I, 1, 1, election, 1, 0, 0, 0, paid +1, local group -2, 1, UK&I). Run 1; G1 moved to London; run 2 (no gold).",
+      "expected": "The view returns exactly 3 rows: (2025-01-10, UK&I, 1, 1, election, 1, 0, 0, 0, -2, 1, UK&I, 'paid_count', 1), (MEA, 2, ..., 1, 1, UK&I, 'active_count', -1), (UK&I, 1, ..., 2, 1, UK&I, 'active_count', 1).",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-019 the review view carries the local group and own country of each adjustment with -2 before deployment]"
+    },
+    {
+      "id": "TC-031-020",
+      "requirement_ids": [
+        "REQ-027",
+        "REQ-020"
+      ],
+      "acceptance_criterion_id": "AC-027-09",
+      "category": "reconciliation",
+      "description": "The as-known-at functions follow the Gulf region change. Before it, G1 is under MEA; after it, under GCC. The detail function matches cells on the three new columns, and fn_silv_daily_count_as_known_at keeps the [date], region and grade grain.",
+      "preconditions": "assumes Q-049: only changes written strictly after T are subtracted. Common SetUp. Spine 2025-01-10. G1 (UK, Gulf). Run 1; T1 = SYSDATETIME() between 50 ms pauses; Gulf's regions set to GCC; run 2 (no gold); T2 after a 50 ms pause. Range 2020-10-01 to 2025-12-31. Rows whose seven figures are all 0 (stored cells that did not exist at T1) are left out.",
+      "expected": "Detail function at T1: exactly (2025-01-10, MEA, 2, 1, election, 1, 0, 0, 0, 1, 1, UK&I) active 1, other figures 0. At T2: exactly the same cell with region GCC, active 1. fn_silv_daily_count_as_known_at at T1: exactly (2025-01-10, MEA, election) active 1; at T2: (2025-01-10, GCC, election) active 1.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-020 the as-known-at functions give G1 under MEA before and GCC after the Gulf region change]"
+    },
+    {
+      "id": "TC-031-021",
+      "requirement_ids": [
+        "REQ-027"
+      ],
+      "acceptance_criterion_id": "AC-027-02",
+      "category": "negative",
+      "description": "A usable group whose world region is too long for varchar(12) ('Middle East and Africa', 22 characters) fails the state ranges load with an error naming the whole value. The value is never cut short, the load logs 'Failed' and silv_member_state_ranges is unchanged (DES-001 usp_load_silv_member_state_ranges).",
+      "preconditions": "Runs without tSQLt's transaction. Common SetUp plus list row 8 'Long Region' (country 2, region_name 'Middle East and Africa', market region MEA, reportable, dim_country_id 2). G9 (UK, Long Region), with an existing state range (2015-01-01 open, election, UK&I, UK&I). The error number is not asserted: the design fixes the outcome, not the number. Not covered: members whose own country is missing or not in silv_ref_country (contact_country_id 0). Phase 1 gives such a range the region 'N/K', and neither the spec nor the design says what contact_region (or region, for one in a usable group) holds then. This was asked, and the answer is deferred.",
+      "expected": "The load raises an error whose message contains 'Middle East and Africa'. silv_member_state_ranges equals its snapshot from before the call. Its etl_run_log row is 'Failed'.",
+      "framework": "tsqlt",
+      "test_ref": "[test_MOD031].[test TC-031-021 a group region too long for the state ranges fails the load naming the value]"
+    }
+  ]
+}
