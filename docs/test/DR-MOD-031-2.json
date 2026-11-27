@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "artefact_type": "defect_report",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-27T12:30:59Z",
+    "status": "for_review",
+    "artefact_id": "DR-MOD-031-2",
+    "source_artefacts": [
+      "TR-MOD-031-2"
+    ]
+  },
+  "module_id": "MOD-031",
+  "loop_number": 2,
+  "defects": [
+    {
+      "id": "DEF-016",
+      "test_condition_ids": [],
+      "regression_tests": [
+        "[test_MOD027_dev].[test an overflow in a later window keeps the committed window and logs Failed with its counts]",
+        "[test_MOD027_dev].[test counts add up across one-day windows and each window logs its synced cells]",
+        "[test_MOD027_dev].[test rows_deleted counts the span trim and the in-window deletes together]",
+        "[test_MOD028_dev].[test MOD-027 an overflow in a later window keeps the committed window and logs Failed at the segment grain]",
+        "[test_MOD028_dev].[test MOD-027 counts add up across one-day windows and each window logs its synced cells at the segment grain]",
+        "[test_MOD028_dev].[test MOD-027 rows_deleted counts the span trim and the in-window deletes together at the segment grain]",
+        "[test_MOD028_dev].[test gold sums regions within a segment cell and keeps segment cells apart]"
+      ],
+      "requirement_ids": [
+        "REQ-019",
+        "REQ-020",
+        "REQ-024",
+        "REQ-025",
+        "REQ-026",
+        "REQ-027"
+      ],
+      "severity": "minor",
+      "summary": "The seven MOD-027 and MOD-028 Developer unit tests that Mike allowed the MOD-031 Developer to widen (answers.md, 'MOD-031 regression: older tests at the old grain', 2026-11-27) were not widened. They still seed silv_daily_count_detail at the pre-MOD-031 grain with no local_group_id, so the gold load fails on its staging table.",
+      "steps_to_reproduce": "Run run_suite on commit c5b77025e827. Each of the seven listed tests in test_MOD027_dev and test_MOD028_dev fails with the NULL local_group_id error in #det_stage. Each one fakes Layercake.silv_daily_count_detail, inserts rows without local_group_id, contact_country_id or contact_region, and calls Layercake.usp_load_fact_daily_member_count_detail.",
+      "expected": "The MOD-031 rework widens these seven tests, and changes only the grain, column lists or index they name. Seeded detail and fact rows carry local_group_id 0, contact_country_id = country_id and contact_region = region, as the answer says. The tests then pass against the MOD-031 build, which now keys gold on the ten-column grain (RULE-170 to RULE-179, REQ-027).",
+      "actual": "All seven fail at the gold daily fact load (usp_load_fact_daily_member_count_detail) with: \"Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage...'; column does not allow nulls.\" The faked silver detail rows these tests insert have no local_group_id. Every MOD-031 test condition passes (21/21), and so do the Developer's 8 MOD-031 unit tests. CN-MOD-031 does not list these seven tests as changed.",
+      "suspected_cause": "code",
+      "status": "open"
+    }
+  ]
+}

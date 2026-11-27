@@ -1,0 +1,179 @@
+{
+  "meta": {
+    "artefact_type": "test_results",
+    "schema_version": "0.1",
+    "project_id": "RPST",
+    "version": 1,
+    "produced_by": "tester",
+    "produced_at": "2026-11-27T12:30:59Z",
+    "status": "for_review",
+    "artefact_id": "TR-MOD-031-2",
+    "source_artefacts": [
+      "CN-MOD-031",
+      "TCS-MOD-031",
+      "tests/tsqlt/test_MOD031.sql"
+    ]
+  },
+  "module_id": "MOD-031",
+  "loop_number": 2,
+  "run": {
+    "environment": "test",
+    "commit": "c5b77025e8271a97b00eeee95e49459334ff622d",
+    "started_at": "2026-11-27T12:21:16Z",
+    "finished_at": "2026-11-27T12:30:41Z"
+  },
+  "results": [
+    {
+      "test_condition_id": "TC-031-001",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-002",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-003",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-004",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-005",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-006",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-007",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-008",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-009",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-010",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-011",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-012",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-013",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-014",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-015",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-016",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-017",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-018",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-019",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-020",
+      "outcome": "pass"
+    },
+    {
+      "test_condition_id": "TC-031-021",
+      "outcome": "pass"
+    }
+  ],
+  "requirement_status": [
+    {
+      "requirement_id": "REQ-019",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-020",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-024",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-025",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-026",
+      "status": "met"
+    },
+    {
+      "requirement_id": "REQ-027",
+      "status": "met"
+    }
+  ],
+  "regression": {
+    "ran": 820,
+    "failed": [
+      {
+        "test": "[test_MOD027_dev].[test an overflow in a later window keeps the committed window and logs Failed with its counts]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________00000000B11B'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027_dev].[test counts add up across one-day windows and each window logs its synced cells]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________00000000B11B'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD027_dev].[test rows_deleted counts the span trim and the in-window deletes together]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________00000000B11B'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD028_dev].[test MOD-027 an overflow in a later window keeps the committed window and logs Failed at the segment grain]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________00000000B3FE'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD028_dev].[test gold sums regions within a segment cell and keeps segment cells apart]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________00000000B3FE'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD028_dev].[test MOD-027 rows_deleted counts the span trim and the in-window deletes together at the segment grain]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________00000000B3FE'; column does not allow nulls. INSERT fai"
+      },
+      {
+        "test": "[test_MOD028_dev].[test MOD-027 counts add up across one-day windows and each window logs its synced cells at the segment grain]",
+        "outcome": "error",
+        "message": "Message: Cannot insert the value NULL into column 'local_group_id', table 'tempdb.dbo.#det_stage__________________________________________________________________________________________________________00000000B3FE'; column does not allow nulls. INSERT fai"
+      }
+    ]
+  },
+  "verdict": "fail",
+  "defect_report_ref": "DR-MOD-031-2"
+}
