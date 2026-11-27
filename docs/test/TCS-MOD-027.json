@@ -4,10 +4,10 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-027",
-    "version": 3,
+    "version": 4,
     "produced_by": "tester",
-    "produced_at": "2026-11-23T16:38:03Z",
-    "status": "rejected",
+    "produced_at": "2026-11-27T11:06:58Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,9 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-27T10:40:46Z",
+      "approved_at": "2026-11-27T11:07:44Z",
       "gate": "test_design_review",
-      "comments": "Reopened for MOD-031: Widen to the MOD-031 grain (local_group_id, contact_country_id, contact_region), DEF-009 to DEF-015: TC-016-014, TC-018-020, TC-021-015, TC-021-017, TC-022-019, TC-027-001, TC-027-002, TC-027-003, TC-027-004, TC-027-005, TC-027-006, TC-027-007, TC-027-008, TC-027-009, TC-027-010, TC-027-012, TC-028-001, TC-028-002, TC-028-003, TC-028-019, TC-028-020, TC-028-021. Change them only where they name the grain, the column lists or index, or seed rows that now need local_group_id 0, contact_country_id = country_id and contact_region = region. Change nothing else."
+      "comments": "Approved for MOD-031 (DEF-009) under Mike's rule of 2026-11-27: only TC-027-001 to TC-027-010 and TC-027-012 changed, adding local_group_id, contact_country_id and contact_region to seeds, expected rows and the ten-column grain index."
     }
   },
   "module_id": "MOD-027",
@@ -31,13 +31,14 @@
       "id": "TC-027-001",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-01",
       "category": "happy_path",
-      "description": "First load into an empty fact: the gold derivation is unchanged from Phase 1 (enrolment to Candidate with status 0, election to Qualified keeping its status, lapse to grade 0 and status 0, region collapsed by summing). The three segment ids are copied from silver (RULE-164), and rows_inserted counts the new cells.",
-      "preconditions": "Fakes: etl_run_log (identity, defaults), etl_progress_log, silv_daily_count_detail, dim_date, dim_membership_grade (0 N/A, 1 Candidate, 2 Qualified), fact_daily_member_count_detail (identity), with the fact empty. Every silver row has payment_method_id, payer_type_id and concession_type_id 0. Silver on 2022-03-01 (dim_date id 7001), country 3, gender 2: UK election status 1 (1,1,1,0,0,0,0); Overseas election status 1 (2,1,2,1,0,0,0); UK enrolment status 1 (4,0,0,0,0,0,0); UK lapse status 1 (0,1,1,0,0,0,1); UK election status 2 (1,1,1,0,1,0,0). Calls usp_load_fact_daily_member_count_detail directly.",
-      "expected": "The fact holds exactly 4 rows (date_id, country, gender, grade, status, payment method, payer type, concession type, then the 7 measures): (7001,3,2,2,1,0,0,0, 3,2,3,1,0,0,0); (7001,3,2,1,0,0,0,0, 4,0,0,0,0,0,0); (7001,3,2,0,0,0,0,0, 0,1,1,0,0,0,1); (7001,3,2,2,2,0,0,0, 1,1,1,0,1,0,0). Its etl_run_log row is layer 'gold', status 'Success', rows_inserted 4, rows_updated 0, rows_deleted 0.",
+      "description": "First load into an empty fact: the gold derivation is unchanged from Phase 1 (enrolment to Candidate with status 0, election to Qualified keeping its status, lapse to grade 0 and status 0, region and contact_region collapsed by summing). The three segment ids (RULE-164) and local_group_id and contact_country_id (RULE-176) are copied from silver, and rows_inserted counts the new cells.",
+      "preconditions": "Fakes: etl_run_log (identity, defaults), etl_progress_log, silv_daily_count_detail, dim_date, dim_membership_grade (0 N/A, 1 Candidate, 2 Qualified), fact_daily_member_count_detail (identity), with the fact empty. Every silver row has payment_method_id, payer_type_id and concession_type_id 0, local_group_id 0, contact_country_id = country_id and contact_region = region (MOD-031 placeholders). Silver on 2022-03-01 (dim_date id 7001), country 3, gender 2: UK election status 1 (1,1,1,0,0,0,0); Overseas election status 1 (2,1,2,1,0,0,0); UK enrolment status 1 (4,0,0,0,0,0,0); UK lapse status 1 (0,1,1,0,0,0,1); UK election status 2 (1,1,1,0,1,0,0). Calls usp_load_fact_daily_member_count_detail directly.",
+      "expected": "The fact holds exactly 4 rows (date_id, country, gender, grade, status, payment method, payer type, concession type, local group, contact country, then the 7 measures): (7001,3,2,2,1,0,0,0,0,3, 3,2,3,1,0,0,0); (7001,3,2,1,0,0,0,0,0,3, 4,0,0,0,0,0,0); (7001,3,2,0,0,0,0,0,0,3, 0,1,1,0,0,0,1); (7001,3,2,2,2,0,0,0,0,3, 1,1,1,0,1,0,0). Its etl_run_log row is layer 'gold', status 'Success', rows_inserted 4, rows_updated 0, rows_deleted 0.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-001 first load of an empty fact inserts one row per gold cell with the Phase 1 derivation]"
     },
@@ -45,13 +46,14 @@
       "id": "TC-027-002",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-01",
       "category": "happy_path",
-      "description": "AC-024-03 case (e), D1's Renewal on 2025-01-10: the cells whose figures changed are updated in place and keep their id. A cell that did not change on the same date, and a date with no changed cell, keep their id and values. The counts are 0 inserted, 2 updated and 0 deleted. Cells are matched on the eight-column grain.",
-      "preconditions": "Case (e) is shown through the silver state it leaves. Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0. Silver: 2025-01-10 UK country 1 gender 1 election status 1 (5,6,6,0,1,0,0) and enrolment (2,0,0,0,0,0,0); 2025-01-11 election (5,6,6,0,0,0,0); 2024-02-10 election (4,4,4,0,0,0,0). Fact before (identity insert): 1001 (7301,1,1,2,1,0,0,0, 5,5,5,0,0,0,0), 1002 (7301,1,1,1,0,0,0,0, 2,0,0,0,0,0,0), 1003 (7302,1,1,2,1,0,0,0, 5,5,5,0,0,0,0), 1004 (7201,1,1,2,1,0,0,0, 4,4,4,0,0,0,0).",
-      "expected": "The fact is exactly: 1001 (7301,1,1,2,1,0,0,0, 5,6,6,0,1,0,0); 1002 unchanged; 1003 (7302,1,1,2,1,0,0,0, 5,6,6,0,0,0,0); 1004 unchanged. The log shows 'Success', 0 inserted, 2 updated and 0 deleted.",
+      "description": "AC-024-03 case (e), D1's Renewal on 2025-01-10: the cells whose figures changed are updated in place and keep their id. A cell that did not change on the same date, and a date with no changed cell, keep their id and values. The counts are 0 inserted, 2 updated and 0 deleted. Cells are matched on the ten-column grain (RULE-176).",
+      "preconditions": "Case (e) is shown through the silver state it leaves. Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0, local_group_id 0 and contact_country_id = country_id; silver rows have contact_region = region. Silver: 2025-01-10 UK country 1 gender 1 election status 1 (5,6,6,0,1,0,0) and enrolment (2,0,0,0,0,0,0); 2025-01-11 election (5,6,6,0,0,0,0); 2024-02-10 election (4,4,4,0,0,0,0). Fact before (identity insert): 1001 (7301,1,1,2,1,0,0,0,0,1, 5,5,5,0,0,0,0), 1002 (7301,1,1,1,0,0,0,0,0,1, 2,0,0,0,0,0,0), 1003 (7302,1,1,2,1,0,0,0,0,1, 5,5,5,0,0,0,0), 1004 (7201,1,1,2,1,0,0,0,0,1, 4,4,4,0,0,0,0).",
+      "expected": "The fact is exactly: 1001 (7301,1,1,2,1,0,0,0,0,1, 5,6,6,0,1,0,0); 1002 unchanged; 1003 (7302,1,1,2,1,0,0,0,0,1, 5,6,6,0,0,0,0); 1004 unchanged. The log shows 'Success', 0 inserted, 2 updated and 0 deleted.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-002 changed cells are updated in place and keep their id while unchanged cells are untouched]"
     },
@@ -59,13 +61,14 @@
       "id": "TC-027-003",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-01",
       "category": "happy_path",
       "description": "AC-024-03 case (a), new contact N1 with a Join on 2023-05-10: the new cell is inserted. The existing cell on that date keeps its id and values. The counts are 1 inserted, 0 updated and 0 deleted.",
-      "preconditions": "Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0. Silver on 2023-05-10 (id 7101), UK gender 1: country 1 election status 1 (3,3,3,0,0,0,0); country 2 enrolment status 1 (1,1,1,1,0,0,0). Fact before: 2001 (7101,1,1,2,1,0,0,0, 3,3,3,0,0,0,0).",
-      "expected": "The fact holds exactly (7101,1,1,2,1,0,0,0, 3,3,3,0,0,0,0) and (7101,2,1,1,0,0,0,0, 1,1,1,1,0,0,0). Row id 2001 is still (7101,1,1,2,1,0,0,0, 3,3,3,0,0,0,0). The new row's id is not compared. The log shows 'Success', 1 inserted, 0 updated and 0 deleted.",
+      "preconditions": "Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0, local_group_id 0 and contact_country_id = country_id; silver rows have contact_region = region. Silver on 2023-05-10 (id 7101), UK gender 1: country 1 election status 1 (3,3,3,0,0,0,0); country 2 enrolment status 1 (1,1,1,1,0,0,0). Fact before: 2001 (7101,1,1,2,1,0,0,0,0,1, 3,3,3,0,0,0,0).",
+      "expected": "The fact holds exactly (7101,1,1,2,1,0,0,0,0,1, 3,3,3,0,0,0,0) and (7101,2,1,1,0,0,0,0,0,2, 1,1,1,1,0,0,0). Row id 2001 is still (7101,1,1,2,1,0,0,0,0,1, 3,3,3,0,0,0,0). The new row's id is not compared. The log shows 'Success', 1 inserted, 0 updated and 0 deleted.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-003 a new silver cell is inserted and the existing cell on its date keeps its id]"
     },
@@ -73,13 +76,14 @@
       "id": "TC-027-004",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-01",
       "category": "happy_path",
       "description": "AC-024-03 case (f), G1's country_id moving from 1 to 2 on two loaded dates (the same shape as cases (g) and (h), where a contact moves cell): each old cell is updated in place, each new cell is inserted, and an unrelated cell keeps its id and values.",
-      "preconditions": "Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0. Silver, UK gender 1, election status 1: 2022-03-01 country 1 (1,1,1,0,0,0,0), country 2 (1,1,1,0,0,0,0), country 5 (1,0,0,0,0,0,0); 2022-03-02 country 1 (1,1,1,0,0,0,0), country 2 (1,1,1,0,0,0,0). Fact before: 3001 (7001,1,1,2,1,0,0,0, 2,2,2,0,0,0,0), 3002 (7002,1,1,2,1,0,0,0, 2,2,2,0,0,0,0), 3003 (7001,5,1,2,1,0,0,0, 1,0,0,0,0,0,0).",
-      "expected": "The fact holds exactly 5 rows: (7001,1,…) (7001,2,…) (7002,1,…) (7002,2,…), all (gender 1, grade 2, status 1, segment ids 0,0,0, measures 1,1,1,0,0,0,0), plus (7001,5,1,2,1,0,0,0, 1,0,0,0,0,0,0). Ids 3001 and 3002 now hold active, paid and paid-event counts of 1 with segment ids 0,0,0. Id 3003 is unchanged. The log shows 'Success', 2 inserted, 2 updated and 0 deleted.",
+      "preconditions": "Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0, local_group_id 0 and contact_country_id = country_id; silver rows have contact_region = region. Silver, UK gender 1, election status 1: 2022-03-01 country 1 (1,1,1,0,0,0,0), country 2 (1,1,1,0,0,0,0), country 5 (1,0,0,0,0,0,0); 2022-03-02 country 1 (1,1,1,0,0,0,0), country 2 (1,1,1,0,0,0,0). Fact before: 3001 (7001,1,1,2,1,0,0,0,0,1, 2,2,2,0,0,0,0), 3002 (7002,1,1,2,1,0,0,0,0,1, 2,2,2,0,0,0,0), 3003 (7001,5,1,2,1,0,0,0,0,5, 1,0,0,0,0,0,0).",
+      "expected": "The fact holds exactly 5 rows: (7001,1,…,0,1) (7001,2,…,0,2) (7002,1,…,0,1) (7002,2,…,0,2), all (gender 1, grade 2, status 1, segment ids 0,0,0, local group 0, contact country = country, measures 1,1,1,0,0,0,0), plus (7001,5,1,2,1,0,0,0,0,5, 1,0,0,0,0,0,0). Ids 3001 and 3002 now hold active, paid and paid-event counts of 1 with segment ids 0,0,0, local group 0 and contact country 1. Id 3003 is unchanged. The log shows 'Success', 2 inserted, 2 updated and 0 deleted.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-004 a contact moving country updates its old cells in place and inserts its new cells]"
     },
@@ -87,13 +91,14 @@
       "id": "TC-027-005",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-01",
       "category": "negative",
       "description": "AC-024-03 case (b), contact R1 (active from 2021-01-15) removed from the source: the cell R1 held alone is deleted, the cell R1 shared is updated in place, and an unrelated cell on the same date keeps its id.",
-      "preconditions": "Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0. Silver, UK gender 1, election status 1: 2021-01-15 country 1 (7,7,7,0,0,0,0); 2021-01-16 country 6 (1,1,1,0,0,0,0). Silver no longer holds R1's 2021-01-15 country 6 cell. Fact before: 4001 (7003,6,1,2,1,0,0,0, 1,1,1,0,0,0,0), 4002 (7004,6,1,2,1,0,0,0, 2,2,2,0,0,0,0), 4003 (7003,1,1,2,1,0,0,0, 7,7,7,0,0,0,0).",
-      "expected": "The fact is exactly 4002 (7004,6,1,2,1,0,0,0, 1,1,1,0,0,0,0) and 4003 (7003,1,1,2,1,0,0,0, 7,7,7,0,0,0,0). Row 4001 is gone. The log shows 'Success', 0 inserted, 1 updated and 1 deleted.",
+      "preconditions": "Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0, local_group_id 0 and contact_country_id = country_id; silver rows have contact_region = region. Silver, UK gender 1, election status 1: 2021-01-15 country 1 (7,7,7,0,0,0,0); 2021-01-16 country 6 (1,1,1,0,0,0,0). Silver no longer holds R1's 2021-01-15 country 6 cell. Fact before: 4001 (7003,6,1,2,1,0,0,0,0,6, 1,1,1,0,0,0,0), 4002 (7004,6,1,2,1,0,0,0,0,6, 2,2,2,0,0,0,0), 4003 (7003,1,1,2,1,0,0,0,0,1, 7,7,7,0,0,0,0).",
+      "expected": "The fact is exactly 4002 (7004,6,1,2,1,0,0,0,0,6, 1,1,1,0,0,0,0) and 4003 (7003,1,1,2,1,0,0,0,0,1, 7,7,7,0,0,0,0). Row 4001 is gone. The log shows 'Success', 0 inserted, 1 updated and 1 deleted.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-005 a removed contact deletes the cell it held alone and updates the cell it shared]"
     },
@@ -101,13 +106,14 @@
       "id": "TC-027-006",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-02",
       "category": "happy_path",
-      "description": "AC-024-03 case (i) (AC-024-06) through usp_run_daily_load. Cell E (2022-03-01, country 3, gender 2, Qualified, Practising, segment ids 0,0,0) holds only M1, and M1 moves to country 4. E's fact row is deleted, M1's new cell is updated in place, and the other row on 2022-03-01 keeps its id and values.",
-      "preconditions": "usp_run_daily_load runs with usp_load_bronze, the other gold loads called by usp_load_gold (nine dimensions, fact_membership_events, fact_annual_rate_base) and usp_run_payment_segments spied, so only the gold daily fact load runs for real. usp_load_silver is spied with a command that makes the silver change M1's move leaves: it deletes cell E's row and sets country 4's active, paid and paid-event counts to 3. Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0. Silver before the run, on 2022-03-01, UK gender 2: country 3 election status 1 (1,1,1,0,0,0,0); country 4 election status 1 (2,2,2,0,0,0,0); country 3 enrolment status 1 (1,0,0,0,0,0,0). Fact before: 5001 E (7001,3,2,2,1,0,0,0, 1,1,1,0,0,0,0), 5002 (7001,4,2,2,1,0,0,0, 2,2,2,0,0,0,0), 5003 (7001,3,2,1,0,0,0,0, 1,0,0,0,0,0,0). The full-recompute parity of case (i) is the daily count's (MOD-026). The MOD-016 and MOD-022 suites are rerun in the regression run.",
-      "expected": "The fact is exactly 5002 (7001,4,2,2,1,0,0,0, 3,3,3,0,0,0,0) and 5003 (7001,3,2,1,0,0,0,0, 1,0,0,0,0,0,0), with no row for cell E. The gold etl_run_log row is 'gold', 'Success', 0 inserted, 1 updated and 1 deleted. The run row is 'run', 'Success'.",
+      "description": "AC-024-03 case (i) (AC-024-06) through usp_run_daily_load. Cell E (2022-03-01, country 3, gender 2, Qualified, Practising, segment ids 0,0,0, local group 0, contact country 3) holds only M1, and M1 moves to country 4. E's fact row is deleted, M1's new cell is updated in place, and the other row on 2022-03-01 keeps its id and values.",
+      "preconditions": "usp_run_daily_load runs with usp_load_bronze, the other gold loads called by usp_load_gold (nine dimensions, fact_membership_events, fact_annual_rate_base) and usp_run_payment_segments spied, so only the gold daily fact load runs for real. usp_load_silver is spied with a command that makes the silver change M1's move leaves: it deletes cell E's row and sets country 4's active, paid and paid-event counts to 3. Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0, local_group_id 0 and contact_country_id = country_id; silver rows have contact_region = region. Silver before the run, on 2022-03-01, UK gender 2: country 3 election status 1 (1,1,1,0,0,0,0); country 4 election status 1 (2,2,2,0,0,0,0); country 3 enrolment status 1 (1,0,0,0,0,0,0). Fact before: 5001 E (7001,3,2,2,1,0,0,0,0,3, 1,1,1,0,0,0,0), 5002 (7001,4,2,2,1,0,0,0,0,4, 2,2,2,0,0,0,0), 5003 (7001,3,2,1,0,0,0,0,0,3, 1,0,0,0,0,0,0). The full-recompute parity of case (i) is the daily count's (MOD-026). The MOD-016 and MOD-022 suites are rerun in the regression run.",
+      "expected": "The fact is exactly 5002 (7001,4,2,2,1,0,0,0,0,4, 3,3,3,0,0,0,0) and 5003 (7001,3,2,1,0,0,0,0,0,3, 1,0,0,0,0,0,0), with no row for cell E. The gold etl_run_log row is 'gold', 'Success', 0 inserted, 1 updated and 1 deleted. The run row is 'run', 'Success'.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-006 cell E emptying in the daily run deletes its fact row and other rows on its date keep their id]"
     },
@@ -115,13 +121,14 @@
       "id": "TC-027-007",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-03",
       "category": "negative",
-      "description": "A fact row added by hand for a cell (on the eight-column grain) that silver does not hold, on a date silver covers, is deleted by the next usp_run_daily_load. The gold load logs Success, so its row-count check against silver passes, and no other fact row changes.",
-      "preconditions": "The spies are as in TC-027-006, with usp_load_silver as a no-op, so silver is unchanged. Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0. Silver on 2024-02-10 (id 7201), UK country 1 gender 1: election status 1 (4,4,4,0,0,0,0); lapse status 0 (0,1,1,0,0,0,1). Fact before: 6001 (7201,1,1,2,1,0,0,0, 4,4,4,0,0,0,0), 6002 (7201,1,1,0,0,0,0,0, 0,1,1,0,0,0,1), and the hand-added 6003 (7201,9,1,2,1,0,0,0, 1,1,1,0,0,0,0).",
-      "expected": "The fact is exactly 6001 and 6002, with their values (including segment ids 0,0,0) unchanged. The gold log row is 'gold', 'Success', 0 inserted, 0 updated, 1 deleted, error_message NULL. The run row is 'run', 'Success'.",
+      "description": "A fact row added by hand for a cell (on the ten-column grain) that silver does not hold, on a date silver covers, is deleted by the next usp_run_daily_load. The gold load logs Success, so its row-count check against silver passes, and no other fact row changes.",
+      "preconditions": "The spies are as in TC-027-006, with usp_load_silver as a no-op, so silver is unchanged. Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0, local_group_id 0 and contact_country_id = country_id; silver rows have contact_region = region. Silver on 2024-02-10 (id 7201), UK country 1 gender 1: election status 1 (4,4,4,0,0,0,0); lapse status 0 (0,1,1,0,0,0,1). Fact before: 6001 (7201,1,1,2,1,0,0,0,0,1, 4,4,4,0,0,0,0), 6002 (7201,1,1,0,0,0,0,0,0,1, 0,1,1,0,0,0,1), and the hand-added 6003 (7201,9,1,2,1,0,0,0,0,9, 1,1,1,0,0,0,0).",
+      "expected": "The fact is exactly 6001 and 6002, with their values (including segment ids 0,0,0, local group 0 and contact country 1) unchanged. The gold log row is 'gold', 'Success', 0 inserted, 0 updated, 1 deleted, error_message NULL. The run row is 'run', 'Success'.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-007 a fact row added by hand is deleted by the next daily run and no other row changes]"
     },
@@ -129,13 +136,14 @@
       "id": "TC-027-008",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-03",
       "category": "boundary",
       "description": "Fact rows on dates outside the silver span, one the day before its first date and one after its last date, have no silver cell and are deleted. The row inside the span keeps its id.",
-      "preconditions": "Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0. Silver holds only 2024-02-10, UK country 1 gender 1 election status 1 (4,4,4,0,0,0,0). Fact before: 6101 (7201 = 2024-02-10, 1,1,2,1,0,0,0, 4,4,4,0,0,0,0), 6102 (7202 = 2024-02-09, same cell and values), 6103 (7301 = 2025-01-10, same cell and values).",
-      "expected": "The fact is exactly 6101 (7201,1,1,2,1,0,0,0, 4,4,4,0,0,0,0). The log shows 'Success', 0 inserted, 0 updated and 2 deleted.",
+      "preconditions": "Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0, local_group_id 0 and contact_country_id = country_id; silver rows have contact_region = region. Silver holds only 2024-02-10, UK country 1 gender 1 election status 1 (4,4,4,0,0,0,0). Fact before: 6101 (7201 = 2024-02-10, 1,1,2,1,0,0,0,0,1, 4,4,4,0,0,0,0), 6102 (7202 = 2024-02-09, same cell and values), 6103 (7301 = 2025-01-10, same cell and values).",
+      "expected": "The fact is exactly 6101 (7201,1,1,2,1,0,0,0,0,1, 4,4,4,0,0,0,0). The log shows 'Success', 0 inserted, 0 updated and 2 deleted.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-008 fact rows dated before or after the silver span are deleted]"
     },
@@ -143,13 +151,14 @@
       "id": "TC-027-009",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-01",
       "category": "boundary",
       "description": "Each of the seven measures counts as a changed figure on its own. For example, a Lapse (case (d)) changes only LapseEvents, and a Renewal changes RenewalEvents. Seven cells each differ in exactly one measure, and one cell does not differ.",
-      "preconditions": "Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0. Silver on 2022-03-01, UK gender 1, election status 1, countries 11 to 18. Every measure is 2, except that country 11 has active 3, 12 paid 3, 13 paid-event 3, 14 join 3, 15 renewal 3, 16 readmission 3 and 17 lapse 3. Country 18 has all 2. Fact before: ids 8011 to 8018 for countries 11 to 18 (grade 2, status 1), every measure 2.",
-      "expected": "Ids 8011 to 8017 each hold 3 in their one changed measure (ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents respectively) and 2 in the others, with segment ids 0,0,0. 8018 keeps all 2. No row is added or removed. The log shows 'Success', 0 inserted, 7 updated and 0 deleted.",
+      "preconditions": "Every silver and fact row has payment_method_id, payer_type_id and concession_type_id 0, local_group_id 0 and contact_country_id = country_id; silver rows have contact_region = region. Silver on 2022-03-01, UK gender 1, election status 1, countries 11 to 18. Every measure is 2, except that country 11 has active 3, 12 paid 3, 13 paid-event 3, 14 join 3, 15 renewal 3, 16 readmission 3 and 17 lapse 3. Country 18 has all 2. Fact before: ids 8011 to 8018 for countries 11 to 18 (grade 2, status 1, contact country = country), every measure 2.",
+      "expected": "Ids 8011 to 8017 each hold 3 in their one changed measure (ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents respectively) and 2 in the others, with segment ids 0,0,0, local group 0 and contact country = country. 8018 keeps all 2. No row is added or removed. The log shows 'Success', 0 inserted, 7 updated and 0 deleted.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-009 a change in any one of the seven measures counts as a changed cell]"
     },
@@ -157,12 +166,13 @@
       "id": "TC-027-010",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-01",
       "category": "idempotency",
       "description": "A rerun on unchanged silver touches nothing. Every fact row keeps its id and values, and the load logs 0 inserted, 0 updated and 0 deleted (design: gold daily fact cell sync pattern; AC-024-02).",
-      "preconditions": "Every silver row has payment_method_id, payer_type_id and concession_type_id 0. Silver, UK country 1 gender 1: 2022-03-01 election status 1 (3,3,3,1,0,0,0) and enrolment (2,0,0,0,0,0,0); 2022-03-02 election status 1 (3,3,3,0,0,0,0). The fact starts empty. The load runs once, the whole fact is snapshotted, and the load runs again.",
+      "preconditions": "Every silver row has payment_method_id, payer_type_id and concession_type_id 0, local_group_id 0, contact_country_id = country_id and contact_region = region. Silver, UK country 1 gender 1: 2022-03-01 election status 1 (3,3,3,1,0,0,0) and enrolment (2,0,0,0,0,0,0); 2022-03-02 election status 1 (3,3,3,0,0,0,0). The fact starts empty. The load runs once, the whole fact is snapshotted, and the load runs again.",
       "expected": "After the rerun the fact has 3 rows, identical in every column including id to the snapshot. The rerun's etl_run_log row (the latest for the step) shows 'Success', 0 inserted, 0 updated and 0 deleted.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-010 a rerun on unchanged silver changes no fact row and logs 0 inserted updated and deleted]"
@@ -184,13 +194,14 @@
       "id": "TC-027-012",
       "requirement_ids": [
         "REQ-025",
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-025-04",
       "category": "happy_path",
-      "description": "Layercake.fact_daily_member_count_detail.id is bigint, NOT NULL and an identity, and is still the nonclustered primary key. The other fifteen columns, including payment_method_id, payer_type_id and concession_type_id from MOD-028, are int NOT NULL, and the unique clustered index is on the eight-column grain (RULE-152, RULE-155, RULE-164).",
+      "description": "Layercake.fact_daily_member_count_detail.id is bigint, NOT NULL and an identity, and is still the nonclustered primary key. The other seventeen columns, including payment_method_id, payer_type_id and concession_type_id from MOD-028 and local_group_id and contact_country_id from MOD-031, are int NOT NULL, and the unique clustered index is on the ten-column grain (RULE-152, RULE-155, RULE-164, RULE-176).",
       "preconditions": "Reads the real table, located through tSQLt.Private_RenamedObjectLog because SetUp fakes it, via sys.columns, sys.indexes and sys.index_columns. That id keeps its existing values through the change script, and that the down script narrows it back, are proved by the Developer's migrations roundtrip.",
-      "expected": "16 columns: id bigint, not nullable, identity. date_id, country_id, gender_id, membership_grade_id, membership_status_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents, payment_method_id, payer_type_id and concession_type_id: int, not nullable, not identity. The primary key is NONCLUSTERED, unique, on id only. The CLUSTERED index is unique and not the primary key, on date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id and concession_type_id, in that order.",
+      "expected": "18 columns: id bigint, not nullable, identity. date_id, country_id, gender_id, membership_grade_id, membership_status_id, ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents, payment_method_id, payer_type_id, concession_type_id, local_group_id and contact_country_id: int, not nullable, not identity. The primary key is NONCLUSTERED, unique, on id only. The CLUSTERED index is unique and not the primary key, on date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id and contact_country_id, in that order.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD027].[test TC-027-012 fact id is a bigint identity and still the nonclustered primary key with the grain index unchanged]"
     },

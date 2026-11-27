@@ -32,32 +32,32 @@ AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2022-03-01', 2022, 'Q2', 'UK',       3, 2, 'election',  1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-           ('2022-03-01', 2022, 'Q2', 'Overseas', 3, 2, 'election',  1, 0, 0, 0, 2, 1, 2, 1, 0, 0, 0),
-           ('2022-03-01', 2022, 'Q2', 'UK',       3, 2, 'enrolment', 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0),
-           ('2022-03-01', 2022, 'Q2', 'UK',       3, 2, 'lapse',     1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1),
-           ('2022-03-01', 2022, 'Q2', 'UK',       3, 2, 'election',  2, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0);
+    VALUES ('2022-03-01', 2022, 'Q2', 'UK',       3, 2, 'election',  1, 0, 0, 0, 0, 3, 'UK',       1, 1, 1, 0, 0, 0, 0),
+           ('2022-03-01', 2022, 'Q2', 'Overseas', 3, 2, 'election',  1, 0, 0, 0, 0, 3, 'Overseas', 2, 1, 2, 1, 0, 0, 0),
+           ('2022-03-01', 2022, 'Q2', 'UK',       3, 2, 'enrolment', 1, 0, 0, 0, 0, 3, 'UK',       4, 0, 0, 0, 0, 0, 0),
+           ('2022-03-01', 2022, 'Q2', 'UK',       3, 2, 'lapse',     1, 0, 0, 0, 0, 3, 'UK',       0, 1, 1, 0, 0, 0, 1),
+           ('2022-03-01', 2022, 'Q2', 'UK',       3, 2, 'election',  2, 0, 0, 0, 0, 3, 'UK',       1, 1, 1, 0, 1, 0, 0);
 
     EXEC Layercake.usp_load_fact_daily_member_count_detail;
 
     SELECT f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-           f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.payment_method_id, f.payer_type_id, f.concession_type_id, f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent, f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
     INTO #Actual
     FROM Layercake.fact_daily_member_count_detail AS f;
 
     SELECT v.date_id, v.country_id, v.gender_id, v.membership_grade_id, v.membership_status_id,
-           v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.payment_method_id, v.payer_type_id, v.concession_type_id, v.local_group_id, v.contact_country_id,
            v.ActiveMembers, v.PaidMembers, v.PaidMembersEvent, v.JoinEvents, v.RenewalEvents, v.ReadmissionEvents, v.LapseEvents
     INTO #Expected
-    FROM (VALUES (7001, 3, 2, 2, 1, 0, 0, 0, 3, 2, 3, 1, 0, 0, 0),
-                 (7001, 3, 2, 1, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0),
-                 (7001, 3, 2, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1),
-                 (7001, 3, 2, 2, 2, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0))
+    FROM (VALUES (7001, 3, 2, 2, 1, 0, 0, 0, 0, 3, 3, 2, 3, 1, 0, 0, 0),
+                 (7001, 3, 2, 1, 0, 0, 0, 0, 0, 3, 4, 0, 0, 0, 0, 0, 0),
+                 (7001, 3, 2, 0, 0, 0, 0, 0, 0, 3, 0, 1, 1, 0, 0, 0, 1),
+                 (7001, 3, 2, 2, 2, 0, 0, 0, 0, 3, 1, 1, 1, 0, 1, 0, 0))
          AS v(date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-              payment_method_id, payer_type_id, concession_type_id,
+              payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
               ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
@@ -80,42 +80,42 @@ AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2025-01-10', 2025, 'Q2', 'UK', 1, 1, 'election',  1, 0, 0, 0, 5, 6, 6, 0, 1, 0, 0),
-           ('2025-01-10', 2025, 'Q2', 'UK', 1, 1, 'enrolment', 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0),
-           ('2025-01-11', 2025, 'Q2', 'UK', 1, 1, 'election',  1, 0, 0, 0, 5, 6, 6, 0, 0, 0, 0),
-           ('2024-02-10', 2024, 'Q2', 'UK', 1, 1, 'election',  1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0);
+    VALUES ('2025-01-10', 2025, 'Q2', 'UK', 1, 1, 'election',  1, 0, 0, 0, 0, 1, 'UK', 5, 6, 6, 0, 1, 0, 0),
+           ('2025-01-10', 2025, 'Q2', 'UK', 1, 1, 'enrolment', 1, 0, 0, 0, 0, 1, 'UK', 2, 0, 0, 0, 0, 0, 0),
+           ('2025-01-11', 2025, 'Q2', 'UK', 1, 1, 'election',  1, 0, 0, 0, 0, 1, 'UK', 5, 6, 6, 0, 0, 0, 0),
+           ('2024-02-10', 2024, 'Q2', 'UK', 1, 1, 'election',  1, 0, 0, 0, 0, 1, 'UK', 4, 4, 4, 0, 0, 0, 0);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
         (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (1001, 7301, 1, 1, 2, 1, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0),
-           (1002, 7301, 1, 1, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0),
-           (1003, 7302, 1, 1, 2, 1, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0),
-           (1004, 7201, 1, 1, 2, 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0);
+    VALUES (1001, 7301, 1, 1, 2, 1, 0, 0, 0, 0, 1, 5, 5, 5, 0, 0, 0, 0),
+           (1002, 7301, 1, 1, 1, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0),
+           (1003, 7302, 1, 1, 2, 1, 0, 0, 0, 0, 1, 5, 5, 5, 0, 0, 0, 0),
+           (1004, 7201, 1, 1, 2, 1, 0, 0, 0, 0, 1, 4, 4, 4, 0, 0, 0, 0);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     EXEC Layercake.usp_load_fact_daily_member_count_detail;
 
     SELECT CAST(f.id AS bigint) AS id, f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-           f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.payment_method_id, f.payer_type_id, f.concession_type_id, f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent, f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
     INTO #Actual
     FROM Layercake.fact_daily_member_count_detail AS f;
 
     SELECT CAST(v.id AS bigint) AS id, v.date_id, v.country_id, v.gender_id, v.membership_grade_id, v.membership_status_id,
-           v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.payment_method_id, v.payer_type_id, v.concession_type_id, v.local_group_id, v.contact_country_id,
            v.ActiveMembers, v.PaidMembers, v.PaidMembersEvent, v.JoinEvents, v.RenewalEvents, v.ReadmissionEvents, v.LapseEvents
     INTO #Expected
-    FROM (VALUES (1001, 7301, 1, 1, 2, 1, 0, 0, 0, 5, 6, 6, 0, 1, 0, 0),
-                 (1002, 7301, 1, 1, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0),
-                 (1003, 7302, 1, 1, 2, 1, 0, 0, 0, 5, 6, 6, 0, 0, 0, 0),
-                 (1004, 7201, 1, 1, 2, 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0))
+    FROM (VALUES (1001, 7301, 1, 1, 2, 1, 0, 0, 0, 0, 1, 5, 6, 6, 0, 1, 0, 0),
+                 (1002, 7301, 1, 1, 1, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0),
+                 (1003, 7302, 1, 1, 2, 1, 0, 0, 0, 0, 1, 5, 6, 6, 0, 0, 0, 0),
+                 (1004, 7201, 1, 1, 2, 1, 0, 0, 0, 0, 1, 4, 4, 4, 0, 0, 0, 0))
          AS v(id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-              payment_method_id, payer_type_id, concession_type_id,
+              payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
               ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
@@ -137,48 +137,48 @@ AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2023-05-10', 2023, 'Q3', 'UK', 1, 1, 'election',  1, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0),
-           ('2023-05-10', 2023, 'Q3', 'UK', 2, 1, 'enrolment', 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0);
+    VALUES ('2023-05-10', 2023, 'Q3', 'UK', 1, 1, 'election',  1, 0, 0, 0, 0, 1, 'UK', 3, 3, 3, 0, 0, 0, 0),
+           ('2023-05-10', 2023, 'Q3', 'UK', 2, 1, 'enrolment', 1, 0, 0, 0, 0, 2, 'UK', 1, 1, 1, 1, 0, 0, 0);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
         (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (2001, 7101, 1, 1, 2, 1, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0);
+    VALUES (2001, 7101, 1, 1, 2, 1, 0, 0, 0, 0, 1, 3, 3, 3, 0, 0, 0, 0);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     EXEC Layercake.usp_load_fact_daily_member_count_detail;
 
     SELECT f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-           f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.payment_method_id, f.payer_type_id, f.concession_type_id, f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent, f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
     INTO #Actual
     FROM Layercake.fact_daily_member_count_detail AS f;
 
     SELECT v.date_id, v.country_id, v.gender_id, v.membership_grade_id, v.membership_status_id,
-           v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.payment_method_id, v.payer_type_id, v.concession_type_id, v.local_group_id, v.contact_country_id,
            v.ActiveMembers, v.PaidMembers, v.PaidMembersEvent, v.JoinEvents, v.RenewalEvents, v.ReadmissionEvents, v.LapseEvents
     INTO #Expected
-    FROM (VALUES (7101, 1, 1, 2, 1, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0),
-                 (7101, 2, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0))
+    FROM (VALUES (7101, 1, 1, 2, 1, 0, 0, 0, 0, 1, 3, 3, 3, 0, 0, 0, 0),
+                 (7101, 2, 1, 1, 0, 0, 0, 0, 0, 2, 1, 1, 1, 1, 0, 0, 0))
          AS v(date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-              payment_method_id, payer_type_id, concession_type_id,
+              payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
               ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 
     SELECT CAST(f.id AS bigint) AS id, f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-           f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.payment_method_id, f.payer_type_id, f.concession_type_id, f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent, f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
     INTO #ActualKept
     FROM Layercake.fact_daily_member_count_detail AS f
     WHERE f.id = 2001;
 
     SELECT CAST(2001 AS bigint) AS id, 7101 AS date_id, 1 AS country_id, 1 AS gender_id, 2 AS membership_grade_id, 1 AS membership_status_id,
-           0 AS payment_method_id, 0 AS payer_type_id, 0 AS concession_type_id,
+           0 AS payment_method_id, 0 AS payer_type_id, 0 AS concession_type_id, 0 AS local_group_id, 1 AS contact_country_id,
            3 AS ActiveMembers, 3 AS PaidMembers, 3 AS PaidMembersEvent, 0 AS JoinEvents, 0 AS RenewalEvents, 0 AS ReadmissionEvents, 0 AS LapseEvents
     INTO #ExpectedKept;
 
@@ -201,60 +201,63 @@ AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-           ('2022-03-01', 2022, 'Q2', 'UK', 2, 1, 'election', 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-           ('2022-03-01', 2022, 'Q2', 'UK', 5, 1, 'election', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
-           ('2022-03-02', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-           ('2022-03-02', 2022, 'Q2', 'UK', 2, 1, 'election', 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0);
+    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 1, 1, 1, 0, 0, 0, 0),
+           ('2022-03-01', 2022, 'Q2', 'UK', 2, 1, 'election', 1, 0, 0, 0, 0, 2, 'UK', 1, 1, 1, 0, 0, 0, 0),
+           ('2022-03-01', 2022, 'Q2', 'UK', 5, 1, 'election', 1, 0, 0, 0, 0, 5, 'UK', 1, 0, 0, 0, 0, 0, 0),
+           ('2022-03-02', 2022, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 1, 1, 1, 0, 0, 0, 0),
+           ('2022-03-02', 2022, 'Q2', 'UK', 2, 1, 'election', 1, 0, 0, 0, 0, 2, 'UK', 1, 1, 1, 0, 0, 0, 0);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
         (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (3001, 7001, 1, 1, 2, 1, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0),
-           (3002, 7002, 1, 1, 2, 1, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0),
-           (3003, 7001, 5, 1, 2, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0);
+    VALUES (3001, 7001, 1, 1, 2, 1, 0, 0, 0, 0, 1, 2, 2, 2, 0, 0, 0, 0),
+           (3002, 7002, 1, 1, 2, 1, 0, 0, 0, 0, 1, 2, 2, 2, 0, 0, 0, 0),
+           (3003, 7001, 5, 1, 2, 1, 0, 0, 0, 0, 5, 1, 0, 0, 0, 0, 0, 0);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     EXEC Layercake.usp_load_fact_daily_member_count_detail;
 
     SELECT f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-           f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.payment_method_id, f.payer_type_id, f.concession_type_id, f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent, f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
     INTO #Actual
     FROM Layercake.fact_daily_member_count_detail AS f;
 
     SELECT v.date_id, v.country_id, v.gender_id, v.membership_grade_id, v.membership_status_id,
-           v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.payment_method_id, v.payer_type_id, v.concession_type_id, v.local_group_id, v.contact_country_id,
            v.ActiveMembers, v.PaidMembers, v.PaidMembersEvent, v.JoinEvents, v.RenewalEvents, v.ReadmissionEvents, v.LapseEvents
     INTO #Expected
-    FROM (VALUES (7001, 1, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-                 (7001, 2, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-                 (7001, 5, 1, 2, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0),
-                 (7002, 1, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-                 (7002, 2, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0))
+    FROM (VALUES (7001, 1, 1, 2, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0),
+                 (7001, 2, 1, 2, 1, 0, 0, 0, 0, 2, 1, 1, 1, 0, 0, 0, 0),
+                 (7001, 5, 1, 2, 1, 0, 0, 0, 0, 5, 1, 0, 0, 0, 0, 0, 0),
+                 (7002, 1, 1, 2, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0),
+                 (7002, 2, 1, 2, 1, 0, 0, 0, 0, 2, 1, 1, 1, 0, 0, 0, 0))
          AS v(date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-              payment_method_id, payer_type_id, concession_type_id,
+              payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
               ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
 
     SELECT CAST(f.id AS bigint) AS id, f.date_id, f.country_id, f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent
     INTO #ActualKept
     FROM Layercake.fact_daily_member_count_detail AS f
     WHERE f.id IN (3001, 3002, 3003);
 
     SELECT CAST(v.id AS bigint) AS id, v.date_id, v.country_id, v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.local_group_id, v.contact_country_id,
            v.ActiveMembers, v.PaidMembers, v.PaidMembersEvent
     INTO #ExpectedKept
-    FROM (VALUES (3001, 7001, 1, 0, 0, 0, 1, 1, 1),
-                 (3002, 7002, 1, 0, 0, 0, 1, 1, 1),
-                 (3003, 7001, 5, 0, 0, 0, 1, 0, 0))
-         AS v(id, date_id, country_id, payment_method_id, payer_type_id, concession_type_id, ActiveMembers, PaidMembers, PaidMembersEvent);
+    FROM (VALUES (3001, 7001, 1, 0, 0, 0, 0, 1, 1, 1, 1),
+                 (3002, 7002, 1, 0, 0, 0, 0, 1, 1, 1, 1),
+                 (3003, 7001, 5, 0, 0, 0, 0, 5, 1, 0, 0))
+         AS v(id, date_id, country_id, payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
+              ActiveMembers, PaidMembers, PaidMembersEvent);
 
     EXEC tSQLt.AssertEqualsTable '#ExpectedKept', '#ActualKept';
 
@@ -275,37 +278,37 @@ AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2021-01-15', 2021, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 7, 7, 7, 0, 0, 0, 0),
-           ('2021-01-16', 2021, 'Q2', 'UK', 6, 1, 'election', 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0);
+    VALUES ('2021-01-15', 2021, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 7, 7, 7, 0, 0, 0, 0),
+           ('2021-01-16', 2021, 'Q2', 'UK', 6, 1, 'election', 1, 0, 0, 0, 0, 6, 'UK', 1, 1, 1, 0, 0, 0, 0);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
         (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (4001, 7003, 6, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-           (4002, 7004, 6, 1, 2, 1, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0),
-           (4003, 7003, 1, 1, 2, 1, 0, 0, 0, 7, 7, 7, 0, 0, 0, 0);
+    VALUES (4001, 7003, 6, 1, 2, 1, 0, 0, 0, 0, 6, 1, 1, 1, 0, 0, 0, 0),
+           (4002, 7004, 6, 1, 2, 1, 0, 0, 0, 0, 6, 2, 2, 2, 0, 0, 0, 0),
+           (4003, 7003, 1, 1, 2, 1, 0, 0, 0, 0, 1, 7, 7, 7, 0, 0, 0, 0);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     EXEC Layercake.usp_load_fact_daily_member_count_detail;
 
     SELECT CAST(f.id AS bigint) AS id, f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-           f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.payment_method_id, f.payer_type_id, f.concession_type_id, f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent, f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
     INTO #Actual
     FROM Layercake.fact_daily_member_count_detail AS f;
 
     SELECT CAST(v.id AS bigint) AS id, v.date_id, v.country_id, v.gender_id, v.membership_grade_id, v.membership_status_id,
-           v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.payment_method_id, v.payer_type_id, v.concession_type_id, v.local_group_id, v.contact_country_id,
            v.ActiveMembers, v.PaidMembers, v.PaidMembersEvent, v.JoinEvents, v.RenewalEvents, v.ReadmissionEvents, v.LapseEvents
     INTO #Expected
-    FROM (VALUES (4002, 7004, 6, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-                 (4003, 7003, 1, 1, 2, 1, 0, 0, 0, 7, 7, 7, 0, 0, 0, 0))
+    FROM (VALUES (4002, 7004, 6, 1, 2, 1, 0, 0, 0, 0, 6, 1, 1, 1, 0, 0, 0, 0),
+                 (4003, 7003, 1, 1, 2, 1, 0, 0, 0, 0, 1, 7, 7, 7, 0, 0, 0, 0))
          AS v(id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-              payment_method_id, payer_type_id, concession_type_id,
+              payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
               ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
@@ -343,38 +346,38 @@ BEGIN
 
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 3, 2, 'election',  1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-           ('2022-03-01', 2022, 'Q2', 'UK', 4, 2, 'election',  1, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0),
-           ('2022-03-01', 2022, 'Q2', 'UK', 3, 2, 'enrolment', 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0);
+    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 3, 2, 'election',  1, 0, 0, 0, 0, 3, 'UK', 1, 1, 1, 0, 0, 0, 0),
+           ('2022-03-01', 2022, 'Q2', 'UK', 4, 2, 'election',  1, 0, 0, 0, 0, 4, 'UK', 2, 2, 2, 0, 0, 0, 0),
+           ('2022-03-01', 2022, 'Q2', 'UK', 3, 2, 'enrolment', 1, 0, 0, 0, 0, 3, 'UK', 1, 0, 0, 0, 0, 0, 0);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
         (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (5001, 7001, 3, 2, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0),
-           (5002, 7001, 4, 2, 2, 1, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0),
-           (5003, 7001, 3, 2, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0);
+    VALUES (5001, 7001, 3, 2, 2, 1, 0, 0, 0, 0, 3, 1, 1, 1, 0, 0, 0, 0),
+           (5002, 7001, 4, 2, 2, 1, 0, 0, 0, 0, 4, 2, 2, 2, 0, 0, 0, 0),
+           (5003, 7001, 3, 2, 1, 0, 0, 0, 0, 0, 3, 1, 0, 0, 0, 0, 0, 0);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     EXEC Layercake.usp_run_daily_load;
 
     SELECT CAST(f.id AS bigint) AS id, f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-           f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.payment_method_id, f.payer_type_id, f.concession_type_id, f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent, f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
     INTO #Actual
     FROM Layercake.fact_daily_member_count_detail AS f;
 
     SELECT CAST(v.id AS bigint) AS id, v.date_id, v.country_id, v.gender_id, v.membership_grade_id, v.membership_status_id,
-           v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.payment_method_id, v.payer_type_id, v.concession_type_id, v.local_group_id, v.contact_country_id,
            v.ActiveMembers, v.PaidMembers, v.PaidMembersEvent, v.JoinEvents, v.RenewalEvents, v.ReadmissionEvents, v.LapseEvents
     INTO #Expected
-    FROM (VALUES (5002, 7001, 4, 2, 2, 1, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0),
-                 (5003, 7001, 3, 2, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0))
+    FROM (VALUES (5002, 7001, 4, 2, 2, 1, 0, 0, 0, 0, 4, 3, 3, 3, 0, 0, 0, 0),
+                 (5003, 7001, 3, 2, 1, 0, 0, 0, 0, 0, 3, 1, 0, 0, 0, 0, 0, 0))
          AS v(id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-              payment_method_id, payer_type_id, concession_type_id,
+              payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
               ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
@@ -415,37 +418,37 @@ BEGIN
 
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2024-02-10', 2024, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0),
-           ('2024-02-10', 2024, 'Q2', 'UK', 1, 1, 'lapse',    0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1);
+    VALUES ('2024-02-10', 2024, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 4, 4, 4, 0, 0, 0, 0),
+           ('2024-02-10', 2024, 'Q2', 'UK', 1, 1, 'lapse',    0, 0, 0, 0, 0, 1, 'UK', 0, 1, 1, 0, 0, 0, 1);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
         (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (6001, 7201, 1, 1, 2, 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0),
-           (6002, 7201, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1),
-           (6003, 7201, 9, 1, 2, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0);
+    VALUES (6001, 7201, 1, 1, 2, 1, 0, 0, 0, 0, 1, 4, 4, 4, 0, 0, 0, 0),
+           (6002, 7201, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1),
+           (6003, 7201, 9, 1, 2, 1, 0, 0, 0, 0, 9, 1, 1, 1, 0, 0, 0, 0);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     EXEC Layercake.usp_run_daily_load;
 
     SELECT CAST(f.id AS bigint) AS id, f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-           f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.payment_method_id, f.payer_type_id, f.concession_type_id, f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent, f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
     INTO #Actual
     FROM Layercake.fact_daily_member_count_detail AS f;
 
     SELECT CAST(v.id AS bigint) AS id, v.date_id, v.country_id, v.gender_id, v.membership_grade_id, v.membership_status_id,
-           v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.payment_method_id, v.payer_type_id, v.concession_type_id, v.local_group_id, v.contact_country_id,
            v.ActiveMembers, v.PaidMembers, v.PaidMembersEvent, v.JoinEvents, v.RenewalEvents, v.ReadmissionEvents, v.LapseEvents
     INTO #Expected
-    FROM (VALUES (6001, 7201, 1, 1, 2, 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0),
-                 (6002, 7201, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1))
+    FROM (VALUES (6001, 7201, 1, 1, 2, 1, 0, 0, 0, 0, 1, 4, 4, 4, 0, 0, 0, 0),
+                 (6002, 7201, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1))
          AS v(id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-              payment_method_id, payer_type_id, concession_type_id,
+              payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
               ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
@@ -471,30 +474,30 @@ AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2024-02-10', 2024, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0);
+    VALUES ('2024-02-10', 2024, 'Q2', 'UK', 1, 1, 'election', 1, 0, 0, 0, 0, 1, 'UK', 4, 4, 4, 0, 0, 0, 0);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
         (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (6101, 7201, 1, 1, 2, 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0),
-           (6102, 7202, 1, 1, 2, 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0),
-           (6103, 7301, 1, 1, 2, 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0);
+    VALUES (6101, 7201, 1, 1, 2, 1, 0, 0, 0, 0, 1, 4, 4, 4, 0, 0, 0, 0),
+           (6102, 7202, 1, 1, 2, 1, 0, 0, 0, 0, 1, 4, 4, 4, 0, 0, 0, 0),
+           (6103, 7301, 1, 1, 2, 1, 0, 0, 0, 0, 1, 4, 4, 4, 0, 0, 0, 0);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     EXEC Layercake.usp_load_fact_daily_member_count_detail;
 
     SELECT CAST(f.id AS bigint) AS id, f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-           f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.payment_method_id, f.payer_type_id, f.concession_type_id, f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent, f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
     INTO #Actual
     FROM Layercake.fact_daily_member_count_detail AS f;
 
     SELECT CAST(6101 AS bigint) AS id, 7201 AS date_id, 1 AS country_id, 1 AS gender_id, 2 AS membership_grade_id, 1 AS membership_status_id,
-           0 AS payment_method_id, 0 AS payer_type_id, 0 AS concession_type_id,
+           0 AS payment_method_id, 0 AS payer_type_id, 0 AS concession_type_id, 0 AS local_group_id, 1 AS contact_country_id,
            4 AS ActiveMembers, 4 AS PaidMembers, 4 AS PaidMembersEvent, 0 AS JoinEvents, 0 AS RenewalEvents, 0 AS ReadmissionEvents, 0 AS LapseEvents
     INTO #Expected;
 
@@ -517,54 +520,54 @@ AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 11, 1, 'election', 1, 0, 0, 0, 3, 2, 2, 2, 2, 2, 2),
-           ('2022-03-01', 2022, 'Q2', 'UK', 12, 1, 'election', 1, 0, 0, 0, 2, 3, 2, 2, 2, 2, 2),
-           ('2022-03-01', 2022, 'Q2', 'UK', 13, 1, 'election', 1, 0, 0, 0, 2, 2, 3, 2, 2, 2, 2),
-           ('2022-03-01', 2022, 'Q2', 'UK', 14, 1, 'election', 1, 0, 0, 0, 2, 2, 2, 3, 2, 2, 2),
-           ('2022-03-01', 2022, 'Q2', 'UK', 15, 1, 'election', 1, 0, 0, 0, 2, 2, 2, 2, 3, 2, 2),
-           ('2022-03-01', 2022, 'Q2', 'UK', 16, 1, 'election', 1, 0, 0, 0, 2, 2, 2, 2, 2, 3, 2),
-           ('2022-03-01', 2022, 'Q2', 'UK', 17, 1, 'election', 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 3),
-           ('2022-03-01', 2022, 'Q2', 'UK', 18, 1, 'election', 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2);
+    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 11, 1, 'election', 1, 0, 0, 0, 0, 11, 'UK', 3, 2, 2, 2, 2, 2, 2),
+           ('2022-03-01', 2022, 'Q2', 'UK', 12, 1, 'election', 1, 0, 0, 0, 0, 12, 'UK', 2, 3, 2, 2, 2, 2, 2),
+           ('2022-03-01', 2022, 'Q2', 'UK', 13, 1, 'election', 1, 0, 0, 0, 0, 13, 'UK', 2, 2, 3, 2, 2, 2, 2),
+           ('2022-03-01', 2022, 'Q2', 'UK', 14, 1, 'election', 1, 0, 0, 0, 0, 14, 'UK', 2, 2, 2, 3, 2, 2, 2),
+           ('2022-03-01', 2022, 'Q2', 'UK', 15, 1, 'election', 1, 0, 0, 0, 0, 15, 'UK', 2, 2, 2, 2, 3, 2, 2),
+           ('2022-03-01', 2022, 'Q2', 'UK', 16, 1, 'election', 1, 0, 0, 0, 0, 16, 'UK', 2, 2, 2, 2, 2, 3, 2),
+           ('2022-03-01', 2022, 'Q2', 'UK', 17, 1, 'election', 1, 0, 0, 0, 0, 17, 'UK', 2, 2, 2, 2, 2, 2, 3),
+           ('2022-03-01', 2022, 'Q2', 'UK', 18, 1, 'election', 1, 0, 0, 0, 0, 18, 'UK', 2, 2, 2, 2, 2, 2, 2);
 
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail ON;
     INSERT INTO Layercake.fact_daily_member_count_detail
         (id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
          ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents)
-    VALUES (8011, 7001, 11, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2),
-           (8012, 7001, 12, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2),
-           (8013, 7001, 13, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2),
-           (8014, 7001, 14, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2),
-           (8015, 7001, 15, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2),
-           (8016, 7001, 16, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2),
-           (8017, 7001, 17, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2),
-           (8018, 7001, 18, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2);
+    VALUES (8011, 7001, 11, 1, 2, 1, 0, 0, 0, 0, 11, 2, 2, 2, 2, 2, 2, 2),
+           (8012, 7001, 12, 1, 2, 1, 0, 0, 0, 0, 12, 2, 2, 2, 2, 2, 2, 2),
+           (8013, 7001, 13, 1, 2, 1, 0, 0, 0, 0, 13, 2, 2, 2, 2, 2, 2, 2),
+           (8014, 7001, 14, 1, 2, 1, 0, 0, 0, 0, 14, 2, 2, 2, 2, 2, 2, 2),
+           (8015, 7001, 15, 1, 2, 1, 0, 0, 0, 0, 15, 2, 2, 2, 2, 2, 2, 2),
+           (8016, 7001, 16, 1, 2, 1, 0, 0, 0, 0, 16, 2, 2, 2, 2, 2, 2, 2),
+           (8017, 7001, 17, 1, 2, 1, 0, 0, 0, 0, 17, 2, 2, 2, 2, 2, 2, 2),
+           (8018, 7001, 18, 1, 2, 1, 0, 0, 0, 0, 18, 2, 2, 2, 2, 2, 2, 2);
     SET IDENTITY_INSERT Layercake.fact_daily_member_count_detail OFF;
 
     EXEC Layercake.usp_load_fact_daily_member_count_detail;
 
     SELECT CAST(f.id AS bigint) AS id, f.date_id, f.country_id, f.gender_id, f.membership_grade_id, f.membership_status_id,
-           f.payment_method_id, f.payer_type_id, f.concession_type_id,
+           f.payment_method_id, f.payer_type_id, f.concession_type_id, f.local_group_id, f.contact_country_id,
            f.ActiveMembers, f.PaidMembers, f.PaidMembersEvent, f.JoinEvents, f.RenewalEvents, f.ReadmissionEvents, f.LapseEvents
     INTO #Actual
     FROM Layercake.fact_daily_member_count_detail AS f;
 
     SELECT CAST(v.id AS bigint) AS id, v.date_id, v.country_id, v.gender_id, v.membership_grade_id, v.membership_status_id,
-           v.payment_method_id, v.payer_type_id, v.concession_type_id,
+           v.payment_method_id, v.payer_type_id, v.concession_type_id, v.local_group_id, v.contact_country_id,
            v.ActiveMembers, v.PaidMembers, v.PaidMembersEvent, v.JoinEvents, v.RenewalEvents, v.ReadmissionEvents, v.LapseEvents
     INTO #Expected
-    FROM (VALUES (8011, 7001, 11, 1, 2, 1, 0, 0, 0, 3, 2, 2, 2, 2, 2, 2),
-                 (8012, 7001, 12, 1, 2, 1, 0, 0, 0, 2, 3, 2, 2, 2, 2, 2),
-                 (8013, 7001, 13, 1, 2, 1, 0, 0, 0, 2, 2, 3, 2, 2, 2, 2),
-                 (8014, 7001, 14, 1, 2, 1, 0, 0, 0, 2, 2, 2, 3, 2, 2, 2),
-                 (8015, 7001, 15, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 3, 2, 2),
-                 (8016, 7001, 16, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 3, 2),
-                 (8017, 7001, 17, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 3),
-                 (8018, 7001, 18, 1, 2, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2))
+    FROM (VALUES (8011, 7001, 11, 1, 2, 1, 0, 0, 0, 0, 11, 3, 2, 2, 2, 2, 2, 2),
+                 (8012, 7001, 12, 1, 2, 1, 0, 0, 0, 0, 12, 2, 3, 2, 2, 2, 2, 2),
+                 (8013, 7001, 13, 1, 2, 1, 0, 0, 0, 0, 13, 2, 2, 3, 2, 2, 2, 2),
+                 (8014, 7001, 14, 1, 2, 1, 0, 0, 0, 0, 14, 2, 2, 2, 3, 2, 2, 2),
+                 (8015, 7001, 15, 1, 2, 1, 0, 0, 0, 0, 15, 2, 2, 2, 2, 3, 2, 2),
+                 (8016, 7001, 16, 1, 2, 1, 0, 0, 0, 0, 16, 2, 2, 2, 2, 2, 3, 2),
+                 (8017, 7001, 17, 1, 2, 1, 0, 0, 0, 0, 17, 2, 2, 2, 2, 2, 2, 3),
+                 (8018, 7001, 18, 1, 2, 1, 0, 0, 0, 0, 18, 2, 2, 2, 2, 2, 2, 2))
          AS v(id, date_id, country_id, gender_id, membership_grade_id, membership_status_id,
-              payment_method_id, payer_type_id, concession_type_id,
+              payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id,
               ActiveMembers, PaidMembers, PaidMembersEvent, JoinEvents, RenewalEvents, ReadmissionEvents, LapseEvents);
 
     EXEC tSQLt.AssertEqualsTable '#Expected', '#Actual';
@@ -586,11 +589,11 @@ AS
 BEGIN
     INSERT INTO Layercake.silv_daily_count_detail
         ([date], campaign_year, campaign_quarter, region, country_id, gender_id, grade, membership_status_id,
-         payment_method_id, payer_type_id, concession_type_id,
+         payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id, contact_region,
          active_count, paid_count, paid_count_event, event_join_count, event_renewal_count, event_readmission_count, event_lapse_count)
-    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 1, 1, 'election',  1, 0, 0, 0, 3, 3, 3, 1, 0, 0, 0),
-           ('2022-03-01', 2022, 'Q2', 'UK', 1, 1, 'enrolment', 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0),
-           ('2022-03-02', 2022, 'Q2', 'UK', 1, 1, 'election',  1, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0);
+    VALUES ('2022-03-01', 2022, 'Q2', 'UK', 1, 1, 'election',  1, 0, 0, 0, 0, 1, 'UK', 3, 3, 3, 1, 0, 0, 0),
+           ('2022-03-01', 2022, 'Q2', 'UK', 1, 1, 'enrolment', 1, 0, 0, 0, 0, 1, 'UK', 2, 0, 0, 0, 0, 0, 0),
+           ('2022-03-02', 2022, 'Q2', 'UK', 1, 1, 'election',  1, 0, 0, 0, 0, 1, 'UK', 3, 3, 3, 0, 0, 0, 0);
 
     EXEC Layercake.usp_load_fact_daily_member_count_detail;
 
@@ -706,7 +709,9 @@ BEGIN
                  ('LapseEvents', 'int', 0, 0),
                  ('payment_method_id', 'int', 0, 0),
                  ('payer_type_id', 'int', 0, 0),
-                 ('concession_type_id', 'int', 0, 0))
+                 ('concession_type_id', 'int', 0, 0),
+                 ('local_group_id', 'int', 0, 0),
+                 ('contact_country_id', 'int', 0, 0))
          AS v(column_name, type_name, is_nullable, is_identity);
 
     EXEC tSQLt.AssertEqualsTable '#ExpectedColumns', '#ActualColumns';
@@ -732,7 +737,9 @@ BEGIN
                  ('CLUSTERED', 0, 1, 'membership_status_id', 5),
                  ('CLUSTERED', 0, 1, 'payment_method_id', 6),
                  ('CLUSTERED', 0, 1, 'payer_type_id', 7),
-                 ('CLUSTERED', 0, 1, 'concession_type_id', 8))
+                 ('CLUSTERED', 0, 1, 'concession_type_id', 8),
+                 ('CLUSTERED', 0, 1, 'local_group_id', 9),
+                 ('CLUSTERED', 0, 1, 'contact_country_id', 10))
          AS v(index_type, is_primary_key, is_unique, column_name, key_ordinal);
 
     EXEC tSQLt.AssertEqualsTable '#ExpectedIndexes', '#ActualIndexes';
