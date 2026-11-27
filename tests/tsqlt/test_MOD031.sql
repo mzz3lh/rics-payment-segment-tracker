@@ -346,7 +346,7 @@ BEGIN
     FROM tSQLt.Private_RenamedObjectLog AS r
     JOIN sys.columns AS c
         ON c.object_id = r.ObjectId
-    WHERE PARSENAME(r.OriginalName, 2) = 'Layercake'
+    WHERE OBJECT_SCHEMA_NAME(r.ObjectId) = N'Layercake'
       AND PARSENAME(r.OriginalName, 1) IN ('silv_member_base', 'silv_member_profile', 'etl_daily_count_applied_contact',
                                            'silv_member_state_ranges', 'etl_daily_count_applied_state_range',
                                            'silv_daily_count_detail', 'etl_daily_count_cell_contacts',
@@ -374,7 +374,7 @@ BEGIN
     FROM tSQLt.Private_RenamedObjectLog AS r
     JOIN sys.columns AS c
         ON c.object_id = r.ObjectId
-    WHERE PARSENAME(r.OriginalName, 2) = 'Layercake'
+    WHERE OBJECT_SCHEMA_NAME(r.ObjectId) = N'Layercake'
       AND PARSENAME(r.OriginalName, 1) IN ('silv_member_base', 'silv_member_profile', 'etl_daily_count_applied_contact',
                                            'silv_member_state_ranges', 'etl_daily_count_applied_state_range',
                                            'silv_daily_count_detail', 'etl_daily_count_cell_contacts',
@@ -408,7 +408,7 @@ BEGIN
     JOIN sys.columns AS c
         ON c.object_id = ic.object_id
        AND c.column_id = ic.column_id
-    WHERE PARSENAME(r.OriginalName, 2) = 'Layercake'
+    WHERE OBJECT_SCHEMA_NAME(r.ObjectId) = N'Layercake'
       AND PARSENAME(r.OriginalName, 1) = 'fact_daily_member_count_detail';
 
     EXEC tSQLt.AssertEqualsTable '#ExpectedKey', '#ActualKey', 'unique clustered index key of the gold daily fact';
