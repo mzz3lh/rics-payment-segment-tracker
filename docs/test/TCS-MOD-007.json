@@ -7,7 +7,7 @@
     "version": 1,
     "produced_by": "tester",
     "produced_at": "2026-10-27T14:55:31Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,8 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-10-27T15:28:42Z",
-      "gate": "test_design_review"
+      "approved_at": "2026-11-27T14:56:05Z",
+      "gate": "test_design_review",
+      "comments": "Reopened for MOD-032: Widen to the MOD-032 columns (DEF-017, DEF-018; decided by Claude on Mike's delegation, docs/answers.md): TC-007-051, TC-007-052 and TC-016-014 add local_group_id and contact_country_id (int NOT NULL, appended after the existing columns) to the expected column lists of silv_membership_events and fact_membership_events (TC-007-051, TC-007-052) and silv_annual_rate_base and fact_annual_rate_base (TC-016-014). Keep their requirement IDs. Change nothing else."
     }
   },
   "module_id": "MOD-007",
