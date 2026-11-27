@@ -7,17 +7,17 @@
     "version": 3,
     "produced_by": "tester",
     "produced_at": "2026-11-23T16:23:33Z",
-    "status": "approved",
+    "status": "rejected",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
       "docs/design/DES-001.json"
     ],
     "approval": {
-      "approved_by": "Mike (auto-approved)",
-      "approved_at": "2026-11-23T16:23:54Z",
+      "approved_by": "Mike",
+      "approved_at": "2026-11-27T10:40:46Z",
       "gate": "test_design_review",
-      "comments": "auto-approved by po.py run --auto-approve; not reviewed before the next step"
+      "comments": "Reopened for MOD-031: Widen to the MOD-031 grain (local_group_id, contact_country_id, contact_region), DEF-009 to DEF-015: TC-016-014, TC-018-020, TC-021-015, TC-021-017, TC-022-019, TC-027-001, TC-027-002, TC-027-003, TC-027-004, TC-027-005, TC-027-006, TC-027-007, TC-027-008, TC-027-009, TC-027-010, TC-027-012, TC-028-001, TC-028-002, TC-028-003, TC-028-019, TC-028-020, TC-028-021. Change them only where they name the grain, the column lists or index, or seed rows that now need local_group_id 0, contact_country_id = country_id and contact_region = region. Change nothing else."
     }
   },
   "module_id": "MOD-016",
