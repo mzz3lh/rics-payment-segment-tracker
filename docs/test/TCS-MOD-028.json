@@ -4,10 +4,10 @@
     "schema_version": "0.1",
     "project_id": "RPST",
     "artefact_id": "TCS-MOD-028",
-    "version": 2,
+    "version": 3,
     "produced_by": "tester",
-    "produced_at": "2026-11-23T16:05:14Z",
-    "status": "rejected",
+    "produced_at": "2026-11-27T11:12:33Z",
+    "status": "approved",
     "source_artefacts": [
       "docs/specs/SPEC-001.json",
       "docs/design/MP-001.json",
@@ -15,9 +15,9 @@
     ],
     "approval": {
       "approved_by": "Mike",
-      "approved_at": "2026-11-27T10:40:46Z",
+      "approved_at": "2026-11-27T11:13:25Z",
       "gate": "test_design_review",
-      "comments": "Reopened for MOD-031: Widen to the MOD-031 grain (local_group_id, contact_country_id, contact_region), DEF-009 to DEF-015: TC-016-014, TC-018-020, TC-021-015, TC-021-017, TC-022-019, TC-027-001, TC-027-002, TC-027-003, TC-027-004, TC-027-005, TC-027-006, TC-027-007, TC-027-008, TC-027-009, TC-027-010, TC-027-012, TC-028-001, TC-028-002, TC-028-003, TC-028-019, TC-028-020, TC-028-021. Change them only where they name the grain, the column lists or index, or seed rows that now need local_group_id 0, contact_country_id = country_id and contact_region = region. Change nothing else."
+      "comments": "Approved for MOD-031 (DEF-014, DEF-015) under Mike's rule of 2026-11-27: only TC-028-001, -002, -003, -019, -020 and -021 changed, adding the MOD-031 columns to column counts, the ten-column grain index, and seeded and expected rows."
     }
   },
   "module_id": "MOD-028",
@@ -30,13 +30,14 @@
     {
       "id": "TC-028-001",
       "requirement_ids": [
-        "REQ-026"
+        "REQ-026",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-026-01",
       "category": "happy_path",
-      "description": "silv_daily_count_detail and fact_daily_member_count_detail have exactly their earlier columns plus payment_method_id, payer_type_id and concession_type_id, all not null int.",
+      "description": "silv_daily_count_detail and fact_daily_member_count_detail have exactly their earlier columns plus payment_method_id, payer_type_id and concession_type_id, all not null int. Widened for MOD-031 (REQ-027, RULE-175, RULE-176, DEF-015): the detail also has local_group_id, contact_country_id and contact_region, and the fact local_group_id and contact_country_id.",
       "preconditions": "Common SetUp (every test): every table the daily count and gold load read or write is faked (etl_run_log and etl_progress_log with identity and defaults; etl_daily_count_loaded, pending_rebuild, input_basis, the five etl_daily_count_applied_* tables including the new etl_daily_count_applied_attribute, etl_daily_count_cell_contacts, silv_daily_count_adjustment (identity), silv_daily_count_detail, silv_daily_count, ref_date_spine, ref_campaign_year_config (CY2021-CY2027, 1 Oct to 30 Sep), silv_ref_membership_status (0 N/A, 1 Practising, 2 Retired), silv_ref_membership_grade and dim_membership_grade (0 N/A, 1 Candidate, 2 Qualified), silv_membership_events, silv_member_state_ranges, silv_member_profile, silv_payment_events, silv_member_year_attributes, fact_daily_member_count_detail (identity), dim_date, and the payment method (0, -1, -2, 1 Direct Debit, 2 Card, 3 Bank transfer, 4 Cheque, 5 Corporate), payer type (0, -1, -2, 1 Individual, 2 Corporate) and concession type (0, -1, -2, 1 No concession, 6 Exceptional Hardship) lists and dimensions). Here the real tables are read through tSQLt.Private_RenamedObjectLog and sys.columns.",
-      "expected": "Detail: date, campaign_year, campaign_quarter (char), region, grade (varchar), country_id, gender_id, membership_status_id, the seven measures and the three new ids (int), 18 columns all NOT NULL. Fact: id bigint, date_id, country_id, gender_id, membership_grade_id, membership_status_id, the three new ids and the seven Phase 1 measures, 16 columns, all int except id, all NOT NULL.",
+      "expected": "Detail: date, campaign_year, campaign_quarter (char), region, grade, contact_region (varchar), country_id, gender_id, membership_status_id, the seven measures, the three segment ids, local_group_id and contact_country_id (int), 21 columns all NOT NULL. Fact: id bigint, date_id, country_id, gender_id, membership_grade_id, membership_status_id, the three segment ids, local_group_id, contact_country_id and the seven Phase 1 measures, 18 columns, all int except id, all NOT NULL.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD028].[test TC-028-001 detail and fact keep their columns and gain three not null int segment ids]"
     },
@@ -46,13 +47,14 @@
         "REQ-026",
         "REQ-019",
         "REQ-020",
-        "REQ-024"
+        "REQ-024",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-026-01",
       "category": "happy_path",
-      "description": "silv_daily_count_adjustment, etl_daily_count_cell_contacts, vw_silv_daily_count_adjustment_review and fn_silv_daily_count_detail_as_known_at each gain the three segment ids and nothing else.",
-      "preconditions": "Common SetUp (TC-028-001). Real tables through the renamed-object log; the view and function through OBJECT_ID. Nullability is asserted for the two tables only. etl_daily_count_cell_contacts has 9 columns before MOD-028 (MOD-026) and 12 in DES-001 after it.",
-      "expected": "Column counts 20, 12, 14 and 16 (each earlier count plus 3); all four carry payment_method_id, payer_type_id and concession_type_id as int; on the two tables all three are NOT NULL.",
+      "description": "silv_daily_count_adjustment, etl_daily_count_cell_contacts, vw_silv_daily_count_adjustment_review and fn_silv_daily_count_detail_as_known_at each gain the three segment ids. Widened for MOD-031 (REQ-027, DEF-015): each also carries local_group_id, contact_country_id and contact_region, so every column count is 3 higher than at the MOD-028 grain.",
+      "preconditions": "Common SetUp (TC-028-001). Real tables through the renamed-object log; the view and function through OBJECT_ID. Nullability is asserted for the two tables only. etl_daily_count_cell_contacts has 9 columns before MOD-028 (MOD-026), 12 after it and 15 after MOD-031 (DES-001).",
+      "expected": "Column counts 23, 15, 17 and 19 (adjustment, cell contacts, review view, detail function); all four carry payment_method_id, payer_type_id and concession_type_id as int; on the two tables all three are NOT NULL.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD028].[test TC-028-002 adjustment history cell counts review view and detail function gain the three segment ids]"
     },
@@ -60,13 +62,14 @@
       "id": "TC-028-003",
       "requirement_ids": [
         "REQ-026",
-        "REQ-025"
+        "REQ-025",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-026-01",
       "category": "happy_path",
-      "description": "The fact's unique clustered index covers exactly the eight grain columns, no foreign key is defined on the three new columns, and id is still bigint.",
+      "description": "The fact's unique clustered index covers exactly the grain columns, no foreign key is defined on the three segment columns, and id is still bigint. Widened for MOD-031 (REQ-027, RULE-176, DEF-015): the grain is ten columns, the eight of MOD-028 plus local_group_id and contact_country_id.",
       "preconditions": "Common SetUp (TC-028-001); the real fact table is read through the renamed-object log.",
-      "expected": "Unique clustered index key columns are exactly date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id. 0 foreign key columns on the three new ids. id type bigint.",
+      "expected": "Unique clustered index key columns are exactly date_id, country_id, gender_id, membership_grade_id, membership_status_id, payment_method_id, payer_type_id, concession_type_id, local_group_id, contact_country_id. 0 foreign key columns on the three segment ids. id type bigint.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD028].[test TC-028-003 fact unique clustered index covers the eight grain columns with no foreign key on the new ids and id bigint]"
     },
@@ -279,13 +282,14 @@
       "requirement_ids": [
         "REQ-026",
         "REQ-019",
-        "REQ-024"
+        "REQ-024",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-026-17",
       "category": "happy_path",
-      "description": "The first run after deployment, with no source change, finds the 'detail_grain_restatement' marker, takes the full path, writes every loaded date at the segment grain, writes no adjustment row, keeps the pre-deployment adjustment row unchanged, leaves silv_daily_count identical, removes the marker, and the gold sync splits the -2 fact cells; a later @FullRebuild changes nothing.",
-      "preconditions": "The migration's result is simulated (the migration itself is not run by tSQLt): Common SetUp; spine and dim_date 2025-01-09 (1), 2025-01-10 (2), CY2025 Q2. R1, R2, R3 as in TC-028-012 (R1 Direct Debit, R2 Card with payment and Renewal 2024-10-20, R3 no attributes). Run 1 and gold. Then detail, cell counts and fact are replaced by their sums at the old grain with -2 in the three ids; one pre-deployment adjustment row (run R0, load_id 7, written 2025-01-10 07:00, 2025-01-10, UK, 1, 1, election, 1, -2, -2, -2, active +1) is added; the five snapshot tables are emptied; the marker ('detail_grain_restatement', '', 2020-10-01) is written; silv_daily_count snapshot. Run 2 and gold; then @FullRebuild = 1 as run 3.",
-      "expected": "Run 2 logs 'full_recompute_path' 1. No marker row remains. The adjustment table holds exactly the R0 row with all its values. Detail on each date is exactly (UK, 1, 1, election, 1) under (1, 1, 1) 1/0/0/0/0/0/0, (2, 1, 1) 1/1/1/0/0/0/0 and (0, 0, 0) 1/0/0/0/0/0/0; silv_daily_count equals its snapshot; cell counts are those 6 cells with contact_count 1; the fact is exactly the same 6 cells (grade 2, status 1) with no -2 row. Run 3 writes 0 adjustment rows and leaves the detail identical.",
+      "description": "The first run after deployment, with no source change, finds the 'detail_grain_restatement' marker, takes the full path, writes every loaded date at the segment grain, writes no adjustment row, keeps the pre-deployment adjustment row unchanged, leaves silv_daily_count identical, removes the marker, and the gold sync splits the -2 fact cells; a later @FullRebuild changes nothing. Widened for MOD-031 (REQ-027, DEF-014): seeded and stored rows carry the MOD-031 columns.",
+      "preconditions": "The migration's result is simulated (the migration itself is not run by tSQLt): Common SetUp; spine and dim_date 2025-01-09 (1), 2025-01-10 (2), CY2025 Q2. R1, R2, R3 as in TC-028-012 (R1 Direct Debit, R2 Card with payment and Renewal 2024-10-20, R3 no attributes), with no local group: profile local_group_id 0 and contact_country_id = country_id (1), state ranges contact_region = region ('UK'). Run 1 and gold. Then detail, cell counts and fact are replaced by their sums at the old grain with -2 in the three segment ids and the MOD-031 placeholders (local_group_id 0, contact_country_id = country_id, contact_region = region); one pre-deployment adjustment row (run R0, load_id 7, written 2025-01-10 07:00, 2025-01-10, UK, 1, 1, election, 1, -2, -2, -2, local_group_id -2 (RULE-179), contact_country_id 1, contact_region UK, active +1) is added; the five snapshot tables are emptied; the marker ('detail_grain_restatement', '', 2020-10-01) is written; silv_daily_count snapshot. Run 2 and gold; then @FullRebuild = 1 as run 3.",
+      "expected": "Run 2 logs 'full_recompute_path' 1. No marker row remains. The adjustment table holds exactly the R0 row with all its values. Detail on each date is exactly (UK, 1, 1, election, 1) with local_group_id 0, contact_country_id 1, contact_region UK under (1, 1, 1) 1/0/0/0/0/0/0, (2, 1, 1) 1/1/1/0/0/0/0 and (0, 0, 0) 1/0/0/0/0/0/0; silv_daily_count equals its snapshot; cell counts are those 6 cells with contact_count 1; the fact is exactly the same 6 cells (grade 2, status 1, local_group_id 0, contact_country_id 1) with no -2 row. Run 3 writes 0 adjustment rows and leaves the detail identical.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD028].[test TC-028-019 the first run after deployment restates the -2 cells at the segment grain writing no adjustment]"
     },
@@ -293,13 +297,14 @@
       "id": "TC-028-020",
       "requirement_ids": [
         "REQ-026",
-        "REQ-019"
+        "REQ-019",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-026-17",
       "category": "happy_path",
-      "description": "A real source change found by the restating run (a Renewal for R3 on 2025-01-10) is recorded at the old grain with -2 in the three ids, while the change of grain itself writes nothing.",
-      "preconditions": "Q-061 answered: real changes on the restating run are recorded at the old grain with -2. Data and simulated deployment as in TC-028-019 (without the pre-deployment adjustment row or gold); then a Renewal event for R3 dated 2025-01-10 (CY2025) is added; run 2.",
-      "expected": "Run 2's adjustment rows are exactly one: (2025-01-10, UK, 1, 1, election, 1, -2, -2, -2) paid_count_event_change +1, event_renewal_count_change +1, other changes 0. Detail as in TC-028-019 except R3's (0, 0, 0) cell on 2025-01-10 is 1/0/1/0/1/0/0. No marker row remains.",
+      "description": "A real source change found by the restating run (a Renewal for R3 on 2025-01-10) is recorded at the old grain with -2 in the three segment ids, while the change of grain itself writes nothing. Widened for MOD-031 (REQ-027, DEF-014): seeded and stored rows carry the MOD-031 columns.",
+      "preconditions": "Q-061 answered: real changes on the restating run are recorded at the old grain with -2. Data and simulated deployment as in TC-028-019, including the MOD-031 placeholders on the seeded profile, state ranges and stored cells (without the pre-deployment adjustment row or gold); then a Renewal event for R3 dated 2025-01-10 (CY2025) is added; run 2.",
+      "expected": "Run 2's adjustment rows are exactly one: (2025-01-10, UK, 1, 1, election, 1, -2, -2, -2, local_group_id 0, contact_country_id 1, contact_region UK) paid_count_event_change +1, event_renewal_count_change +1, other changes 0. Detail as in TC-028-019 except R3's (0, 0, 0) cell on 2025-01-10 is 1/0/1/0/1/0/0. No marker row remains.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD028].[test TC-028-020 a real change found by the restating run is recorded at the old grain with -2]"
     },
@@ -308,13 +313,14 @@
       "requirement_ids": [
         "REQ-026",
         "REQ-019",
-        "REQ-024"
+        "REQ-024",
+        "REQ-027"
       ],
       "acceptance_criterion_id": "AC-026-17",
       "category": "negative",
-      "description": "A restating run that fails part way re-raises the error, logs 'Failed' and keeps the marker; the next run, with no cleanup, completes, removes the marker and leaves adjustment rows that add up to the one real change at the old grain.",
-      "preconditions": "Runs without tSQLt's transaction. Data and simulated deployment as in TC-028-020 (no Renewal). The faked detail and cell-count tables get region NOT NULL, and a new contact D6 (election from 2025-01-10, region NULL, country 7, gender 1) is added. Run 2 with @DailyCountBatchDays = 1 must fail with error 515; which batches commit before the failure is the implementation's choice, so the assertions hold either way. D6's region is set to 'UK'; run 3.",
-      "expected": "Run 2 raises 515, its step row is 'Failed' and the marker row is still present. Run 3 is 'Success' and no marker row remains. Runs 2 and 3's adjustments summed per cell are exactly (2025-01-10, UK, 7, 1, election, 1, -2, -2, -2) active +1. Detail is exactly TC-028-019's 6 split rows plus (2025-01-10, UK, 7, 1, election, 1, 0, 0, 0) 1/0/0/0/0/0/0.",
+      "description": "A restating run that fails part way re-raises the error, logs 'Failed' and keeps the marker; the next run, with no cleanup, completes, removes the marker and leaves adjustment rows that add up to the one real change at the old grain. Widened for MOD-031 (REQ-027, DEF-014): seeded and stored rows carry the MOD-031 columns.",
+      "preconditions": "Runs without tSQLt's transaction. Data and simulated deployment as in TC-028-020 (no Renewal), with the MOD-031 placeholders. The faked detail and cell-count tables get region NOT NULL, and a new contact D6 (election from 2025-01-10, region and contact_region NULL, country 7, gender 1, local_group_id 0, contact_country_id 7) is added. Run 2 with @DailyCountBatchDays = 1 must fail with error 515; which batches commit before the failure is the implementation's choice, so the assertions hold either way. D6's region and contact_region are set to 'UK'; run 3.",
+      "expected": "Run 2 raises 515, its step row is 'Failed' and the marker row is still present. Run 3 is 'Success' and no marker row remains. Runs 2 and 3's adjustments summed per cell are exactly (2025-01-10, UK, 7, 1, election, 1, -2, -2, -2, local_group_id 0, contact_country_id 7, contact_region UK) active +1. Detail is exactly TC-028-019's 6 split rows plus (2025-01-10, UK, 7, 1, election, 1, 0, 0, 0, 0, 7, UK) 1/0/0/0/0/0/0.",
       "framework": "tsqlt",
       "test_ref": "[test_MOD028].[test TC-028-021 a restating run that fails part way keeps the marker and the next run finishes with no cleanup]"
     },
